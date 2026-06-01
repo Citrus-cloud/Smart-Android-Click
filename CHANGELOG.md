@@ -5,6 +5,32 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 55 — Android Audit Persistence, Export, and Profiles Foundation
+
+- **Persistent audit log**: `AuditLogManager` now stores events as JSON Lines in
+  `filesDir/audit-log.jsonl` (bounded 1000, newest-first, temp+rename writes); added
+  `loadAuditEvents` / `appendEvent` / `getEvents` / `clearEvents` / `exportAsText` /
+  `getAuditSummary` / `recoverCorruptedAuditLog`; corrupted file recovers to empty (+ warning event),
+  bad lines skipped; metadata sanitized (no screenshots/base64, length caps);
+- **Audit export**: share plain text via `ACTION_SEND` (no permissions, no FileProvider); Audit Log
+  screen gains Share + summary + storage status;
+- **Profiles foundation**: new `profiles/` package — `Profile`, `ProfileRepository`
+  (`filesDir/profiles.json`, default profile, corrupted fallback, one active), `ProfileManager`
+  (CRUD + delete rules via `DeleteResult`); validation (name ≤ 80, description ≤ 300);
+- **Scenarios bound to profiles**: `Scenario.profileId`; repository reads/writes it and migrates
+  legacy scenarios to the default profile (`storageMigrated`); `ScenarioManager` gains
+  `scenariosForProfile` / `countForProfile` / `getActiveScenarioForProfile`; create assigns the
+  active profile;
+- delete rules: cannot delete the last/active profile or a profile with scenarios;
+- `ClickFlowViewModel`: profile + audit state, `shareAuditLog()`, `auditSummary()`, profile form,
+  profile-scoped active scenario; Diagnostics extended (profiles/audit storage);
+- UI: Profiles screen + Profile form; Home/Scenarios show the active profile and its scenarios;
+  Audit Log screen with summary/share; Safety Center reports profiles local + audit persistent +
+  export share-text + real taps disabled;
+- RU/EN strings; docs `ANDROID_PROFILES.md`, `ANDROID_AUDIT_PERSISTENCE.md`, `ANDROID_EXPORT_MODEL.md`
+  + updates to README/PROJECT_CONTEXT/audit/storage/UI/safety/MVP/smoke;
+- no real taps, no permissions, no external storage.
+
 ### Step 54 — Android Multi-step Scenarios and Simulation Audit Log
 
 - expanded `Scenario` to schema **v2**: ordered `actions: List<ScenarioAction>`, `version=2`,

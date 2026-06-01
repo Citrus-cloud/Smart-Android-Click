@@ -26,6 +26,15 @@ future steps.
 - Emergency Stop logs a `scenario.emergencyStopped` SAFETY event; any hypothetical real-tap attempt
   routes through `SafetyGate.attemptRealTap()` (always false) and logs `safety.realTapBlocked`.
 
+## Audit persistence, export & profiles (Step 55)
+
+- The audit log is **persisted** to internal storage only (`filesDir/audit-log.jsonl`); it never
+  leaves the device on its own.
+- **Export is share-text only** (`ACTION_SEND`, `text/plain`) — no storage permission, no FileProvider.
+  The exported text contains no screenshots, no base64, no private paths, no personal data.
+- **Profiles are local only** (`filesDir/profiles.json`); they group scenarios and grant no
+  capabilities. None of this enables real taps.
+
 ## Multi-step scenarios (Step 54)
 
 - Multi-step scenarios are **simulation only**. Each `SIMULATED_TAP` action logs and updates progress

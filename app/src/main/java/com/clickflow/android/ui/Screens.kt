@@ -47,6 +47,8 @@ fun ClickFlowApp(vm: ClickFlowViewModel) {
             Screen.SCENARIO_DETAIL -> ScenarioDetailScreen(vm)
             Screen.SCENARIO_FORM -> ScenarioFormScreen(vm)
             Screen.ACTION_FORM -> ActionFormScreen(vm)
+            Screen.PROFILES -> ProfilesScreen(vm)
+            Screen.PROFILE_FORM -> ProfileFormScreen(vm)
             Screen.SAFETY -> SafetyCenterScreen(vm)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(vm)
             Screen.AUDIT_LOG -> AuditLogScreen(vm)
@@ -68,6 +70,39 @@ private fun NavButton(text: String, onClick: () -> Unit) {
     OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(text) }
 }
 
+@Composable
+private fun ErrText(resId: Int) {
+    Text(stringResource(resId), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+}
+
+/** Maps a one-shot UiMessage key to a localized line and renders it if present. */
+@Composable
+private fun MessageLine(vm: ClickFlowViewModel) {
+    val msg by vm.message.collectAsState()
+    val key = msg?.key ?: return
+    val resId = when (key) {
+        "profile_saved" -> R.string.profile_saved
+        "profile_deleted" -> R.string.profile_deleted
+        "cannot_delete_active" -> R.string.profile_cannot_delete_active
+        "cannot_delete_last" -> R.string.profile_cannot_delete_last
+        "cannot_delete_with_scenarios" -> R.string.profile_cannot_delete_with_scenarios
+        "scenario_saved" -> R.string.scenario_saved
+        "scenario_deleted" -> R.string.scenario_deleted
+        "no_active_scenario" -> R.string.active_scenario_none
+        "audit_log_exported" -> R.string.audit_log_exported
+        "audit_log_export_failed" -> R.string.audit_log_export_failed
+        "active_profile" -> R.string.active_profile
+        "active_scenario" -> R.string.active_scenario
+        else -> null
+    } ?: return
+    Card(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(stringResource(resId), fontWeight = FontWeight.SemiBold)
+            TextButton(onClick = { vm.consumeMessage() }) { Text("✕") }
+        }
+    }
+}
+
 private fun actionSummary(a: ScenarioAction): String = when (a.type) {
     ScenarioActionType.SIMULATED_TAP -> "tap (${a.x ?: 0}, ${a.y ?: 0})${a.label?.let { " — $it" } ?: ""}"
     ScenarioActionType.WAIT -> "wait ${a.durationMs ?: 0} ms"
@@ -81,14 +116,19 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
     val status by vm.status.collectAsState()
     val progress by vm.progress.collectAsState()
     val scenarios by vm.scenarios.collectAsState()
-    val active = scenarios.firstOrNull { it.isActive } ?: scenarios.firstOrNull()
+    val profiles by vm.profiles.collectAsState()
+    val activeProfile = profiles.firstOrNull { it.isActive } ?: profiles.firstOrNull()
+    val inProfile = scenarios.filter { it.profileId == activeProfile?.id }
+    val active = inProfile.firstOrNull { it.isActive } ?: inProfile.firstOrNull()
 
     ScreenScaffold {
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(stringResource(R.string.status_badge), style = MaterialTheme.typography.labelLarge)
+        MessageLine(vm)
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("${stringResource(R.string.active_profile)}: ${activeProfile?.name ?: "—"}", fontWeight = FontWeight.SemiBold)
                 Text(stringResource(R.string.active_scenario), fontWeight = FontWeight.SemiBold)
                 if (active != null) {
                     Text(active.name, style = MaterialTheme.typography.titleMedium)
@@ -114,6 +154,7 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
         Button(onClick = { vm.emergencyStop() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.btn_emergency_stop)) }
 
         Spacer(Modifier.height(8.dp))
+        NavButton(stringResource(R.string.profiles)) { vm.navigateTo(Screen.PROFILES) }
         NavButton(stringResource(R.string.scenarios)) { vm.navigateTo(Screen.SCENARIOS) }
         NavButton(stringResource(R.string.audit_log)) { vm.navigateTo(Screen.AUDIT_LOG) }
         NavButton(stringResource(R.string.btn_safety_center)) { vm.navigateTo(Screen.SAFETY) }
@@ -124,20 +165,25 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
     }
 }
 
-// ---- Scenarios list -------------------------------------------------------
+// ---- Scenarios list (filtered by active profile) --------------------------
 
 @Composable
 private fun ScenariosScreen(vm: ClickFlowViewModel) {
     val scenarios by vm.scenarios.collectAsState()
+    val profiles by vm.profiles.collectAsState()
+    val activeProfile = profiles.firstOrNull { it.isActive } ?: profiles.firstOrNull()
+    val inProfile = scenarios.filter { it.profileId == activeProfile?.id }
+
     ScreenScaffold {
         Text(stringResource(R.string.scenarios), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.multi_step_scenarios), style = MaterialTheme.typography.bodySmall)
+        Text("${stringResource(R.string.scenarios_for_profile)}: ${activeProfile?.name ?: "—"}", style = MaterialTheme.typography.bodySmall)
+        MessageLine(vm)
 
-        if (scenarios.isEmpty()) {
+        if (inProfile.isEmpty()) {
             Text(stringResource(R.string.no_scenarios))
-            Button(onClick = { vm.resetScenarios() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_default_scenario)) }
+            Button(onClick = { vm.openCreateScenario() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_scenario)) }
         } else {
-            scenarios.forEach { s ->
+            inProfile.forEach { s ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -155,9 +201,9 @@ private fun ScenariosScreen(vm: ClickFlowViewModel) {
                     }
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { vm.openCreateScenario() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_scenario)) }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { vm.openCreateScenario() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_scenario)) }
         NavButton(stringResource(R.string.reset_scenarios)) { vm.resetScenarios() }
         Text(stringResource(R.string.real_taps_disclaimer), fontWeight = FontWeight.SemiBold)
         NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
@@ -221,30 +267,13 @@ private fun ScenarioFormScreen(vm: ClickFlowViewModel) {
     ScreenScaffold {
         Text(stringResource(if (form.isEditing) R.string.edit_scenario else R.string.create_scenario), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-        OutlinedTextField(
-            value = form.name,
-            onValueChange = { v -> vm.updateScenarioForm { it.copy(name = v) } },
-            label = { Text(stringResource(R.string.scenario_name)) },
-            isError = errors.name != null, singleLine = true, modifier = Modifier.fillMaxWidth(),
-        )
+        OutlinedTextField(value = form.name, onValueChange = { v -> vm.updateScenarioForm { it.copy(name = v) } }, label = { Text(stringResource(R.string.scenario_name)) }, isError = errors.name != null, singleLine = true, modifier = Modifier.fillMaxWidth())
         errors.name?.let { ErrText(R.string.validation_name_required) }
 
-        OutlinedTextField(
-            value = form.repeatCount,
-            onValueChange = { v -> vm.updateScenarioForm { it.copy(repeatCount = v) } },
-            label = { Text(stringResource(R.string.repeat_count)) },
-            isError = errors.repeatCount != null, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
-        )
+        OutlinedTextField(value = form.repeatCount, onValueChange = { v -> vm.updateScenarioForm { it.copy(repeatCount = v) } }, label = { Text(stringResource(R.string.repeat_count)) }, isError = errors.repeatCount != null, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
         errors.repeatCount?.let { ErrText(R.string.validation_repeat_invalid) }
 
-        OutlinedTextField(
-            value = form.intervalMs,
-            onValueChange = { v -> vm.updateScenarioForm { it.copy(intervalMs = v) } },
-            label = { Text(stringResource(R.string.interval_ms)) },
-            isError = errors.intervalMs != null, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
-        )
+        OutlinedTextField(value = form.intervalMs, onValueChange = { v -> vm.updateScenarioForm { it.copy(intervalMs = v) } }, label = { Text(stringResource(R.string.interval_ms)) }, isError = errors.intervalMs != null, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
         errors.intervalMs?.let { ErrText(R.string.validation_interval_invalid) }
         errors.actions?.let { ErrText(R.string.validation_actions_required) }
 
@@ -300,14 +329,86 @@ private fun ActionFormScreen(vm: ClickFlowViewModel) {
     }
 }
 
+// ---- Profiles -------------------------------------------------------------
+
+@Composable
+private fun ProfilesScreen(vm: ClickFlowViewModel) {
+    val profiles by vm.profiles.collectAsState()
+    val scenarios by vm.scenarios.collectAsState()
+    ScreenScaffold {
+        Text(stringResource(R.string.profiles), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.profiles_are_local), style = MaterialTheme.typography.bodySmall)
+        MessageLine(vm)
+
+        if (profiles.isEmpty()) {
+            Text(stringResource(R.string.no_profiles))
+            Button(onClick = { vm.resetProfiles() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.default_profile)) }
+        } else {
+            profiles.forEach { p ->
+                val count = scenarios.count { it.profileId == p.id }
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(p.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                            if (p.isActive) Text(stringResource(R.string.active_badge), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                        if (p.description.isNotBlank()) Text(p.description, style = MaterialTheme.typography.bodySmall)
+                        Text("${stringResource(R.string.scenarios)}: $count", style = MaterialTheme.typography.bodySmall)
+                        Divider()
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { vm.selectProfile(p.id) }) { Text(stringResource(R.string.select_profile)) }
+                            TextButton(onClick = { vm.openEditProfile(p.id) }) { Text(stringResource(R.string.edit_profile)) }
+                            TextButton(onClick = { vm.deleteProfile(p.id) }) { Text(stringResource(R.string.delete_profile)) }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = { vm.openCreateProfile() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_profile)) }
+        NavButton(stringResource(R.string.reset_profiles)) { vm.resetProfiles() }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+    }
+}
+
+@Composable
+private fun ProfileFormScreen(vm: ClickFlowViewModel) {
+    val form by vm.profileForm.collectAsState()
+    val errors by vm.profileErrors.collectAsState()
+    ScreenScaffold {
+        Text(stringResource(if (form.isEditing) R.string.edit_profile else R.string.create_profile), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        OutlinedTextField(value = form.name, onValueChange = { v -> vm.updateProfileForm { it.copy(name = v) } }, label = { Text(stringResource(R.string.profile_name)) }, isError = errors.name != null, singleLine = true, modifier = Modifier.fillMaxWidth())
+        errors.name?.let { ErrText(if (it == "name_too_long") R.string.profile_name_too_long else R.string.profile_name_required) }
+
+        OutlinedTextField(value = form.description, onValueChange = { v -> vm.updateProfileForm { it.copy(description = v) } }, label = { Text(stringResource(R.string.profile_description)) }, isError = errors.description != null, modifier = Modifier.fillMaxWidth())
+        errors.description?.let { ErrText(R.string.profile_description_too_long) }
+
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { vm.saveProfileForm() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.save)) }
+            OutlinedButton(onClick = { vm.cancelProfileForm() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.cancel)) }
+        }
+    }
+}
+
 // ---- Audit log ------------------------------------------------------------
 
 @Composable
 private fun AuditLogScreen(vm: ClickFlowViewModel) {
     val events by vm.auditEvents.collectAsState()
+    val summary = vm.auditSummary()
     ScreenScaffold {
         Text(stringResource(R.string.audit_log), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.audit_events, events.size), style = MaterialTheme.typography.bodySmall)
+        MessageLine(vm)
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp)) {
+                Text(stringResource(R.string.audit_summary), fontWeight = FontWeight.SemiBold)
+                Text("total=${summary.totalEvents} info=${summary.infoCount} warning=${summary.warningCount} error=${summary.errorCount} safety=${summary.safetyCount}", style = MaterialTheme.typography.bodySmall)
+                Text("${stringResource(R.string.audit_storage_ready)}: ${summary.storageReady}", style = MaterialTheme.typography.bodySmall)
+                Text("${stringResource(R.string.corrupted_audit_recovered)}: ${summary.corruptedAuditRecovered}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
         if (events.isEmpty()) {
             Text("—")
         } else {
@@ -322,6 +423,7 @@ private fun AuditLogScreen(vm: ClickFlowViewModel) {
             }
         }
         Spacer(Modifier.height(8.dp))
+        Button(onClick = { vm.shareAuditLog() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_audit_log)) }
         OutlinedButton(onClick = { vm.clearAuditLog() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clear_audit_log)) }
         NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
     }
@@ -359,6 +461,8 @@ private fun DiagnosticsScreen(vm: ClickFlowViewModel) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("app version: ${d.appVersion}")
+                Text("profilesCount: ${d.profilesCount}")
+                Text("activeProfileName: ${d.activeProfileName ?: "—"}")
                 Text("scenariosCount: ${d.scenariosCount}")
                 Text("activeScenarioName: ${d.activeScenarioName ?: "—"}")
                 Text("activeScenarioType: ${d.activeScenarioType ?: "—"}")
@@ -370,16 +474,15 @@ private fun DiagnosticsScreen(vm: ClickFlowViewModel) {
                 Text("lastRunStatus: ${d.lastRunStatus}")
                 Text("simulationOnly: ${d.simulationOnly}")
                 Text("realTapsEnabled: ${d.realTapsEnabled}")
-                Text("${stringResource(R.string.storage_ready)}: ${d.storageReady}")
-                Text("${stringResource(R.string.corrupted_storage_recovered)}: ${d.corruptedStorageRecovered}")
-                Text("${stringResource(R.string.storage_migrated)}: ${d.storageMigrated}")
+                Text("scenarioStorageReady: ${d.scenarioStorageReady}")
+                Text("corruptedScenarioRecovered: ${d.corruptedScenarioRecovered}")
+                Text("storageMigrated: ${d.storageMigrated}")
+                Text("${stringResource(R.string.profile_storage_ready)}: ${d.profileStorageReady}")
+                Text("${stringResource(R.string.corrupted_profile_storage_recovered)}: ${d.corruptedProfileStorageRecovered}")
+                Text("${stringResource(R.string.audit_storage_ready)}: ${d.auditStorageReady}")
+                Text("${stringResource(R.string.corrupted_audit_recovered)}: ${d.corruptedAuditRecovered}")
             }
         }
         NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
     }
-}
-
-@Composable
-private fun ErrText(resId: Int) {
-    Text(stringResource(resId), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
 }

@@ -83,6 +83,13 @@ On load, the repository auto-migrates older records:
 The corrupted-storage fallback now seeds a **multi-step** default (NOTE → SIMULATED_TAP → WAIT →
 NOTE) instead of a single tap.
 
+## Profiles + profileId (Step 55)
+
+Each scenario now carries a `profileId` binding it to a profile (see `ANDROID_PROFILES.md`). The
+repository serializes `profileId` and, on load, assigns scenarios without one to the default profile
+(`profile_default`), setting `storageMigrated`. Profiles themselves are stored separately in
+`filesDir/profiles.json`. The active profile determines which scenarios the UI shows.
+
 ## Future import/export
 
 A later step may add JSON import/export of scenarios (share/back up presets), still without

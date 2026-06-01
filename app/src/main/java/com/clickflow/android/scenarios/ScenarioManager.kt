@@ -23,6 +23,18 @@ class ScenarioManager(private val repository: ScenarioRepository) {
     fun getActiveScenario(): Scenario? = repository.getActiveScenario(_scenarios.value)
     fun byId(id: String): Scenario? = _scenarios.value.firstOrNull { it.id == id }
 
+    // ---- profile-aware views ----------------------------------------------
+
+    fun scenariosForProfile(profileId: String): List<Scenario> =
+        _scenarios.value.filter { it.profileId == profileId }
+
+    fun countForProfile(profileId: String): Int = scenariosForProfile(profileId).size
+
+    fun getActiveScenarioForProfile(profileId: String): Scenario? {
+        val inProfile = scenariosForProfile(profileId)
+        return inProfile.firstOrNull { it.isActive } ?: inProfile.firstOrNull()
+    }
+
     // ---- validation --------------------------------------------------------
 
     fun validateScenarioMeta(input: ScenarioInput, actionCount: Int): ScenarioValidationErrors =
@@ -33,11 +45,11 @@ class ScenarioManager(private val repository: ScenarioRepository) {
 
     // ---- scenario-level ----------------------------------------------------
 
-    fun createScenario(input: ScenarioInput): ScenarioValidationErrors {
+    fun createScenario(input: ScenarioInput, profileId: String): ScenarioValidationErrors {
         // A freshly created scenario is seeded with one starter action, so actionCount = 1.
         val errors = ScenarioValidator.validateMeta(input, actionCount = 1)
         if (errors.hasErrors) return errors
-        _scenarios.value = repository.createScenario(input, _scenarios.value)
+        _scenarios.value = repository.createScenario(input, _scenarios.value, profileId)
         return errors
     }
 

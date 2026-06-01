@@ -1,5 +1,6 @@
 package com.clickflow.android.scenarios
 
+import com.clickflow.android.profiles.ProfileDefaults
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -44,6 +45,7 @@ class ScenarioRepository(private val storageFile: File) {
             updatedAt = now,
             isActive = true,
             version = SCHEMA_VERSION,
+            profileId = ProfileDefaults.DEFAULT_PROFILE_ID,
         )
     }
 
@@ -97,9 +99,11 @@ class ScenarioRepository(private val storageFile: File) {
 
     // ---- CRUD (scenario level) --------------------------------------------
 
-    /** Creates a new multi-step scenario seeded with one starter NOTE action (never empty). */
-    fun createScenario(input: ScenarioInput, current: List<Scenario>): List<Scenario> {
+    /** Creates a new multi-step scenario (bound to [profileId]) seeded with one starter action. */
+    fun createScenario(input: ScenarioInput, current: List<Scenario>, profileId: String): List<Scenario> {
         val now = nowMillis()
+        // Active within its own profile if it's the first scenario for that profile.
+        val firstInProfile = current.none { it.profileId == profileId }
         val scenario = Scenario(
             id = nextId(),
             name = input.name.trim(),
@@ -110,8 +114,9 @@ class ScenarioRepository(private val storageFile: File) {
             ),
             createdAt = now,
             updatedAt = now,
-            isActive = current.isEmpty(),
+            isActive = firstInProfile,
             version = SCHEMA_VERSION,
+            profileId = profileId,
         )
         val updated = current + scenario
         saveScenarios(updated)
@@ -195,6 +200,7 @@ class ScenarioRepository(private val storageFile: File) {
         put("createdAt", s.createdAt)
         put("updatedAt", s.updatedAt)
         put("isActive", s.isActive)
+        put("profileId", s.profileId)
     }
 
     private fun fromJson(o: JSONObject): Scenario {
@@ -240,6 +246,10 @@ class ScenarioRepository(private val storageFile: File) {
             updatedAt = o.optLong("updatedAt", nowMillis()),
             isActive = o.optBoolean("isActive", false),
             version = SCHEMA_VERSION,
+            profileId = run {
+                val pid = if (o.has("profileId") && !o.isNull("profileId")) o.optString("profileId") else ""
+                if (pid.isBlank()) { storageMigrated = true; ProfileDefaults.DEFAULT_PROFILE_ID } else pid
+            },
         )
     }
 

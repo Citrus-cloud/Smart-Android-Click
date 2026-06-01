@@ -95,4 +95,42 @@
     <!-- Messages -->
     <string name="scenario_saved">Сохранено.</string>
     <string name="scenario_deleted">Удалено.</string>
+
+    <!-- Profiles (Step 55) -->
+    <string name="profiles">Профили</string>
+    <string name="profile">Профиль</string>
+    <string name="active_profile">Активный профиль</string>
+    <string name="create_profile">Создать профиль</string>
+    <string name="edit_profile">Изменить</string>
+    <string name="delete_profile">Удалить</string>
+    <string name="select_profile">Выбрать</string>
+    <string name="profile_name">Название профиля</string>
+    <string name="profile_description">Описание</string>
+    <string name="no_profiles">Профилей пока нет.</string>
+    <string name="default_profile">Создать профиль по умолчанию</string>
+    <string name="reset_profiles">Сбросить профили</string>
+    <string name="profiles_are_local">Профили только локальные — без разрешений.</string>
+    <string name="scenarios_for_profile">Профиль</string>
+    <string name="switch_profile">Сменить профиль</string>
+    <string name="profile_saved">Профиль сохранён.</string>
+    <string name="profile_deleted">Профиль удалён.</string>
+    <string name="profile_cannot_delete_active">Нельзя удалить активный профиль.</string>
+    <string name="profile_cannot_delete_last">Нельзя удалить последний профиль.</string>
+    <string name="profile_cannot_delete_with_scenarios">Нельзя удалить профиль, в котором есть сценарии.</string>
+    <string name="profile_name_required">Укажите название профиля.</string>
+    <string name="profile_name_too_long">Слишком длинное название (макс. 80).</string>
+    <string name="profile_description_too_long">Слишком длинное описание (макс. 300).</string>
+    <string name="profile_storage_ready">profileStorageReady</string>
+    <string name="corrupted_profile_storage_recovered">corruptedProfileStorageRecovered</string>
+
+    <!-- Audit persistence / export (Step 55) -->
+    <string name="audit_summary">Сводка аудита</string>
+    <string name="audit_storage_ready">auditStorageReady</string>
+    <string name="corrupted_audit_recovered">corruptedAuditRecovered</string>
+    <string name="export_audit_log">Экспорт журнала</string>
+    <string name="share_audit_log">Поделиться журналом</string>
+    <string name="audit_log_exported">Журнал отправлен.</string>
+    <string name="audit_log_export_failed">Не удалось отправить журнал.</string>
+    <string name="audit_log_persisted">Журнал сохраняется локально.</string>
+    <string name="storage_recovered">Хранилище восстановлено.</string>
 </resources>

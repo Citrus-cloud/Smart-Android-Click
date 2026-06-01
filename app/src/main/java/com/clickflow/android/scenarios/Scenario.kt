@@ -1,5 +1,7 @@
 package com.clickflow.android.scenarios
 
+import com.clickflow.android.profiles.ProfileDefaults
+
 /** Scenario types. Step 54 adds multi-step; still simulation only. */
 enum class ScenarioType {
     SIMPLE_TAP_SIMULATION,
@@ -51,6 +53,7 @@ data class Scenario(
     val updatedAt: Long,
     val isActive: Boolean = false,
     val version: Int = 2,
+    val profileId: String = ProfileDefaults.DEFAULT_PROFILE_ID,
 )
 
 // ---- Input + validation ----------------------------------------------------

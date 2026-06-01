@@ -35,6 +35,19 @@ building the debug APK.
 - [ ] **audit log** — events appear; Clear empties the log.
 - [ ] **emergency stop** — cancels immediately and logs a SAFETY audit event.
 
+## Step 55 — Profiles + Audit Persistence + Export
+
+- [ ] **profiles screen** — opens and lists profiles with scenario counts.
+- [ ] **create / edit profile** — form validates (name ≤ 80, description ≤ 300) and saves.
+- [ ] **select active profile** — switches the visible scenario set.
+- [ ] **scenarios filtered by profile** — Home/Scenarios show only the active profile's scenarios.
+- [ ] **delete rules** — cannot delete the last/active profile or one with scenarios (message shown).
+- [ ] **migration** — legacy scenarios load under the default profile.
+- [ ] **audit persists** — events survive an app restart (`audit-log.jsonl`).
+- [ ] **audit summary** — severity counts + storage status shown.
+- [ ] **audit clear** — empties the persisted log.
+- [ ] **audit share** — share-sheet opens with the text report (no permissions).
+
 ## Build environment note
 
 Building requires JDK 17 and the Android SDK (`compileSdk 34`, `build-tools`, `platform-34`). On a

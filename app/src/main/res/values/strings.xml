@@ -95,4 +95,42 @@
     <!-- Messages -->
     <string name="scenario_saved">Saved.</string>
     <string name="scenario_deleted">Deleted.</string>
+
+    <!-- Profiles (Step 55) -->
+    <string name="profiles">Profiles</string>
+    <string name="profile">Profile</string>
+    <string name="active_profile">Active profile</string>
+    <string name="create_profile">Create profile</string>
+    <string name="edit_profile">Edit</string>
+    <string name="delete_profile">Delete</string>
+    <string name="select_profile">Select</string>
+    <string name="profile_name">Profile name</string>
+    <string name="profile_description">Description</string>
+    <string name="no_profiles">No profiles yet.</string>
+    <string name="default_profile">Create default profile</string>
+    <string name="reset_profiles">Reset profiles</string>
+    <string name="profiles_are_local">Profiles are local only — no permissions.</string>
+    <string name="scenarios_for_profile">Profile</string>
+    <string name="switch_profile">Switch profile</string>
+    <string name="profile_saved">Profile saved.</string>
+    <string name="profile_deleted">Profile deleted.</string>
+    <string name="profile_cannot_delete_active">Cannot delete the active profile.</string>
+    <string name="profile_cannot_delete_last">Cannot delete the last profile.</string>
+    <string name="profile_cannot_delete_with_scenarios">Cannot delete a profile that still has scenarios.</string>
+    <string name="profile_name_required">Profile name is required.</string>
+    <string name="profile_name_too_long">Profile name is too long (max 80).</string>
+    <string name="profile_description_too_long">Description is too long (max 300).</string>
+    <string name="profile_storage_ready">profileStorageReady</string>
+    <string name="corrupted_profile_storage_recovered">corruptedProfileStorageRecovered</string>
+
+    <!-- Audit persistence / export (Step 55) -->
+    <string name="audit_summary">Audit summary</string>
+    <string name="audit_storage_ready">auditStorageReady</string>
+    <string name="corrupted_audit_recovered">corruptedAuditRecovered</string>
+    <string name="export_audit_log">Export audit log</string>
+    <string name="share_audit_log">Share audit log</string>
+    <string name="audit_log_exported">Audit log shared.</string>
+    <string name="audit_log_export_failed">Could not share the audit log.</string>
+    <string name="audit_log_persisted">Audit log is saved locally.</string>
+    <string name="storage_recovered">Storage recovered.</string>
 </resources>

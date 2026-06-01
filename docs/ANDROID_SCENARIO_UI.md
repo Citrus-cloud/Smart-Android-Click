@@ -76,8 +76,16 @@ added immediately.
 
 ### Audit Log screen
 
-Reached from Home. Lists audit events (severity · type · message · timestamp), shows the event count,
-and offers **Clear**. See `ANDROID_AUDIT_LOG.md`.
+Reached from Home. Shows an audit **summary** (counts by severity + storage status), lists events
+(severity · type · message · timestamp), and offers **Share** (plain-text via the Android share sheet)
+and **Clear**. See `ANDROID_AUDIT_LOG.md`, `ANDROID_AUDIT_PERSISTENCE.md`, `ANDROID_EXPORT_MODEL.md`.
+
+### Active profile (Step 55)
+
+Home and the Scenarios screen display the **active profile** name and show only that profile's
+scenarios. The **Profiles** screen (from Home) lists profiles with scenario counts and offers
+Select/Edit/Delete plus Create/Reset; the Profile form validates name (≤ 80) and description (≤ 300).
+See `ANDROID_PROFILES.md`.
 
 ## Simulation run
 

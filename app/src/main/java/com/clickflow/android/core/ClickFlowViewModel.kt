@@ -1,21 +1,28 @@
 package com.clickflow.android.core
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.clickflow.android.R
 import com.clickflow.android.audit.AuditEvent
 import com.clickflow.android.audit.AuditLogManager
 import com.clickflow.android.audit.AuditSeverity
+import com.clickflow.android.audit.AuditSummary
 import com.clickflow.android.audit.AuditType
 import com.clickflow.android.diagnostics.DiagnosticsManager
 import com.clickflow.android.diagnostics.DiagnosticsState
+import com.clickflow.android.profiles.DeleteResult
+import com.clickflow.android.profiles.Profile
+import com.clickflow.android.profiles.ProfileInput
+import com.clickflow.android.profiles.ProfileManager
+import com.clickflow.android.profiles.ProfileRepository
+import com.clickflow.android.profiles.ProfileValidationErrors
 import com.clickflow.android.safety.SafetyCenter
 import com.clickflow.android.safety.SafetyGate
 import com.clickflow.android.scenarios.ActionInput
 import com.clickflow.android.scenarios.ActionValidationErrors
 import com.clickflow.android.scenarios.Scenario
-import com.clickflow.android.scenarios.ScenarioAction
 import com.clickflow.android.scenarios.ScenarioActionType
 import com.clickflow.android.scenarios.ScenarioInput
 import com.clickflow.android.scenarios.ScenarioManager
@@ -32,9 +39,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
 /** Screens reachable in the app. */
-enum class Screen { HOME, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM, SAFETY, DIAGNOSTICS, AUDIT_LOG }
+enum class Screen {
+    HOME, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM,
+    PROFILES, PROFILE_FORM, SAFETY, DIAGNOSTICS, AUDIT_LOG,
+}
 
-/** Editable metadata form state. */
 data class ScenarioFormState(
     val editingId: String? = null,
     val name: String = "",
@@ -50,7 +59,6 @@ data class ScenarioFormState(
     )
 }
 
-/** Editable action form state. */
 data class ActionFormState(
     val type: ScenarioActionType = ScenarioActionType.SIMULATED_TAP,
     val x: String = "0",
@@ -69,20 +77,35 @@ data class ActionFormState(
     )
 }
 
+data class ProfileFormState(
+    val editingId: String? = null,
+    val name: String = "",
+    val description: String = "",
+) {
+    val isEditing: Boolean get() = editingId != null
+    fun toInput(): ProfileInput = ProfileInput(name = name, description = description)
+}
+
 data class UiMessage(val key: String)
 
 /**
- * Single app-wide state holder for ClickFlow Android (Step 54).
+ * Single app-wide state holder for ClickFlow Android (Step 55).
  *
- * Wires the multi-step scenario layer, simulation engine, audit log, safety gate, and diagnostics.
- * Holds NO real-input logic — it can only drive the simulation engine, which performs no real taps.
+ * Adds profiles (local workspaces grouping scenarios) and persistent/exportable audit logging on top
+ * of the Step 54 multi-step simulation layer. Holds NO real-input logic.
  */
 class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
+    private val appRef = app
     private val gate = SafetyGate()
-    private val repository = ScenarioRepository(File(app.filesDir, ScenarioRepository.FILE_NAME))
-    private val scenarioManager = ScenarioManager(repository)
-    private val auditLog = AuditLogManager()
+
+    private val scenarioRepo = ScenarioRepository(File(app.filesDir, ScenarioRepository.FILE_NAME))
+    private val scenarioManager = ScenarioManager(scenarioRepo)
+
+    private val profileRepo = ProfileRepository(File(app.filesDir, ProfileRepository.FILE_NAME))
+    private val profileManager = ProfileManager(profileRepo)
+
+    private val auditLog = AuditLogManager(File(app.filesDir, "audit-log.jsonl"))
     private val diagnosticsManager = DiagnosticsManager()
 
     private val messages = SimMessages(
@@ -104,6 +127,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     val screen: StateFlow<Screen> = _screen.asStateFlow()
 
     val scenarios: StateFlow<List<Scenario>> = scenarioManager.scenarios
+    val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val status: StateFlow<SimulationStatus> = engine.status
     val progress: StateFlow<SimulationProgress> = engine.progress
     val auditEvents: StateFlow<List<AuditEvent>> = auditLog.events
@@ -113,18 +137,19 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _scenarioForm = MutableStateFlow(ScenarioFormState())
     val scenarioForm: StateFlow<ScenarioFormState> = _scenarioForm.asStateFlow()
-
     private val _scenarioErrors = MutableStateFlow(ScenarioValidationErrors())
     val scenarioErrors: StateFlow<ScenarioValidationErrors> = _scenarioErrors.asStateFlow()
 
     private val _actionForm = MutableStateFlow(ActionFormState())
     val actionForm: StateFlow<ActionFormState> = _actionForm.asStateFlow()
-
     private val _editingActionId = MutableStateFlow<String?>(null)
-    val editingActionId: StateFlow<String?> = _editingActionId.asStateFlow()
-
     private val _actionErrors = MutableStateFlow(ActionValidationErrors())
     val actionErrors: StateFlow<ActionValidationErrors> = _actionErrors.asStateFlow()
+
+    private val _profileForm = MutableStateFlow(ProfileFormState())
+    val profileForm: StateFlow<ProfileFormState> = _profileForm.asStateFlow()
+    private val _profileErrors = MutableStateFlow(ProfileValidationErrors())
+    val profileErrors: StateFlow<ProfileValidationErrors> = _profileErrors.asStateFlow()
 
     private val _runHistory = MutableStateFlow<List<String>>(emptyList())
     val runHistory: StateFlow<List<String>> = _runHistory.asStateFlow()
@@ -132,51 +157,107 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableStateFlow<UiMessage?>(null)
     val message: StateFlow<UiMessage?> = _message.asStateFlow()
 
-    val storageReady: Boolean get() = scenarioManager.storageReady
-    val corruptedStorageRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
+    val scenarioStorageReady: Boolean get() = scenarioManager.storageReady
+    val corruptedScenarioRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
     val storageMigrated: Boolean get() = scenarioManager.storageMigrated
+    val profileStorageReady: Boolean get() = profileManager.storageReady
+    val corruptedProfileStorageRecovered: Boolean get() = profileManager.corruptedStorageRecovered
+    val auditStorageReady: Boolean get() = auditLog.storageReady
+    val corruptedAuditRecovered: Boolean get() = auditLog.corruptedAuditRecovered
 
     init {
+        profileManager.load()
+        auditLog.loadAuditEvents()
         scenarioManager.load()
-        if (scenarioManager.corruptedStorageRecovered) {
-            auditLog.log(AuditType.STORAGE_RECOVERED, AuditSeverity.WARNING,
-                "Corrupted storage recovered to default scenario")
-        }
-        if (scenarioManager.storageMigrated) {
-            auditLog.log(AuditType.STORAGE_MIGRATED, AuditSeverity.INFO,
-                "Storage migrated to schema v2 (multi-step)")
-        }
+        if (scenarioManager.corruptedStorageRecovered)
+            auditLog.log(AuditType.STORAGE_RECOVERED, AuditSeverity.WARNING, "Corrupted scenario storage recovered")
+        if (scenarioManager.storageMigrated)
+            auditLog.log(AuditType.STORAGE_MIGRATED, AuditSeverity.INFO, "Scenarios migrated (schema v2 / profileId)")
+        if (profileManager.corruptedStorageRecovered)
+            auditLog.log(AuditType.STORAGE_RECOVERED, AuditSeverity.WARNING, "Corrupted profile storage recovered")
     }
 
-    // ---- Navigation / messages --------------------------------------------
+    // ---- Navigation / helpers ---------------------------------------------
 
     fun navigateTo(screen: Screen) { _screen.value = screen }
     fun consumeMessage() { _message.value = null }
 
+    fun activeProfile(): Profile? = profileManager.getActiveProfile()
+    fun activeProfileId(): String = profileManager.activeProfileId()
     fun selectedScenario(): Scenario? = _selectedScenarioId.value?.let { scenarioManager.byId(it) }
-    fun activeScenario(): Scenario? = scenarioManager.getActiveScenario()
+
+    /** Scenarios belonging to the active profile (what the UI should show). */
+    fun scenariosForActiveProfile(): List<Scenario> = scenarioManager.scenariosForProfile(activeProfileId())
+
+    fun activeScenario(): Scenario? = scenarioManager.getActiveScenarioForProfile(activeProfileId())
+
+    // ---- Profiles ----------------------------------------------------------
+
+    fun openCreateProfile() {
+        _profileForm.value = ProfileFormState()
+        _profileErrors.value = ProfileValidationErrors()
+        _screen.value = Screen.PROFILE_FORM
+    }
+
+    fun openEditProfile(id: String) {
+        val p = profileManager.byId(id) ?: return
+        _profileForm.value = ProfileFormState(editingId = p.id, name = p.name, description = p.description)
+        _profileErrors.value = ProfileValidationErrors()
+        _screen.value = Screen.PROFILE_FORM
+    }
+
+    fun updateProfileForm(transform: (ProfileFormState) -> ProfileFormState) {
+        _profileForm.value = transform(_profileForm.value)
+    }
+
+    fun saveProfileForm() {
+        val form = _profileForm.value
+        val input = form.toInput()
+        val errors = if (form.isEditing) profileManager.updateProfile(form.editingId!!, input)
+        else profileManager.createProfile(input)
+        _profileErrors.value = errors
+        if (!errors.hasErrors) {
+            _message.value = UiMessage("profile_saved")
+            _screen.value = Screen.PROFILES
+        }
+    }
+
+    fun cancelProfileForm() {
+        _profileErrors.value = ProfileValidationErrors()
+        _screen.value = Screen.PROFILES
+    }
+
+    fun selectProfile(id: String) {
+        profileManager.setActiveProfile(id)
+        // Ensure an active scenario exists within the newly active profile.
+        val inProfile = scenarioManager.scenariosForProfile(id)
+        if (inProfile.none { it.isActive } && inProfile.isNotEmpty()) {
+            scenarioManager.setActiveScenario(inProfile.first().id)
+        }
+        _message.value = UiMessage("active_profile")
+    }
+
+    fun deleteProfile(id: String) {
+        val count = scenarioManager.countForProfile(id)
+        when (val r = profileManager.deleteProfile(id, count)) {
+            is DeleteResult.Success -> _message.value = UiMessage("profile_deleted")
+            is DeleteResult.Blocked -> _message.value = UiMessage(r.reasonKey)
+        }
+    }
+
+    fun resetProfiles() {
+        profileManager.resetProfiles()
+        _message.value = UiMessage("profile_saved")
+    }
+
+    fun scenarioCountForProfile(id: String): Int = scenarioManager.countForProfile(id)
 
     // ---- Scenario list / selection ----------------------------------------
 
-    fun openScenarioDetail(id: String) {
-        _selectedScenarioId.value = id
-        _screen.value = Screen.SCENARIO_DETAIL
-    }
-
-    fun selectScenario(id: String) {
-        scenarioManager.setActiveScenario(id)
-        _message.value = UiMessage("active_scenario")
-    }
-
-    fun deleteScenario(id: String) {
-        scenarioManager.deleteScenario(id)
-        _message.value = UiMessage("scenario_deleted")
-    }
-
-    fun resetScenarios() {
-        scenarioManager.resetToDefaults()
-        _message.value = UiMessage("scenario_saved")
-    }
+    fun openScenarioDetail(id: String) { _selectedScenarioId.value = id; _screen.value = Screen.SCENARIO_DETAIL }
+    fun selectScenario(id: String) { scenarioManager.setActiveScenario(id); _message.value = UiMessage("active_scenario") }
+    fun deleteScenario(id: String) { scenarioManager.deleteScenario(id); _message.value = UiMessage("scenario_deleted") }
+    fun resetScenarios() { scenarioManager.resetToDefaults(); _message.value = UiMessage("scenario_saved") }
 
     // ---- Scenario metadata form -------------------------------------------
 
@@ -189,8 +270,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     fun openEditScenario(id: String) {
         val s = scenarioManager.byId(id) ?: return
         _scenarioForm.value = ScenarioFormState(
-            editingId = s.id,
-            name = s.name,
+            editingId = s.id, name = s.name,
             repeatCount = s.settings.repeatCount.toString(),
             intervalMs = s.settings.intervalMs.toString(),
         )
@@ -206,17 +286,12 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         val form = _scenarioForm.value
         val input = form.toInput()
         val errors = if (form.isEditing) scenarioManager.updateScenarioMeta(form.editingId!!, input)
-        else scenarioManager.createScenario(input)
+        else scenarioManager.createScenario(input, activeProfileId())
         _scenarioErrors.value = errors
         if (!errors.hasErrors) {
             _message.value = UiMessage("scenario_saved")
-            if (form.isEditing) {
-                _screen.value = Screen.SCENARIO_DETAIL
-            } else {
-                // Open the new scenario's detail so the user can add actions.
-                _selectedScenarioId.value = scenarioManager.getScenarios().lastOrNull()?.id
-                _screen.value = Screen.SCENARIO_DETAIL
-            }
+            if (!form.isEditing) _selectedScenarioId.value = scenarioManager.getScenarios().lastOrNull()?.id
+            _screen.value = Screen.SCENARIO_DETAIL
         }
     }
 
@@ -240,20 +315,14 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         val a = scenarioManager.byId(scenarioId)?.actions?.firstOrNull { it.id == actionId } ?: return
         _editingActionId.value = actionId
         _actionForm.value = ActionFormState(
-            type = a.type,
-            x = (a.x ?: 0).toString(),
-            y = (a.y ?: 0).toString(),
-            label = a.label.orEmpty(),
-            durationMs = (a.durationMs ?: 500L).toString(),
-            message = a.message.orEmpty(),
+            type = a.type, x = (a.x ?: 0).toString(), y = (a.y ?: 0).toString(),
+            label = a.label.orEmpty(), durationMs = (a.durationMs ?: 500L).toString(), message = a.message.orEmpty(),
         )
         _actionErrors.value = ActionValidationErrors()
         _screen.value = Screen.ACTION_FORM
     }
 
-    fun updateActionForm(transform: (ActionFormState) -> ActionFormState) {
-        _actionForm.value = transform(_actionForm.value)
-    }
+    fun updateActionForm(transform: (ActionFormState) -> ActionFormState) { _actionForm.value = transform(_actionForm.value) }
 
     fun saveActionForm() {
         val scenarioId = _selectedScenarioId.value ?: return
@@ -261,24 +330,16 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         val errors = scenarioManager.validateAction(input)
         _actionErrors.value = errors
         if (errors.hasErrors) {
-            auditLog.log(AuditType.VALIDATION_FAILED, AuditSeverity.WARNING,
-                "Action validation failed", scenarioId = scenarioId)
+            auditLog.log(AuditType.VALIDATION_FAILED, AuditSeverity.WARNING, "Action validation failed", scenarioId = scenarioId)
             return
         }
         val editingId = _editingActionId.value
         val ok = if (editingId != null) scenarioManager.updateAction(scenarioId, editingId, input)
         else scenarioManager.addAction(scenarioId, input)
-        if (ok) {
-            _message.value = UiMessage("scenario_saved")
-            _screen.value = Screen.SCENARIO_DETAIL
-        }
+        if (ok) { _message.value = UiMessage("scenario_saved"); _screen.value = Screen.SCENARIO_DETAIL }
     }
 
-    fun cancelActionForm() {
-        _actionErrors.value = ActionValidationErrors()
-        _screen.value = Screen.SCENARIO_DETAIL
-    }
-
+    fun cancelActionForm() { _actionErrors.value = ActionValidationErrors(); _screen.value = Screen.SCENARIO_DETAIL }
     fun deleteAction(scenarioId: String, actionId: String) = scenarioManager.deleteAction(scenarioId, actionId)
     fun moveActionUp(scenarioId: String, actionId: String) = scenarioManager.moveAction(scenarioId, actionId, up = true)
     fun moveActionDown(scenarioId: String, actionId: String) = scenarioManager.moveAction(scenarioId, actionId, up = false)
@@ -289,8 +350,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     fun runActiveScenarioSimulation(): Boolean {
         val active = activeScenario()
         if (active == null) { _message.value = UiMessage("no_active_scenario"); return false }
-        startRun(active)
-        return true
+        startRun(active); return true
     }
 
     fun runScenarioSimulation(id: String) {
@@ -310,17 +370,33 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Audit -------------------------------------------------------------
 
-    fun clearAuditLog() { auditLog.clear() }
+    fun clearAuditLog() { auditLog.clearEvents() }
     fun clearRunHistory() { _runHistory.value = emptyList() }
-    fun exportAuditLogText(): String = auditLog.exportText()
+    fun auditSummary(): AuditSummary = auditLog.getAuditSummary()
+    fun exportAuditLogText(): String = auditLog.exportAsText()
 
     /**
-     * Defensive demonstration chokepoint: any hypothetical real-tap attempt is blocked and audited.
-     * Not wired to any UI control — there is no way to enable real taps.
+     * Shares the audit log as plain text via the Android share sheet (ACTION_SEND, text/plain).
+     * No file, no FileProvider, no permissions. Returns false (and sets a message) on failure.
      */
+    fun shareAuditLog(): Boolean = runCatching {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "ClickFlow Android Audit Log")
+            putExtra(Intent.EXTRA_TEXT, auditLog.exportAsText())
+        }
+        val chooser = Intent.createChooser(send, appRef.getString(R.string.share_audit_log))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        appRef.startActivity(chooser)
+        _message.value = UiMessage("audit_log_exported")
+        true
+    }.getOrElse {
+        _message.value = UiMessage("audit_log_export_failed")
+        false
+    }
+
     fun attemptRealTapBlocked(): Boolean {
-        auditLog.log(AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-            "Real tap attempt blocked — not implemented")
+        auditLog.log(AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY, "Real tap attempt blocked — not implemented")
         return gate.attemptRealTap()
     }
 
@@ -331,11 +407,17 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         progress = progress.value,
         scenariosCount = scenarios.value.size,
         activeScenario = activeScenario(),
+        profilesCount = profiles.value.size,
+        activeProfileName = activeProfile()?.name,
         auditEventsCount = auditLog.count(),
         lastAuditEventType = auditLog.lastType(),
-        storageReady = storageReady,
-        corruptedStorageRecovered = corruptedStorageRecovered,
+        scenarioStorageReady = scenarioStorageReady,
+        corruptedScenarioRecovered = corruptedScenarioRecovered,
         storageMigrated = storageMigrated,
+        profileStorageReady = profileStorageReady,
+        corruptedProfileStorageRecovered = corruptedProfileStorageRecovered,
+        auditStorageReady = auditStorageReady,
+        corruptedAuditRecovered = corruptedAuditRecovered,
     )
 
     fun blockedReasons(): List<String> = gate.getBlockedReasons()

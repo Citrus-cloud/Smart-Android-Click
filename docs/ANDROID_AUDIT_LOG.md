@@ -34,12 +34,12 @@ metadata: Map<String,String>
 - `storage.migrated`
 - `safety.realTapBlocked` (SAFETY)
 
-## In-memory vs future persistence
+## In-memory vs persistence
 
-Step 54 keeps the audit log **in memory** (`AuditLogManager`, a bounded newest-first list exposed as
-a `StateFlow`, capped at 500 events). Persisting to an internal `audit-log.json` and text export/share
-are deferred to a future step (a plain-text `exportText()` helper already exists but is not yet wired
-to a share intent).
+Step 54 kept the log in memory. **Step 55 made it persistent**: events are stored as JSON Lines in
+`filesDir/audit-log.jsonl` (bounded 1000, newest-first, corrupted fallback), and the log is exportable
+via the Android share sheet (plain text). See `ANDROID_AUDIT_PERSISTENCE.md` and
+`ANDROID_EXPORT_MODEL.md`.
 
 ## Privacy rules
 

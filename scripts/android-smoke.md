@@ -54,10 +54,24 @@ Manual smoke test to confirm the foundation works end-to-end.
 16. **Migration** — install over a Step 53 build (or seed a v1 `scenarios.json`); the old tap loads
     as a single `SIMULATED_TAP` action and Diagnostics shows `storageMigrated=true`.
 
+## Step 55 — profiles + audit persistence/export checks
+
+17. **Profiles** — Home → Profiles; list shows the default profile with a scenario count.
+18. **Create / edit profile** — create "Testing"; edit it; validation rejects blank/long name.
+19. **Select profile** — switch active profile; Home/Scenarios show only that profile's scenarios.
+20. **Create scenario in profile** — new scenario is bound to the active profile.
+21. **Delete rules** — deleting the active/last profile or one with scenarios is blocked with a message.
+22. **Migration** — install over a Step 54 build; old scenarios appear under the default profile.
+23. **Audit persists** — generate events, kill + relaunch the app; events are still present.
+24. **Audit summary** — Audit Log shows severity counts + storage status.
+25. **Audit share** — Share opens the system share sheet with the text report.
+26. **Audit clear** — Clear empties the persisted log (stays empty after restart).
+
 ## Pass criteria
 - App builds, installs, launches.
 - Start / Stop / Emergency Stop transition status correctly.
 - Multi-step scenarios: actions add/edit/delete/move/run with progress.
-- Audit log records events and clears.
+- Profiles: create/edit/select/delete with rules; scenarios filtered by active profile.
+- Audit log persists across restarts, summarizes, shares as text, and clears.
 - Safety Center and Diagnostics open and report simulation-only / real taps disabled.
-- No real taps occur anywhere.
+- No real taps occur anywhere; no permissions requested.

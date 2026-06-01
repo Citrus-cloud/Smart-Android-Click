@@ -2,7 +2,7 @@ package com.clickflow.android.diagnostics
 
 /**
  * Snapshot of diagnostic information shown on the Diagnostics screen.
- * All real-input capabilities are reported as disabled/planned in Step 54.
+ * All real-input capabilities are reported as disabled/planned in Step 55.
  */
 data class DiagnosticsState(
     val appVersion: String,
@@ -17,10 +17,16 @@ data class DiagnosticsState(
     val actionsCount: Int = 0,
     val currentActionIndex: Int = 0,
     val currentRepeatIndex: Int = 0,
+    val profilesCount: Int = 0,
+    val activeProfileName: String? = null,
     val auditEventsCount: Int = 0,
     val lastAuditEventType: String? = null,
     val lastRunStatus: String = "idle",
-    val storageReady: Boolean = false,
-    val corruptedStorageRecovered: Boolean = false,
+    val scenarioStorageReady: Boolean = false,
+    val corruptedScenarioRecovered: Boolean = false,
     val storageMigrated: Boolean = false,
+    val profileStorageReady: Boolean = false,
+    val corruptedProfileStorageRecovered: Boolean = false,
+    val auditStorageReady: Boolean = false,
+    val corruptedAuditRecovered: Boolean = false,
 )

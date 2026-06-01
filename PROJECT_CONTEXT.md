@@ -6,17 +6,22 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 54)
+## Current state (Step 55)
 
-- **multi-step scenarios + simulation audit log** on top of Steps 52–53;
-- scenarios are ordered action lists (`SIMULATED_TAP` / `WAIT` / `NOTE`), schema **v2**;
-- action editor (add/edit/delete/move) + per-scenario repeat/interval;
-- **backward-compatible migration** of v1 scenarios into v2 on load (`storageMigrated`);
-- simulation runs `repeatCount × actions` with progress (current action/repeat/percent);
-- **audit log** (in-memory) of lifecycle/action/validation/storage/safety events;
+- **profiles + persistent/exportable audit log** on top of Steps 52–54;
+- **profiles** group scenarios into local workspaces (default profile, one active); scenarios bound
+  to `profileId`; UI shows the active profile's scenarios;
+- **audit log persisted** to `filesDir/audit-log.jsonl` (bounded, corrupted fallback) with summary;
+- **audit export** via share-text only (no permissions, no FileProvider);
+- migration assigns legacy scenarios to the default profile;
 - **real taps disabled**; **no permissions**; no external storage;
 - **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**;
 - a **future branch will add Android Accessibility Service after safety review**.
+
+### Steps 52–54 (still in place)
+
+- Step 52: simulation-only foundation. Step 53: scenario CRUD + local storage.
+- Step 54: multi-step scenarios (`SIMULATED_TAP`/`WAIT`/`NOTE`, schema v2) + in-memory audit log.
 
 ### Steps 52–53 (still in place)
 

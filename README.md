@@ -4,7 +4,7 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 54 — Multi-step Scenarios + Simulation Audit Log. Simulation-only. No real taps.**
+> **Status: Step 55 — Audit Persistence + Export + Profiles Foundation. Simulation-only. No real taps.**
 
 ## Relation to desktop ClickFlow
 
@@ -17,21 +17,22 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 54)
+## Current status (Step 55)
 
-Extends the scenario layer to **multi-step** simulation and adds an **audit log**:
+Adds **profiles** and makes the **audit log persistent + exportable**:
 
-- Scenarios are ordered lists of **actions**: `SIMULATED_TAP`, `WAIT`, `NOTE` (schema v2).
-- Scenario detail editor: add/edit/delete/move actions; per-scenario repeat + interval.
-- **Backward-compatible migration** of Step 53 (v1) scenarios into v2 on load.
-- Simulation runs all actions × repeats with progress (current action / repeat / percent).
-- **Audit log** of lifecycle, per-action, validation, storage, and safety events (in-memory).
-- Diagnostics shows actions/audit/storage state; Safety Center reports audit enabled + real taps
-  disabled.
-- RU/EN localization for the multi-step + audit layer.
+- **Profiles** group scenarios into local workspaces (create/edit/select/delete, default profile,
+  one active). Scenarios are bound to a `profileId`; the UI shows the active profile's scenarios.
+- **Persistent audit log** in internal storage (`audit-log.jsonl`, bounded 1000, corrupted fallback),
+  with a severity **summary**.
+- **Audit export** via the Android share sheet (plain text, no permissions, no FileProvider).
+- Backward-compatible migration assigns existing scenarios to the default profile.
+- Diagnostics shows profile/audit storage state; Safety Center reports audit persistence + export +
+  real taps disabled.
+- RU/EN localization for profiles + audit.
 
-Earlier work — Step 52 (app shell, safety gate/state/center, diagnostics) and Step 53 (scenario CRUD
-+ local JSON storage) — remains intact.
+Earlier work — Step 52 (app shell, safety), Step 53 (scenario CRUD + storage), Step 54 (multi-step
+scenarios + audit log) — remains intact.
 
 **Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
 Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
@@ -84,6 +85,9 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_PROFILES.md](docs/ANDROID_PROFILES.md)
+- [docs/ANDROID_AUDIT_PERSISTENCE.md](docs/ANDROID_AUDIT_PERSISTENCE.md)
+- [docs/ANDROID_EXPORT_MODEL.md](docs/ANDROID_EXPORT_MODEL.md)
 - [docs/ANDROID_MULTI_STEP_SCENARIOS.md](docs/ANDROID_MULTI_STEP_SCENARIOS.md)
 - [docs/ANDROID_AUDIT_LOG.md](docs/ANDROID_AUDIT_LOG.md)
 - [docs/ANDROID_SCENARIO_STORAGE.md](docs/ANDROID_SCENARIO_STORAGE.md)
