@@ -36,4 +36,11 @@ data class DiagnosticsState(
     val backupContainsAuditLog: Boolean = false,
     val externalStorageUsed: Boolean = false,
     val permissionsRequired: Boolean = false,
+    val simpleClickerReady: Boolean = true,
+    val markerX: Int = 500,
+    val markerY: Int = 500,
+    val quickIntervalMs: Long = 500,
+    val quickRepeatCount: Int = 10,
+    val overlayEnabled: Boolean = false,
+    val accessibilityEnabled: Boolean = false,
 )

@@ -35,6 +35,16 @@ future steps.
 - **Profiles are local only** (`filesDir/profiles.json`); they group scenarios and grant no
   capabilities. None of this enables real taps.
 
+## Simple Clicker marker (Step 59)
+
+- The click marker is **in-app only** — a Compose element inside the app's own screen. It is **not** a
+  system overlay and the app requests **no** `SYSTEM_ALERT_WINDOW` permission.
+- The **Start** button runs a **simulation** of the marker scenario — it performs **no real taps** on
+  the device or other apps.
+- A real floating overlay (over other apps) and real taps remain unimplemented; they would require
+  `SYSTEM_ALERT_WINDOW` / an Accessibility Service plus explicit consent, safety gates, and a go/no-go
+  review.
+
 ## Backup import/export (Step 56)
 
 - Backup export/import is **text only** (`ACTION_SEND` share / pasted JSON) — no file picker, no

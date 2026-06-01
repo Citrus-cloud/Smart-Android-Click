@@ -1,6 +1,10 @@
 package com.clickflow.android.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -8,8 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -25,12 +33,23 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.clickflow.android.R
+import com.clickflow.android.core.AppInfo
+import kotlin.math.roundToInt
 import com.clickflow.android.core.ClickFlowViewModel
 import com.clickflow.android.core.Screen
 import com.clickflow.android.scenarios.Scenario
@@ -42,7 +61,9 @@ fun ClickFlowApp(vm: ClickFlowViewModel) {
     val screen by vm.screen.collectAsState()
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (screen) {
-            Screen.HOME -> HomeScreen(vm)
+            Screen.HOME -> SimpleClickerScreen(vm)
+            Screen.ADVANCED -> AdvancedScreen(vm)
+            Screen.ABOUT -> AboutScreen(vm)
             Screen.SCENARIOS -> ScenariosScreen(vm)
             Screen.SCENARIO_DETAIL -> ScenarioDetailScreen(vm)
             Screen.SCENARIO_FORM -> ScenarioFormScreen(vm)
@@ -115,60 +136,174 @@ private fun actionSummary(a: ScenarioAction): String = when (a.type) {
     ScenarioActionType.NOTE -> "note: ${a.message.orEmpty()}"
 }
 
-// ---- Home -----------------------------------------------------------------
+// ---- Simple Clicker (home) ------------------------------------------------
 
 @Composable
-private fun HomeScreen(vm: ClickFlowViewModel) {
+private fun SimpleClickerScreen(vm: ClickFlowViewModel) {
     val status by vm.status.collectAsState()
     val progress by vm.progress.collectAsState()
-    val scenarios by vm.scenarios.collectAsState()
-    val profiles by vm.profiles.collectAsState()
-    val activeProfile = profiles.firstOrNull { it.isActive } ?: profiles.firstOrNull()
-    val inProfile = scenarios.filter { it.profileId == activeProfile?.id }
-    val active = inProfile.firstOrNull { it.isActive } ?: inProfile.firstOrNull()
+    val interval by vm.quickIntervalMs.collectAsState()
+    val count by vm.quickRepeatCount.collectAsState()
 
     ScreenScaffold {
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.status_badge), style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.status_badge), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.drag_to_choose_click_point), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         MessageLine(vm)
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("${stringResource(R.string.active_profile)}: ${activeProfile?.name ?: "—"}", fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.active_scenario), fontWeight = FontWeight.SemiBold)
-                if (active != null) {
-                    Text(active.name, style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.scenario_meta_summary, active.actions.size, active.settings.repeatCount, active.settings.intervalMs), style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.current_status, status.name.lowercase()))
-                    if (progress.totalSteps > 0) {
-                        Text(stringResource(R.string.current_repeat, progress.currentRepeatIndex, active.settings.repeatCount))
-                        Text(stringResource(R.string.current_action, progress.currentActionIndex + 1, active.actions.size))
-                        @Suppress("DEPRECATION")
-                        LinearProgressIndicator(progress = progress.percent / 100f, modifier = Modifier.fillMaxWidth())
-                        Text("${progress.currentStep}/${progress.totalSteps} (${progress.percent}%)")
-                        progress.lastLog?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    }
-                } else {
-                    Text(stringResource(R.string.active_scenario_none))
+        TargetArea(vm)
+
+        // Quick settings
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Stepper(
+                    label = stringResource(R.string.interval),
+                    value = "$interval ms",
+                    onMinus = { vm.adjustQuickInterval(-100) },
+                    onPlus = { vm.adjustQuickInterval(100) },
+                )
+                Stepper(
+                    label = stringResource(R.string.count),
+                    value = "$count",
+                    onMinus = { vm.adjustQuickCount(-1) },
+                    onPlus = { vm.adjustQuickCount(1) },
+                )
+            }
+        }
+
+        // Primary action
+        Button(
+            onClick = { vm.startQuickSimulation() },
+            modifier = Modifier.fillMaxWidth().height(64.dp),
+            shape = RoundedCornerShape(20.dp),
+        ) { Text(stringResource(R.string.start_clicker), style = MaterialTheme.typography.titleMedium) }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { vm.stopSimulation() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.stop_clicker)) }
+            OutlinedButton(
+                onClick = { vm.emergencyStop() },
+                modifier = Modifier.weight(1f),
+            ) { Text(stringResource(R.string.btn_emergency_stop)) }
+        }
+
+        // Status
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("${stringResource(R.string.current_status, status.name.lowercase())}")
+                if (progress.totalSteps > 0) {
+                    @Suppress("DEPRECATION")
+                    LinearProgressIndicator(progress = progress.percent / 100f, modifier = Modifier.fillMaxWidth())
+                    Text("${stringResource(R.string.current_tap)}: ${progress.currentStep}/${progress.totalSteps} (${progress.percent}%)", style = MaterialTheme.typography.bodySmall)
+                    progress.lastLog?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
 
-        Button(onClick = { vm.runActiveScenarioSimulation() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.btn_start_simulation)) }
-        OutlinedButton(onClick = { vm.stopSimulation() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.btn_stop)) }
-        Button(onClick = { vm.emergencyStop() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.btn_emergency_stop)) }
+        OutlinedButton(onClick = { vm.navigateTo(Screen.ADVANCED) }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.open_advanced))
+        }
+    }
+}
 
-        Spacer(Modifier.height(8.dp))
-        NavButton(stringResource(R.string.profiles)) { vm.navigateTo(Screen.PROFILES) }
+/** Draggable in-app circular click marker. NOT a system overlay. */
+@Composable
+private fun TargetArea(vm: ClickFlowViewModel) {
+    val fx by vm.markerX.collectAsState()
+    val fy by vm.markerY.collectAsState()
+    var areaSize by remember { mutableStateOf(IntSize.Zero) }
+    val markerRadiusPx = with(androidx.compose.ui.platform.LocalDensity.current) { 28.dp.toPx() }
+
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.padding(12.dp)) {
+            Text(stringResource(R.string.tap_target), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .onSizeChanged { areaSize = it },
+            ) {
+                if (areaSize != IntSize.Zero) {
+                    val cx = (fx * areaSize.width)
+                    val cy = (fy * areaSize.height)
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset((cx - markerRadiusPx).roundToInt(), (cy - markerRadiusPx).roundToInt()) }
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            .pointerInput(areaSize) {
+                                detectDragGestures(onDragEnd = { vm.commitMarker() }) { change, drag ->
+                                    change.consume()
+                                    val w = areaSize.width.toFloat().coerceAtLeast(1f)
+                                    val h = areaSize.height.toFloat().coerceAtLeast(1f)
+                                    vm.setMarker(vm.markerX.value + drag.x / w, vm.markerY.value + drag.y / h)
+                                }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${stringResource(R.string.marker_position)}: ${(fx * 1000).roundToInt()}, ${(fy * 1000).roundToInt()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { vm.centerMarker() }) { Text(stringResource(R.string.center_marker)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Stepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column { Text(label, fontWeight = FontWeight.SemiBold); Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onMinus) { Text("−") }
+            OutlinedButton(onClick = onPlus) { Text("+") }
+        }
+    }
+}
+
+// ---- Advanced menu --------------------------------------------------------
+
+@Composable
+private fun AdvancedScreen(vm: ClickFlowViewModel) {
+    ScreenScaffold {
+        Text(stringResource(R.string.advanced_menu), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        MessageLine(vm)
         NavButton(stringResource(R.string.scenarios)) { vm.navigateTo(Screen.SCENARIOS) }
-        NavButton(stringResource(R.string.backup)) { vm.openBackup() }
+        NavButton(stringResource(R.string.profiles)) { vm.navigateTo(Screen.PROFILES) }
         NavButton(stringResource(R.string.audit_log)) { vm.navigateTo(Screen.AUDIT_LOG) }
+        NavButton(stringResource(R.string.backup)) { vm.openBackup() }
         NavButton(stringResource(R.string.btn_safety_center)) { vm.navigateTo(Screen.SAFETY) }
         NavButton(stringResource(R.string.btn_diagnostics)) { vm.navigateTo(Screen.DIAGNOSTICS) }
-
+        NavButton(stringResource(R.string.about)) { vm.navigateTo(Screen.ABOUT) }
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.real_taps_disclaimer), fontWeight = FontWeight.SemiBold)
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+    }
+}
+
+@Composable
+private fun AboutScreen(vm: ClickFlowViewModel) {
+    ScreenScaffold {
+        Text(stringResource(R.string.about), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(AppInfo.APP_NAME, fontWeight = FontWeight.SemiBold)
+                Text("version: ${AppInfo.VERSION_NAME}")
+                Text(AppInfo.STEP, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.simulation_only_marker), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -213,7 +348,7 @@ private fun ScenariosScreen(vm: ClickFlowViewModel) {
         }
         NavButton(stringResource(R.string.reset_scenarios)) { vm.resetScenarios() }
         Text(stringResource(R.string.real_taps_disclaimer), fontWeight = FontWeight.SemiBold)
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -374,7 +509,7 @@ private fun ProfilesScreen(vm: ClickFlowViewModel) {
         Spacer(Modifier.height(8.dp))
         Button(onClick = { vm.openCreateProfile() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.create_profile)) }
         NavButton(stringResource(R.string.reset_profiles)) { vm.resetProfiles() }
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -432,7 +567,7 @@ private fun AuditLogScreen(vm: ClickFlowViewModel) {
         Spacer(Modifier.height(8.dp))
         Button(onClick = { vm.shareAuditLog() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.share_audit_log)) }
         OutlinedButton(onClick = { vm.clearAuditLog() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clear_audit_log)) }
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -512,7 +647,7 @@ private fun BackupScreen(vm: ClickFlowViewModel) {
         }
 
         OutlinedButton(onClick = { vm.clearBackupImportState() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clear_import)) }
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -534,7 +669,7 @@ private fun SafetyCenterScreen(vm: ClickFlowViewModel) {
         Text(stringResource(R.string.real_taps_disabled), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
         Text(stringResource(R.string.blocked_reasons_title), fontWeight = FontWeight.Bold)
         vm.blockedReasons().forEach { reason -> Text("• $reason") }
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }
 
@@ -577,6 +712,6 @@ private fun DiagnosticsScreen(vm: ClickFlowViewModel) {
                 Text("permissionsRequired: ${d.permissionsRequired}")
             }
         }
-        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
     }
 }

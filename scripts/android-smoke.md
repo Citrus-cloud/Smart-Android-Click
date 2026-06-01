@@ -78,8 +78,20 @@ Manual smoke test to confirm the foundation works end-to-end.
 33. **Replace-all** — toggle confirm, then Replace all; data replaced (default profile ensured).
 34. **Backup excludes audit log** — exported JSON has `"containsAuditLog": false` and no audit data.
 
+## Step 59 — Simple Clicker UX checks
+
+35. **Home = Simple Clicker** — app opens to a clean clicker screen with a tap-target + Start.
+36. **Drag marker** — drag the circle around the target area; it stays within bounds; coordinates update.
+37. **Center marker** — tap Center; marker returns to the middle.
+38. **Quick settings** — Interval − / + and Count − / + change values (min interval 100 ms, count 1..1000).
+39. **Start** — runs simulation at the marker; status `running`, progress + tap count advance.
+40. **Stop / Emergency Stop** — Stop → `stopped`; Emergency Stop → `emergency_stopped` immediately.
+41. **Persist marker** — kill + relaunch; marker position + interval/count are restored.
+42. **Advanced** — Advanced opens Scenarios / Profiles / Audit Log / Backup / Safety Center / Diagnostics / About; Back returns to Advanced, then to Home.
+
 ## Pass criteria
-- App builds, installs, launches.
+- App builds, installs, launches; opens to the Simple Clicker.
+- Draggable marker works and persists; quick settings adjust; Start runs simulation.
 - Start / Stop / Emergency Stop transition status correctly.
 - Multi-step scenarios: actions add/edit/delete/move/run with progress.
 - Profiles: create/edit/select/delete with rules; scenarios filtered by active profile.

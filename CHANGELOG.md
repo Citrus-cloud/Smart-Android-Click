@@ -5,6 +5,27 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 59 — Android Simple Clicker UX, Draggable Target Marker, and Clean Minimal UI
+
+- **Simple Clicker** is now the home screen: a large rounded tap-target with a **draggable circular
+  marker** (in-app only — no system overlay), prominent **Start**, plus Stop / Emergency Stop, status
+  and progress;
+- **quick settings** (Interval / Count steppers) edit a per-profile **"Quick clicker"** scenario
+  (single `SIMULATED_TAP`) directly — no scenario editor needed;
+- the marker drag updates normalized fractions in the ViewModel and persists into the quick
+  scenario's tap action (scaled `0..1000`); position survives restart;
+- **Advanced** menu added (`Screen.ADVANCED`) hosting Scenarios / Profiles / Audit Log / Backup /
+  Safety Center / Diagnostics / About; complex screens removed from the home screen but fully
+  available; their Back returns to Advanced; About screen added;
+- **clean minimal theme**: calm Material 3 indigo/neutral palette (light + dark), soft rounded
+  corners, light cards;
+- Diagnostics adds `simpleClickerReady` / markerX / markerY / quickIntervalMs / quickRepeatCount /
+  overlayEnabled=false / accessibilityEnabled=false; Safety Center states marker is in-app only,
+  Start runs simulation only, system overlay not implemented;
+- existing scenarios / profiles / audit / backup are unchanged and reachable via Advanced;
+- docs `ANDROID_SIMPLE_CLICKER_UX.md`, `ANDROID_MARKER_MODEL.md` + updates;
+- RU/EN strings (167/167); build verified (`assembleDebug`); no real taps, no permissions, no overlay.
+
 ### Step 58 — Android Pre-alpha Release Published
 
 - published GitHub **pre-release** `android-v0.1.0-prealpha` (title "ClickFlow Android Pre-alpha")

@@ -41,10 +41,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import kotlin.math.roundToInt
 
 /** Screens reachable in the app. */
 enum class Screen {
-    HOME, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM,
+    HOME, ADVANCED, ABOUT, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM,
     PROFILES, PROFILE_FORM, BACKUP, SAFETY, DIAGNOSTICS, AUDIT_LOG,
 }
 
@@ -175,6 +176,17 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     private var lastBackupImportAt: Long? = null
     private var invalidImportItemsLast: Int = 0
 
+    // Simple Clicker (Step 59) — marker fractions in [0,1]; quick interval/count.
+    private val _markerX = MutableStateFlow(0.5f)
+    val markerX: StateFlow<Float> = _markerX.asStateFlow()
+    private val _markerY = MutableStateFlow(0.5f)
+    val markerY: StateFlow<Float> = _markerY.asStateFlow()
+    private val _quickIntervalMs = MutableStateFlow(500L)
+    val quickIntervalMs: StateFlow<Long> = _quickIntervalMs.asStateFlow()
+    private val _quickRepeatCount = MutableStateFlow(10)
+    val quickRepeatCount: StateFlow<Int> = _quickRepeatCount.asStateFlow()
+    private var quickScenarioId: String? = null
+
     val scenarioStorageReady: Boolean get() = scenarioManager.storageReady
     val corruptedScenarioRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
     val storageMigrated: Boolean get() = scenarioManager.storageMigrated
@@ -193,6 +205,81 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
             auditLog.log(AuditType.STORAGE_MIGRATED, AuditSeverity.INFO, "Scenarios migrated (schema v2 / profileId)")
         if (profileManager.corruptedStorageRecovered)
             auditLog.log(AuditType.STORAGE_RECOVERED, AuditSeverity.WARNING, "Corrupted profile storage recovered")
+        ensureQuickClicker()
+    }
+
+    // ---- Simple Clicker / quick scenario ----------------------------------
+
+    companion object { const val QUICK_NAME = "Quick clicker" }
+
+    /**
+     * Ensures the active profile has a "Quick clicker" scenario (one SIMULATED_TAP action) backing
+     * the Simple Clicker screen, and loads its marker + interval/count into state.
+     */
+    fun ensureQuickClicker() {
+        val pid = activeProfileId()
+        var q = scenarioManager.scenariosForProfile(pid).firstOrNull { it.name == QUICK_NAME }
+        if (q == null) {
+            scenarioManager.createScenario(ScenarioInput(QUICK_NAME, _quickRepeatCount.value, _quickIntervalMs.value), pid)
+            q = scenarioManager.scenariosForProfile(pid).lastOrNull { it.name == QUICK_NAME }
+            q?.let { sc ->
+                sc.actions.firstOrNull()?.let { a ->
+                    scenarioManager.updateAction(sc.id, a.id, ActionInput(ScenarioActionType.SIMULATED_TAP, x = 500, y = 500, label = "marker"))
+                }
+            }
+            q = scenarioManager.scenariosForProfile(pid).firstOrNull { it.name == QUICK_NAME }
+        }
+        quickScenarioId = q?.id
+        q?.let { sc ->
+            _quickIntervalMs.value = sc.settings.intervalMs
+            _quickRepeatCount.value = sc.settings.repeatCount
+            val tap = sc.actions.firstOrNull { it.type == ScenarioActionType.SIMULATED_TAP }
+            _markerX.value = ((tap?.x ?: 500).coerceIn(0, 1000)) / 1000f
+            _markerY.value = ((tap?.y ?: 500).coerceIn(0, 1000)) / 1000f
+        }
+    }
+
+    /** Updates the in-memory marker fraction during a drag (no disk write). */
+    fun setMarker(fx: Float, fy: Float) {
+        _markerX.value = fx.coerceIn(0f, 1f)
+        _markerY.value = fy.coerceIn(0f, 1f)
+    }
+
+    fun centerMarker() { setMarker(0.5f, 0.5f); commitMarker() }
+
+    /** Persists the current marker fraction into the quick scenario's tap action. */
+    fun commitMarker() {
+        val id = quickScenarioId ?: return
+        val tap = scenarioManager.byId(id)?.actions?.firstOrNull { it.type == ScenarioActionType.SIMULATED_TAP } ?: return
+        scenarioManager.updateAction(
+            id, tap.id,
+            ActionInput(
+                ScenarioActionType.SIMULATED_TAP,
+                x = (_markerX.value * 1000).roundToInt(),
+                y = (_markerY.value * 1000).roundToInt(),
+                label = "marker",
+            ),
+        )
+    }
+
+    private fun persistQuickMeta() {
+        val id = quickScenarioId ?: return
+        scenarioManager.updateScenarioMeta(id, ScenarioInput(QUICK_NAME, _quickRepeatCount.value, _quickIntervalMs.value))
+    }
+
+    fun setQuickInterval(ms: Long) { _quickIntervalMs.value = ms.coerceAtLeast(100L); persistQuickMeta() }
+    fun adjustQuickInterval(deltaMs: Long) = setQuickInterval(_quickIntervalMs.value + deltaMs)
+    fun setQuickCount(n: Int) { _quickRepeatCount.value = n.coerceIn(1, 1000); persistQuickMeta() }
+    fun adjustQuickCount(delta: Int) = setQuickCount(_quickRepeatCount.value + delta)
+
+    /** Starts the Simple Clicker simulation using the marker + quick settings. */
+    fun startQuickSimulation() {
+        ensureQuickClicker()
+        commitMarker()
+        persistQuickMeta()
+        val id = quickScenarioId ?: return
+        scenarioManager.setActiveScenario(id)
+        scenarioManager.byId(id)?.let { startRun(it) }
     }
 
     // ---- Navigation / helpers ---------------------------------------------
@@ -252,6 +339,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         if (inProfile.none { it.isActive } && inProfile.isNotEmpty()) {
             scenarioManager.setActiveScenario(inProfile.first().id)
         }
+        ensureQuickClicker()
         _message.value = UiMessage("active_profile")
     }
 
@@ -533,6 +621,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         lastBackupExportAt = lastBackupExportAt,
         lastBackupImportAt = lastBackupImportAt,
         invalidImportItemsLast = invalidImportItemsLast,
+        markerX = (_markerX.value * 1000).roundToInt(),
+        markerY = (_markerY.value * 1000).roundToInt(),
+        quickIntervalMs = _quickIntervalMs.value,
+        quickRepeatCount = _quickRepeatCount.value,
     )
 
     fun blockedReasons(): List<String> = gate.getBlockedReasons()

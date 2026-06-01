@@ -4,10 +4,11 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 58 — Pre-alpha GitHub release PUBLISHED. Simulation-only. No real taps.**
+> **Status: Step 59 — Simple Clicker UX + draggable marker + clean minimal UI. Simulation-only. No real taps.**
 >
-> Release: **[ClickFlow Android Pre-alpha](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha)**
-> · tag `android-v0.1.0-prealpha` (pre-release) · asset `app-debug.apk` (debug-signed) · versionName `0.1.0-prealpha`.
+> Home is now a simple clicker (drag a marker, press Start). All power-user features moved into
+> **Advanced**. Build verified (debug APK). Pre-alpha release published at tag
+> [`android-v0.1.0-prealpha`](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha).
 
 ## Relation to desktop ClickFlow
 
@@ -20,19 +21,25 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 57)
+## Current status (Step 59)
 
-Pre-alpha **build/QA + release prep** — the debug APK now **builds cleanly**:
+Redesigned UX — the app now feels like a simple mobile clicker:
 
-- Verified `./gradlew assembleDebug` with **JDK 17 + Android SDK 34** → `app-debug.apk` (debug-signed).
-- Minor cleanups only (no new runtime features): version → `0.1.0-prealpha`, `Divider` →
-  `HorizontalDivider`, removed an unused variable.
-- Pre-alpha **release notes**, **GitHub release draft**, **tag plan**, and **build troubleshooting**
-  docs added (with a verified headless toolchain recipe).
-- Re-confirmed: **0 permissions, 0 providers, no real taps, simulation-only.**
+- **Simple Clicker home**: large rounded tap-target with a **draggable circular marker** (in-app only,
+  not a system overlay), prominent **Start**, plus Stop / Emergency Stop.
+- **Quick settings**: Interval + Count steppers update a "Quick clicker" scenario directly.
+- **Clean minimal UI**: calm Material 3 palette, soft corners, light cards, short text.
+- **Advanced menu** hides Scenarios / Profiles / Audit Log / Backup / Safety Center / Diagnostics /
+  About — all still fully available.
+- Marker position + quick settings **persist** via existing scenario storage.
+- Re-confirmed: **0 permissions, 0 providers, no real taps, simulation-only.** Build verified.
 
-Earlier work — Steps 52–56 (foundation; scenario CRUD + storage; multi-step + audit; profiles +
-persistent/exportable audit; backup import/export) — remains intact.
+See [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md) and
+[docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md).
+
+Earlier work — Steps 52–58 (foundation; scenario CRUD + storage; multi-step + audit; profiles +
+persistent/exportable audit; backup import/export; pre-alpha build + published release) — remains
+intact.
 
 ## Build
 
@@ -95,6 +102,8 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md)
+- [docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md)
 - [docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md](docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md)
 - [docs/ANDROID_PRE_ALPHA_RELEASE_DRAFT.md](docs/ANDROID_PRE_ALPHA_RELEASE_DRAFT.md)
 - [docs/ANDROID_PRE_ALPHA_TAG_PLAN.md](docs/ANDROID_PRE_ALPHA_TAG_PLAN.md)

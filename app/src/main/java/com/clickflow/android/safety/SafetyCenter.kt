@@ -16,6 +16,9 @@ class SafetyCenter(private val gate: SafetyGate = SafetyGate()) {
 
     fun items(): List<SafetyItem> = listOf(
         SafetyItem("Simulation-only", "enabled", blocked = false),
+        SafetyItem("Click marker", "in-app only (not a system overlay)", blocked = false),
+        SafetyItem("Start button", "runs simulation only", blocked = false),
+        SafetyItem("System overlay", "not implemented", blocked = true),
         SafetyItem("Multi-step scenarios", "simulation only", blocked = false),
         SafetyItem("Profiles", "local only", blocked = false),
         SafetyItem("Audit log", "persistent (internal)", blocked = false),

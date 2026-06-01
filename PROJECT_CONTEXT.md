@@ -6,7 +6,19 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 58)
+## Current state (Step 59)
+
+- **Simple Clicker UX + draggable marker + clean minimal UI** on top of Steps 52–58;
+- home = Simple Clicker: draggable in-app circular marker (not a system overlay), Start/Stop/Emergency,
+  quick Interval/Count steppers backed by a per-profile "Quick clicker" scenario;
+- marker + quick settings persist via existing scenario storage; survive restart;
+- **Advanced** menu hides Scenarios/Profiles/Audit/Backup/Safety/Diagnostics/About (all still available);
+- calm Material 3 theme (light + dark); build verified (`assembleDebug`);
+- **real taps disabled**; **0 permissions**; **0 providers**; no overlay/Accessibility/MediaProjection;
+- next: on-device QA of the new UX, or a system-overlay/Accessibility skeleton strictly behind
+  consent + safety gate + go/no-go (no real taps until reviewed).
+
+## Earlier state (Step 58)
 
 - **pre-alpha GitHub release PUBLISHED** on top of Steps 52–57;
 - tag **`android-v0.1.0-prealpha`** (annotated, at commit `b9cb875`) pushed; GitHub **pre-release**

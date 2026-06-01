@@ -60,6 +60,18 @@ building the debug APK.
 - [ ] **backup excludes audit log** — `containsAuditLog: false`; no screenshots/base64.
 - [ ] **diagnostics** — backup status/timestamps shown; no permissions, no external storage.
 
+## Step 59 — Simple Clicker UX + Draggable Marker
+
+- [ ] **opens to Simple Clicker** — clean home with tap-target + Start.
+- [ ] **draggable marker** — circular marker moves with the finger, clamped to the area.
+- [ ] **marker persists** — position survives an app restart.
+- [ ] **quick settings** — Interval / Count steppers change values on the home screen.
+- [ ] **Start uses marker** — runs simulation at the marker; progress + tap count shown.
+- [ ] **Stop / Emergency Stop** — work from the home screen.
+- [ ] **Advanced menu** — opens Scenarios / Profiles / Audit / Backup / Safety / Diagnostics / About.
+- [ ] **complex screens still work** — reachable via Advanced; Back returns to Advanced.
+- [ ] **no permissions / no real taps** — marker is in-app only; simulation-only.
+
 ## Build environment note
 
 Building requires JDK 17 and the Android SDK (`compileSdk 34`, `build-tools`, `platform-34`). On a

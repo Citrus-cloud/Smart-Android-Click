@@ -27,6 +27,10 @@ class DiagnosticsManager {
         lastBackupExportAt: Long?,
         lastBackupImportAt: Long?,
         invalidImportItemsLast: Int,
+        markerX: Int,
+        markerY: Int,
+        quickIntervalMs: Long,
+        quickRepeatCount: Int,
     ): DiagnosticsState = DiagnosticsState(
         appVersion = AppInfo.VERSION_NAME,
         scenariosCount = scenariosCount,
@@ -54,5 +58,12 @@ class DiagnosticsManager {
         backupContainsAuditLog = false,
         externalStorageUsed = false,
         permissionsRequired = false,
+        simpleClickerReady = true,
+        markerX = markerX,
+        markerY = markerY,
+        quickIntervalMs = quickIntervalMs,
+        quickRepeatCount = quickRepeatCount,
+        overlayEnabled = false,
+        accessibilityEnabled = false,
     )
 }

@@ -166,4 +166,33 @@
     <string name="backup_simulation_only">Backup содержит только данные симуляции.</string>
     <string name="no_external_storage_used">Внешнее хранилище не используется.</string>
     <string name="no_permissions_required">Разрешения не требуются.</string>
+
+    <!-- Simple Clicker UX (Step 59) -->
+    <string name="simple_clicker">Простой кликер</string>
+    <string name="simple_mode">Простой режим</string>
+    <string name="simple_home_screen">Главная</string>
+    <string name="drag_marker">Перетащите метку</string>
+    <string name="drag_to_choose_click_point">Перетащите метку и нажмите Старт</string>
+    <string name="tap_target">Точка клика</string>
+    <string name="target_marker">Метка цели</string>
+    <string name="marker_position">Метка</string>
+    <string name="interval">Интервал</string>
+    <string name="count">Количество</string>
+    <string name="quick_clicker">Быстрый кликер</string>
+    <string name="quick_settings">Быстрые настройки</string>
+    <string name="start_clicker">Старт</string>
+    <string name="stop_clicker">Стоп</string>
+    <string name="current_tap">Клик</string>
+    <string name="simulated_tap_at_marker">Симуляция нажатия по метке</string>
+    <string name="reset_marker">Сбросить метку</string>
+    <string name="center_marker">По центру</string>
+    <string name="advanced">Дополнительно</string>
+    <string name="advanced_menu">Дополнительно</string>
+    <string name="open_advanced">Дополнительно</string>
+    <string name="about">О приложении</string>
+    <string name="clean_minimal_ui">Чистый минималистичный интерфейс</string>
+    <string name="simulation_only_marker">Метка только внутри приложения — Старт запускает симуляцию, а не реальные нажатия.</string>
+    <string name="marker_is_in_app_only">Метка только внутри приложения (не системный оверлей).</string>
+    <string name="no_system_overlay_yet">Системного оверлея пока нет.</string>
+    <string name="no_real_taps_yet">Реальных нажатий пока нет.</string>
 </resources>
