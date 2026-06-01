@@ -20,6 +20,19 @@ APK: `app-debug.apk` (15,761,368 bytes, debug-signed).
 - [ ] **import backup** — paste JSON → Validate → preview → merge; no silent overwrite.
 - [ ] **verify real taps disabled** — Safety Center / Diagnostics show real taps off; `canRunRealTap() = false`.
 
+## Step 60 — updated APK (Simple Clicker UX)
+
+- [ ] **download the updated APK** from the release assets (re-download; asset was replaced).
+- [ ] **Simple Clicker opens first** — clean home with tap-target + Start.
+- [ ] **drag marker** — the circle moves with the finger and stays in bounds.
+- [ ] **change interval/count** — steppers update values on the home screen.
+- [ ] **Start simulation** — progress + tap count advance; no real taps.
+- [ ] **Stop** — status `stopped`.
+- [ ] **Emergency Stop** — status `emergency_stopped` immediately.
+- [ ] **open Advanced** — Scenarios/Profiles/Audit/Backup/Safety/Diagnostics/About reachable.
+- [ ] **verify no permissions** — no prompts; Settings shows none.
+- [ ] **verify no real taps** — Safety Center / Diagnostics confirm simulation-only.
+
 ## Sign-off
 
 - [ ] All boxes checked on at least one device.

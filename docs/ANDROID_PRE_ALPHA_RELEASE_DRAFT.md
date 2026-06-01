@@ -7,6 +7,16 @@
 
 **Title:** ClickFlow Android Pre-alpha
 
+## Updated in Step 59 — Simple Clicker UX
+
+The attached `app-debug.apk` now ships the redesigned **Simple Clicker** experience:
+
+- New **minimal home screen** focused on one task: place a point and press Start.
+- **Draggable in-app target marker** (a circle you move with your finger) — **not** a system overlay.
+- **Quick Interval / Count controls** right on the home screen.
+- **Advanced menu** holds Scenarios, Profiles, Audit Log, Backup, Safety Center, Diagnostics, About.
+- Still **simulation-only**: **no real taps, no permissions, no Accessibility, no overlay.**
+
 ## Summary
 
 First public **pre-alpha** of ClickFlow Android — a native Kotlin/Compose app that authors and runs

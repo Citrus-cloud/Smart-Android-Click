@@ -5,6 +5,14 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 60 — Updated Android Pre-alpha APK with Simple Clicker UX
+
+- rebuilt the debug APK after Step 59 (Simple Clicker UX);
+- updated the existing GitHub pre-release `android-v0.1.0-prealpha`: replaced the `app-debug.apk`
+  asset with the new build and refreshed the release body to call out the Simple Clicker UX;
+- updated release notes/draft and post-release checklist;
+- confirmed no permissions, no providers, no real taps (simulation-only) before publishing.
+
 ### Step 59 — Android Simple Clicker UX, Draggable Target Marker, and Clean Minimal UI
 
 - **Simple Clicker** is now the home screen: a large rounded tap-target with a **draggable circular

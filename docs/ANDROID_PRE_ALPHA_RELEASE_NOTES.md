@@ -13,6 +13,17 @@ real taps**. It is a debug build for early testing and feedback.
 - minSdk 26 / targetSdk 34. Kotlin + Jetpack Compose (Material 3).
 - Builds cleanly with JDK 17 + Android SDK 34 (`./gradlew assembleDebug`).
 
+## Updated in Step 59 — Simple Clicker UX
+
+The pre-alpha APK was refreshed with a simpler, cleaner experience:
+
+- **Simple Clicker** home: a draggable in-app circular marker (not a system overlay), prominent Start,
+  Stop, Emergency Stop, and live status/progress.
+- **Quick settings** (Interval / Count steppers) backed by a per-profile "Quick clicker" scenario.
+- **Advanced** menu hosts all power-user screens (Scenarios, Profiles, Audit Log, Backup, Safety
+  Center, Diagnostics, About).
+- Calm Material 3 theme. Still **no real taps, no permissions, no Accessibility, no overlay.**
+
 ## Included features
 
 - **Simulation-only engine** — runs scenarios as dry-runs with progress; no real input.

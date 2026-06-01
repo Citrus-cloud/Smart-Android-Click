@@ -7,8 +7,9 @@ port and **not** a runtime copy of the desktop code.
 > **Status: Step 59 — Simple Clicker UX + draggable marker + clean minimal UI. Simulation-only. No real taps.**
 >
 > Home is now a simple clicker (drag a marker, press Start). All power-user features moved into
-> **Advanced**. Build verified (debug APK). Pre-alpha release published at tag
-> [`android-v0.1.0-prealpha`](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha).
+> **Advanced**. Build verified (debug APK). The pre-alpha release
+> [`android-v0.1.0-prealpha`](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha)
+> asset was refreshed (Step 60) to include this Simple Clicker UX.
 
 ## Relation to desktop ClickFlow
 
