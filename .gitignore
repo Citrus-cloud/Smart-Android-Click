@@ -1,0 +1,15 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx/
+*.apk
+*.aab
+*.keystore
+# Keep the Gradle wrapper jar tracked (do NOT ignore gradle/wrapper/gradle-wrapper.jar)

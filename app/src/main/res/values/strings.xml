@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClickFlow Android</string>
+    <string name="status_badge">Simulation-only foundation</string>
+    <string name="current_status">Status: %1$s</string>
+    <string name="btn_start_simulation">Start simulation</string>
+    <string name="btn_stop">Stop</string>
+    <string name="btn_emergency_stop">Emergency Stop</string>
+    <string name="btn_scenarios">Scenarios</string>
+    <string name="btn_safety_center">Safety Center</string>
+    <string name="btn_diagnostics">Diagnostics</string>
+    <string name="btn_run">Run</string>
+    <string name="btn_back">Back</string>
+    <string name="real_taps_disclaimer">Real taps are not implemented yet.</string>
+    <string name="blocked_reasons_title">Why real automation is blocked</string>
+</resources>

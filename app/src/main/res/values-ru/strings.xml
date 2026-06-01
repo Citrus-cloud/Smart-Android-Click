@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClickFlow Android</string>
+    <string name="status_badge">Только симуляция (основа)</string>
+    <string name="current_status">Статус: %1$s</string>
+    <string name="btn_start_simulation">Запустить симуляцию</string>
+    <string name="btn_stop">Стоп</string>
+    <string name="btn_emergency_stop">Аварийная остановка</string>
+    <string name="btn_scenarios">Сценарии</string>
+    <string name="btn_safety_center">Центр безопасности</string>
+    <string name="btn_diagnostics">Диагностика</string>
+    <string name="btn_run">Запуск</string>
+    <string name="btn_back">Назад</string>
+    <string name="real_taps_disclaimer">Реальные нажатия пока не реализованы.</string>
+    <string name="blocked_reasons_title">Почему реальная автоматизация заблокирована</string>
+</resources>
