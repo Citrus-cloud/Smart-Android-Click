@@ -6,17 +6,18 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 56)
+## Current state (Step 57)
 
-- **backup import/export (text-only) + pre-alpha QA** on top of Steps 52–55;
-- **export**: profiles + scenarios as JSON text via share sheet (no audit log, no permissions, no
-  FileProvider);
-- **import**: paste JSON → validate + preview → merge (`MERGE_RENAME_CONFLICTS` primary,
-  `MERGE_KEEP_EXISTING`, `REPLACE_ALL` with confirmation); conflicts never overwrite silently;
-- pre-alpha QA + release checklist docs added;
-- **real taps disabled**; **no permissions**; no external storage;
+- **pre-alpha build/QA + release prep** on top of Steps 52–56;
+- **build verified**: `./gradlew assembleDebug` succeeds (JDK 17 + Android SDK 34) → debug-signed
+  `app-debug.apk`; only minor cleanups, no new runtime features;
+- `versionName = 0.1.0-prealpha` (Android branch, distinct from desktop `v1.0.0-alpha.1`),
+  `versionCode = 1`;
+- release target tag: **`android-v0.1.0-prealpha`** (tag/publish only on explicit request);
+- **real taps disabled**; **0 permissions**; **0 providers**; no external storage;
 - **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**;
-- a **future branch will add Android Accessibility Service after safety review**.
+- next after release: polish, or an **Accessibility skeleton strictly behind explicit consent +
+  safety gate + go/no-go** (no real taps until reviewed).
 
 ### Steps 52–55 (still in place)
 

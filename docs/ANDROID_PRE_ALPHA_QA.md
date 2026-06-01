@@ -3,9 +3,13 @@
 Manual QA pass for the pre-alpha. Requires JDK 17 + Android SDK (see `APK_BUILD_GUIDE.md`) and a
 device/emulator on API 26+.
 
+> **Build verified (Step 57):** `./gradlew assembleDebug` compiles cleanly (JDK 17 + Android SDK 34)
+> and produces a debug-signed `app-debug.apk` (versionName `0.1.0-prealpha`). The remaining items are
+> on-device manual checks.
+
 ## Checklist
 
-- [ ] **build debug APK** — `./gradlew assembleDebug` succeeds.
+- [x] **build debug APK** — `./gradlew assembleDebug` succeeds (verified).
 - [ ] **launch app** — opens to Home with the active profile + scenario.
 - [ ] **create profile** — Profiles → Create; validation works; profile appears.
 - [ ] **create multi-step scenario** — under the active profile; add tap/wait/note actions.

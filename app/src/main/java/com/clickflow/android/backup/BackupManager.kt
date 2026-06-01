@@ -143,7 +143,6 @@ class BackupManager {
 
             ImportStrategy.MERGE_KEEP_EXISTING -> {
                 val existingIds = currentProfiles.map { it.id }.toSet()
-                val existingNames = currentProfiles.map { it.name.lowercase() }.toSet()
                 val existingSids = currentScenarios.map { it.id }.toSet()
                 val idMap = HashMap<String, String>()
                 val addProfiles = ArrayList<Profile>()

@@ -4,7 +4,9 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 56 — Backup Import/Export + Pre-alpha QA Prep. Simulation-only. No real taps.**
+> **Status: Step 57 — Pre-alpha Build/QA + Release Prep. Build verified (debug APK). Simulation-only. No real taps.**
+>
+> Release target: **`android-v0.1.0-prealpha`** · versionName **`0.1.0-prealpha`** · debug build only.
 
 ## Relation to desktop ClickFlow
 
@@ -17,22 +19,29 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 56)
+## Current status (Step 57)
 
-Adds **backup import/export** (text-only) and **pre-alpha QA** docs:
+Pre-alpha **build/QA + release prep** — the debug APK now **builds cleanly**:
 
-- **Export backup** — profiles + scenarios as JSON text via the share sheet (no audit log, no
-  permissions, no FileProvider).
-- **Import backup** — paste JSON, **validate + preview**, then merge with strategies
-  (`MERGE_RENAME_CONFLICTS` primary, `MERGE_KEEP_EXISTING`, `REPLACE_ALL` with confirmation).
-- Conflicts never overwrite silently; invalid items are skipped with warnings; profiles/scenarios
-  reload after import.
-- Backup audit events; Diagnostics shows backup status; Safety Center states text-only / no
-  permissions / no audit log in backups.
-- Pre-alpha QA + release checklist docs.
+- Verified `./gradlew assembleDebug` with **JDK 17 + Android SDK 34** → `app-debug.apk` (debug-signed).
+- Minor cleanups only (no new runtime features): version → `0.1.0-prealpha`, `Divider` →
+  `HorizontalDivider`, removed an unused variable.
+- Pre-alpha **release notes**, **GitHub release draft**, **tag plan**, and **build troubleshooting**
+  docs added (with a verified headless toolchain recipe).
+- Re-confirmed: **0 permissions, 0 providers, no real taps, simulation-only.**
 
-Earlier work — Steps 52–55 (foundation, scenario CRUD + storage, multi-step + audit, profiles +
-persistent/exportable audit) — remains intact.
+Earlier work — Steps 52–56 (foundation; scenario CRUD + storage; multi-step + audit; profiles +
+persistent/exportable audit; backup import/export) — remains intact.
+
+## Build
+
+```bash
+./gradlew assembleDebug          # Windows: gradlew.bat assembleDebug
+# output: app/build/outputs/apk/debug/app-debug.apk  (debug-signed, versionName 0.1.0-prealpha)
+```
+
+Requires JDK 17 + Android SDK (`platforms;android-34`, `build-tools;34.0.0`). See
+[docs/ANDROID_BUILD_TROUBLESHOOTING.md](docs/ANDROID_BUILD_TROUBLESHOOTING.md).
 
 **Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
 Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
@@ -85,6 +94,10 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md](docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md)
+- [docs/ANDROID_PRE_ALPHA_RELEASE_DRAFT.md](docs/ANDROID_PRE_ALPHA_RELEASE_DRAFT.md)
+- [docs/ANDROID_PRE_ALPHA_TAG_PLAN.md](docs/ANDROID_PRE_ALPHA_TAG_PLAN.md)
+- [docs/ANDROID_BUILD_TROUBLESHOOTING.md](docs/ANDROID_BUILD_TROUBLESHOOTING.md)
 - [docs/ANDROID_BACKUP_EXPORT.md](docs/ANDROID_BACKUP_EXPORT.md)
 - [docs/ANDROID_BACKUP_IMPORT.md](docs/ANDROID_BACKUP_IMPORT.md)
 - [docs/ANDROID_PRE_ALPHA_QA.md](docs/ANDROID_PRE_ALPHA_QA.md)

@@ -1,5 +1,9 @@
 # APK Build Guide — ClickFlow Android
 
+> **Build status:** verified — `./gradlew assembleDebug` succeeds with JDK 17 + Android SDK 34 and
+> produces a debug-signed `app-debug.apk` (versionName `0.1.0-prealpha`). For environment setup and
+> common errors see `ANDROID_BUILD_TROUBLESHOOTING.md`.
+
 ## Prerequisites
 
 - **JDK 17** (e.g. Temurin/OpenJDK 17).

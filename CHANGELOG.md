@@ -5,6 +5,21 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 57 — Android Pre-alpha Build/QA and Release Prep
+
+- **validated the APK build**: `./gradlew assembleDebug` succeeds with JDK 17 + Android SDK 34,
+  producing a debug-signed `app-debug.apk` (no release signing);
+- minor cleanups (no new runtime features): `versionName` → `0.1.0-prealpha` (Android branch, distinct
+  from desktop), `AppInfo.VERSION_NAME` updated, `Divider` → `HorizontalDivider`, removed an unused
+  variable in `BackupManager`;
+- added pre-alpha release docs: `ANDROID_PRE_ALPHA_RELEASE_NOTES.md`,
+  `ANDROID_PRE_ALPHA_RELEASE_DRAFT.md` (GitHub release body), `ANDROID_PRE_ALPHA_TAG_PLAN.md`,
+  `ANDROID_BUILD_TROUBLESHOOTING.md` (with a verified headless toolchain recipe);
+- updated APK build guide / QA / checklist / smoke / README / PROJECT_CONTEXT;
+- re-confirmed safety: 0 manifest permissions, 0 providers, no real taps, simulation-only;
+- note: AndroidX injects a self-scoped `*.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` at build time
+  (targetSdk 34) — not a declared/dangerous permission; the source manifest declares none.
+
 ### Step 56 — Android Backup Import/Export and Pre-alpha QA Prep
 
 - added `backup/` package: `BackupModels` (`ImportStrategy`, `BackupPreview`, parse/validation/import

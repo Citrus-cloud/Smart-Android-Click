@@ -14,7 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -198,7 +198,7 @@ private fun ScenariosScreen(vm: ClickFlowViewModel) {
                             if (s.isActive) Text(stringResource(R.string.active_badge), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                         Text(stringResource(R.string.scenario_meta_summary, s.actions.size, s.settings.repeatCount, s.settings.intervalMs), style = MaterialTheme.typography.bodySmall)
-                        Divider()
+                        HorizontalDivider()
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { vm.openScenarioDetail(s.id) }) { Text(stringResource(R.string.open_scenario)) }
                             TextButton(onClick = { vm.selectScenario(s.id) }) { Text(stringResource(R.string.select_scenario)) }
@@ -244,7 +244,7 @@ private fun ScenarioDetailScreen(vm: ClickFlowViewModel) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("${index + 1}. ${a.type.name.lowercase()}", fontWeight = FontWeight.SemiBold)
                     Text(actionSummary(a), style = MaterialTheme.typography.bodySmall)
-                    Divider()
+                    HorizontalDivider()
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(onClick = { vm.openEditAction(s.id, a.id) }) { Text(stringResource(R.string.edit_action)) }
                         TextButton(onClick = { vm.deleteAction(s.id, a.id) }) { Text(stringResource(R.string.delete_action)) }
@@ -361,7 +361,7 @@ private fun ProfilesScreen(vm: ClickFlowViewModel) {
                         }
                         if (p.description.isNotBlank()) Text(p.description, style = MaterialTheme.typography.bodySmall)
                         Text("${stringResource(R.string.scenarios)}: $count", style = MaterialTheme.typography.bodySmall)
-                        Divider()
+                        HorizontalDivider()
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { vm.selectProfile(p.id) }) { Text(stringResource(R.string.select_profile)) }
                             TextButton(onClick = { vm.openEditProfile(p.id) }) { Text(stringResource(R.string.edit_profile)) }
@@ -463,7 +463,7 @@ private fun BackupScreen(vm: ClickFlowViewModel) {
 
         Button(onClick = { vm.shareBackupJson() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.export_backup)) }
 
-        Divider()
+        HorizontalDivider()
         Text(stringResource(R.string.import_backup), fontWeight = FontWeight.Bold)
         OutlinedTextField(
             value = json,
