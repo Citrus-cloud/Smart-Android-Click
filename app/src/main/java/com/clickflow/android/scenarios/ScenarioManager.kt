@@ -1,53 +1,59 @@
 package com.clickflow.android.scenarios
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 /**
- * In-memory store of scenarios for Step 52.
- *
- * No persistence, no network. Ships with a couple of preset simulation
- * scenarios so the UI has something to run. Real persistence (Room/files)
- * is deferred to a later step.
+ * Source of truth for scenarios at runtime. Backed by [ScenarioRepository] for
+ * persistence and exposes the list as a [StateFlow] for Compose.
  */
-class ScenarioManager {
+class ScenarioManager(private val repository: ScenarioRepository) {
 
-    private val scenarios = mutableListOf<Scenario>()
-    private var seq = 0L
+    private val _scenarios = MutableStateFlow<List<Scenario>>(emptyList())
+    val scenarios: StateFlow<List<Scenario>> = _scenarios.asStateFlow()
 
-    init {
-        // Deterministic seed presets (no wall-clock dependency at construction).
-        addPreset("Demo tap (simulation)")
-        addPreset("Repeat tap x5 (simulation)")
+    val storageReady: Boolean get() = repository.storageReady
+    val corruptedStorageRecovered: Boolean get() = repository.corruptedStorageRecovered
+
+    /** Loads persisted scenarios (called once at startup). */
+    fun load() {
+        _scenarios.value = repository.loadScenarios()
     }
 
-    private fun nextId(): String = "scn_${++seq}"
+    fun getScenarios(): List<Scenario> = _scenarios.value
 
-    private fun addPreset(name: String) {
-        val id = nextId()
-        scenarios.add(
-            Scenario(
-                id = id,
-                name = name,
-                type = ScenarioType.SIMPLE_TAP_SIMULATION,
-                settings = mapOf("mode" to "simulation"),
-                createdAt = seq,
-                updatedAt = seq,
-            )
-        )
+    fun getActiveScenario(): Scenario? = repository.getActiveScenario(_scenarios.value)
+
+    fun validateScenario(input: ScenarioInput): ScenarioValidationErrors =
+        ScenarioValidator.validate(input)
+
+    /** Creates a scenario if valid; returns errors otherwise (no state change). */
+    fun createScenario(input: ScenarioInput): ScenarioValidationErrors {
+        val errors = validateScenario(input)
+        if (errors.hasErrors) return errors
+        _scenarios.value = repository.createScenario(input, _scenarios.value)
+        return errors
     }
 
-    fun all(): List<Scenario> = scenarios.toList()
-
-    fun byId(id: String): Scenario? = scenarios.firstOrNull { it.id == id }
-
-    fun create(name: String, nowMillis: Long): Scenario {
-        val scenario = Scenario(
-            id = nextId(),
-            name = name,
-            type = ScenarioType.SIMPLE_TAP_SIMULATION,
-            settings = mapOf("mode" to "simulation"),
-            createdAt = nowMillis,
-            updatedAt = nowMillis,
-        )
-        scenarios.add(scenario)
-        return scenario
+    fun updateScenario(id: String, input: ScenarioInput): ScenarioValidationErrors {
+        val errors = validateScenario(input)
+        if (errors.hasErrors) return errors
+        _scenarios.value = repository.updateScenario(id, input, _scenarios.value)
+        return errors
     }
+
+    fun deleteScenario(id: String) {
+        _scenarios.value = repository.deleteScenario(id, _scenarios.value)
+    }
+
+    fun setActiveScenario(id: String) {
+        _scenarios.value = repository.setActiveScenario(id, _scenarios.value)
+    }
+
+    fun resetToDefaults() {
+        _scenarios.value = repository.resetScenarios()
+    }
+
+    fun byId(id: String): Scenario? = _scenarios.value.firstOrNull { it.id == id }
 }

@@ -5,6 +5,26 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 53 — Android Scenario UI and Local Storage
+
+- expanded `Scenario` with `ScenarioSettings` (x, y, repeatCount, intervalMs) and `isActive`;
+- added `ScenarioValidator` (name required; x/y ≥ 0; repeatCount 1..1000; intervalMs ≥ 100);
+- added `ScenarioRepository` — JSON persistence in internal storage with corrupted-storage fallback
+  to a default scenario (`corruptedStorageRecovered`); no permissions, no external storage;
+- reworked `ScenarioManager` to back onto the repository and expose a `StateFlow`;
+- reworked `SimulationEngine` to run the active scenario with steps/interval/progress and a
+  localized dry-run log line; added `error` status; still no real input;
+- expanded `ClickFlowViewModel` (AndroidViewModel) with scenario list, active selection, form state,
+  validation errors, storage flags, and scenario run controls;
+- added Compose UI: Scenarios list (with empty state), create/edit form with inline validation, and
+  Home integration showing active scenario + progress;
+- updated Diagnostics (scenarios count, active scenario, storage state) and Safety Center
+  (scenarios simulation-only, local storage used, real taps disabled);
+- added RU/EN strings for the scenario layer;
+- added docs `ANDROID_SCENARIO_STORAGE.md` and `ANDROID_SCENARIO_UI.md`; updated README,
+  PROJECT_CONTEXT, MVP checklist, safety model;
+- no real taps implemented.
+
 ### Step 52 — Android Project Foundation
 
 - created Android project structure;

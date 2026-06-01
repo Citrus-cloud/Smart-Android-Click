@@ -11,6 +11,13 @@ future steps.
 - **No background control without explicit user consent.**
 - **Emergency Stop is always available** and immediately halts any simulation.
 
+## Storage (Step 53)
+
+- Scenario storage is **local internal JSON only** — no permissions, no external storage, no network.
+- **Scenario storage does not enable real taps.** Stored coordinates/intervals drive only the
+  simulation engine; there is no code path from storage to real input.
+- Corrupted storage falls back to a default scenario and never crashes the app.
+
 ## Categorically prohibited (now and in the future)
 
 - Captcha solving / bypass.

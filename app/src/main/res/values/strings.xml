@@ -3,14 +3,56 @@
     <string name="app_name">ClickFlow Android</string>
     <string name="status_badge">Simulation-only foundation</string>
     <string name="current_status">Status: %1$s</string>
+
+    <!-- Home / common buttons -->
     <string name="btn_start_simulation">Start simulation</string>
     <string name="btn_stop">Stop</string>
     <string name="btn_emergency_stop">Emergency Stop</string>
-    <string name="btn_scenarios">Scenarios</string>
     <string name="btn_safety_center">Safety Center</string>
     <string name="btn_diagnostics">Diagnostics</string>
-    <string name="btn_run">Run</string>
     <string name="btn_back">Back</string>
     <string name="real_taps_disclaimer">Real taps are not implemented yet.</string>
     <string name="blocked_reasons_title">Why real automation is blocked</string>
+
+    <!-- Scenarios -->
+    <string name="scenarios">Scenarios</string>
+    <string name="create_scenario">Create scenario</string>
+    <string name="edit_scenario">Edit scenario</string>
+    <string name="delete_scenario">Delete</string>
+    <string name="select_scenario">Select</string>
+    <string name="active_scenario">Active scenario</string>
+    <string name="active_scenario_none">No active scenario. Create or select one.</string>
+    <string name="active_badge">ACTIVE</string>
+    <string name="no_scenarios">No scenarios yet.</string>
+    <string name="create_default_scenario">Create default scenario</string>
+    <string name="reset_scenarios">Reset to defaults</string>
+    <string name="run_simulation">Run simulation</string>
+    <string name="scenario_summary">x=%1$d, y=%2$d, repeat=%3$d, interval=%4$d ms</string>
+
+    <!-- Scenario form -->
+    <string name="scenario_name">Scenario name</string>
+    <string name="coordinates">Coordinates (X, Y)</string>
+    <string name="repeat_count">Repeat count (1–1000)</string>
+    <string name="interval_ms">Interval (ms, ≥ 100)</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="simulation_only_scenario">Simulation only — these coordinates never trigger real taps.</string>
+
+    <!-- Validation -->
+    <string name="validation_name_required">Name is required.</string>
+    <string name="validation_coordinate_invalid">X and Y must be 0 or greater.</string>
+    <string name="validation_repeat_invalid">Repeat count must be between 1 and 1000.</string>
+    <string name="validation_interval_invalid">Interval must be at least 100 ms.</string>
+
+    <!-- Simulation -->
+    <string name="simulated_tap_at">Simulated tap at %1$d,%2$d (step %3$d/%4$d)</string>
+
+    <!-- Safety / diagnostics / storage -->
+    <string name="real_taps_disabled">Real taps are disabled.</string>
+    <string name="storage_ready">storageReady</string>
+    <string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
+
+    <!-- Messages -->
+    <string name="scenario_saved">Scenario saved.</string>
+    <string name="scenario_deleted">Scenario deleted.</string>
 </resources>

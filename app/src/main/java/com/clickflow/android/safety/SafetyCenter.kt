@@ -17,6 +17,8 @@ class SafetyCenter(private val gate: SafetyGate = SafetyGate()) {
 
     fun items(): List<SafetyItem> = listOf(
         SafetyItem("Simulation-only", "enabled", blocked = false),
+        SafetyItem("Scenarios", "simulation only", blocked = false),
+        SafetyItem("Local storage", "used (internal, no permissions)", blocked = false),
         SafetyItem("Real taps", "not implemented", blocked = true),
         SafetyItem("Accessibility Service", "planned", blocked = true),
         SafetyItem("Screen capture / MediaProjection", "planned", blocked = true),

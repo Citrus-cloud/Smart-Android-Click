@@ -4,7 +4,7 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 52 — Android Foundation. Simulation-only. No real taps.**
+> **Status: Step 53 — Scenario UI + Local Storage. Simulation-only. No real taps.**
 
 ## Relation to desktop ClickFlow
 
@@ -17,21 +17,24 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 52)
+## Current status (Step 53)
 
-This step delivers only the **project foundation**:
+Builds on the Step 52 foundation with a real scenario layer:
 
-- Android app shell (Kotlin + Jetpack Compose)
-- Minimal UI: Home, Scenarios, Safety Center, Diagnostics
-- Simulation-only scenario model + simulation engine (status machine, no input)
-- Safety foundation (gate + state + center), real taps hard-disabled
-- Diagnostics foundation
-- RU/EN localization
-- Safety & product documentation
-- Debug APK build configuration
+- Full scenario CRUD UI: list, create, edit, delete, select active.
+- **Local persistence** — scenarios stored as JSON in internal app storage; restored on restart.
+- Inline form validation (name, coordinates, repeat count, interval).
+- Simulation runs the active scenario with **progress** (steps, percent, dry-run log).
+- Diagnostics shows scenario count, active scenario, storage state, corruption recovery.
+- Safety Center reports simulation-only + local-storage + real taps disabled.
+- RU/EN localization for the scenario layer.
 
-**Not** in this step: real taps, Accessibility Service automation, MediaProjection capture,
-overlay logic, runtime permission requests.
+Foundation from Step 52 (Kotlin + Jetpack Compose app shell, Safety gate/state/center, Diagnostics)
+remains intact.
+
+**Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
+Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
+requests.
 
 ## Build the debug APK
 
@@ -80,6 +83,8 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_SCENARIO_STORAGE.md](docs/ANDROID_SCENARIO_STORAGE.md)
+- [docs/ANDROID_SCENARIO_UI.md](docs/ANDROID_SCENARIO_UI.md)
 - [docs/ANDROID_PRODUCT_PLAN.md](docs/ANDROID_PRODUCT_PLAN.md)
 - [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md)
 - [docs/ANDROID_ARCHITECTURE.md](docs/ANDROID_ARCHITECTURE.md)

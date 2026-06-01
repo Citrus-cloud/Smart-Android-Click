@@ -12,6 +12,16 @@ building the debug APK.
 - [ ] **real taps disabled** — no UI control enables real taps; `canRunRealTap()` is false.
 - [ ] **docs updated** — README, PROJECT_CONTEXT, CHANGELOG, and `docs/` present and current.
 
+## Step 53 — Scenario UI + Local Storage
+
+- [ ] **create scenario** — form validates and saves a new scenario.
+- [ ] **edit scenario** — existing scenario can be edited and saved.
+- [ ] **delete scenario** — scenario can be removed; active one is re-promoted.
+- [ ] **select active scenario** — Select sets the active scenario (ACTIVE badge shown).
+- [ ] **persistence after restart** — scenarios survive an app restart (loaded from internal JSON).
+- [ ] **simulation progress** — running the active scenario shows steps/percent and a dry-run log.
+- [ ] **corrupted storage safe** — a corrupted `scenarios.json` falls back to default without crash.
+
 ## Build environment note
 
 Building requires JDK 17 and the Android SDK (`compileSdk 34`, `build-tools`, `platform-34`). On a

@@ -12,7 +12,10 @@ class DiagnosticsManager {
 
     fun build(
         status: SimulationStatus,
+        scenariosCount: Int,
         activeScenario: Scenario?,
+        storageReady: Boolean,
+        corruptedStorageRecovered: Boolean,
     ): DiagnosticsState = DiagnosticsState(
         appVersion = AppInfo.VERSION_NAME,
         simulationOnly = true,
@@ -20,7 +23,11 @@ class DiagnosticsManager {
         accessibilityServicePlanned = true,
         mediaProjectionPlanned = true,
         emergencyStopReady = true,
-        activeScenario = activeScenario?.name,
+        scenariosCount = scenariosCount,
+        activeScenarioName = activeScenario?.name,
+        activeScenarioType = activeScenario?.type?.name?.lowercase(),
         lastRunStatus = status.name.lowercase(),
+        storageReady = storageReady,
+        corruptedStorageRecovered = corruptedStorageRecovered,
     )
 }

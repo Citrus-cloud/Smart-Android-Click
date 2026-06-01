@@ -6,13 +6,21 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 52)
+## Current state (Step 53)
 
-- **simulation-only Android foundation**;
-- **no Accessibility real taps yet**;
-- **no MediaProjection yet**;
-- **no real taps**;
+- **scenario UI + local storage** on top of the Step 52 foundation;
+- scenario CRUD (create/edit/delete/select active) with inline validation;
+- **local persistence** as JSON in internal app storage, restored on restart, with corrupted-storage
+  fallback to a default scenario;
+- simulation runs the active scenario with progress; **real taps disabled**;
+- **no permissions** requested; no external storage;
+- **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**;
 - a **future branch will add Android Accessibility Service after safety review**.
+
+### Step 52 (foundation, still in place)
+
+- simulation-only Android foundation: app shell, simulation engine, safety gate/state/center,
+  diagnostics, RU/EN localization.
 
 ## Scope captured at Step 52
 
