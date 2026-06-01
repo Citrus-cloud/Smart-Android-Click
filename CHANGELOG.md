@@ -5,6 +5,30 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 56 — Android Backup Import/Export and Pre-alpha QA Prep
+
+- added `backup/` package: `BackupModels` (`ImportStrategy`, `BackupPreview`, parse/validation/import
+  results), `BackupManager` (create/parse/validate/preview/import + merge), `BackupValidator`;
+- **backup JSON** = `{schema, version, createdAt, appVersion, profiles[], scenarios[], metadata}`;
+  excludes the audit log; no screenshots/base64/private paths;
+- **export**: share backup JSON as text via `ACTION_SEND` (no permissions, no FileProvider);
+- **import**: paste JSON → validate + preview → merge; strategies `MERGE_RENAME_CONFLICTS`,
+  `MERGE_KEEP_EXISTING`, `REPLACE_ALL_REQUIRE_CONFIRMATION` (gated by explicit confirmation);
+- conflict handling: new ids for id clashes, `(Imported)` suffix for name clashes, unknown
+  `profileId` reassigned to default; invalid items skipped with warnings; existing data never
+  overwritten silently;
+- `ProfileManager`/`ScenarioManager` gained `applyImported`; repositories gained `replaceAll`;
+- `ClickFlowViewModel`: backup state (json text, preview, import result, replace-all confirm),
+  `createBackupJson` / `shareBackupJson` / `validateBackupJson` / `importBackup` / `clearBackupImportState`;
+  profiles + scenarios reload after import;
+- backup audit events (`backup.export.*`, `backup.import.*`) — counts/warnings only, never the JSON;
+- UI: **Backup** screen (status, export, paste+validate+preview, strategy import, result, clear);
+  Diagnostics shows backup status; Safety Center reports backup text-only / no audit log / no
+  permissions;
+- docs `ANDROID_BACKUP_EXPORT.md`, `ANDROID_BACKUP_IMPORT.md`, `ANDROID_PRE_ALPHA_QA.md`,
+  `ANDROID_PRE_ALPHA_RELEASE_CHECKLIST.md` + updates;
+- RU/EN strings; no real taps, no permissions, no external storage.
+
 ### Step 55 — Android Audit Persistence, Export, and Profiles Foundation
 
 - **Persistent audit log**: `AuditLogManager` now stores events as JSON Lines in

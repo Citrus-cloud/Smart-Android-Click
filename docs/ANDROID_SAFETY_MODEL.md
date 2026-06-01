@@ -35,6 +35,14 @@ future steps.
 - **Profiles are local only** (`filesDir/profiles.json`); they group scenarios and grant no
   capabilities. None of this enables real taps.
 
+## Backup import/export (Step 56)
+
+- Backup export/import is **text only** (`ACTION_SEND` share / pasted JSON) — no file picker, no
+  FileProvider, no storage permissions.
+- Backups **exclude the audit log** by default, and contain no screenshots, base64, or private paths.
+- Import **validates before applying** and never overwrites existing data silently; `REPLACE_ALL`
+  requires explicit confirmation. None of this enables real taps.
+
 ## Multi-step scenarios (Step 54)
 
 - Multi-step scenarios are **simulation only**. Each `SIMULATED_TAP` action logs and updates progress

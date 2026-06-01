@@ -49,6 +49,7 @@ fun ClickFlowApp(vm: ClickFlowViewModel) {
             Screen.ACTION_FORM -> ActionFormScreen(vm)
             Screen.PROFILES -> ProfilesScreen(vm)
             Screen.PROFILE_FORM -> ProfileFormScreen(vm)
+            Screen.BACKUP -> BackupScreen(vm)
             Screen.SAFETY -> SafetyCenterScreen(vm)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(vm)
             Screen.AUDIT_LOG -> AuditLogScreen(vm)
@@ -93,6 +94,11 @@ private fun MessageLine(vm: ClickFlowViewModel) {
         "audit_log_export_failed" -> R.string.audit_log_export_failed
         "active_profile" -> R.string.active_profile
         "active_scenario" -> R.string.active_scenario
+        "backup_exported" -> R.string.backup_exported
+        "backup_export_failed" -> R.string.backup_export_failed
+        "backup_import_completed" -> R.string.backup_import_completed
+        "backup_import_failed" -> R.string.backup_import_failed
+        "replace_all_requires_confirmation" -> R.string.replace_all_requires_confirmation
         else -> null
     } ?: return
     Card(Modifier.fillMaxWidth()) {
@@ -156,6 +162,7 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
         Spacer(Modifier.height(8.dp))
         NavButton(stringResource(R.string.profiles)) { vm.navigateTo(Screen.PROFILES) }
         NavButton(stringResource(R.string.scenarios)) { vm.navigateTo(Screen.SCENARIOS) }
+        NavButton(stringResource(R.string.backup)) { vm.openBackup() }
         NavButton(stringResource(R.string.audit_log)) { vm.navigateTo(Screen.AUDIT_LOG) }
         NavButton(stringResource(R.string.btn_safety_center)) { vm.navigateTo(Screen.SAFETY) }
         NavButton(stringResource(R.string.btn_diagnostics)) { vm.navigateTo(Screen.DIAGNOSTICS) }
@@ -429,6 +436,86 @@ private fun AuditLogScreen(vm: ClickFlowViewModel) {
     }
 }
 
+// ---- Backup (export / import) ---------------------------------------------
+
+@Composable
+private fun BackupScreen(vm: ClickFlowViewModel) {
+    val profiles by vm.profiles.collectAsState()
+    val scenarios by vm.scenarios.collectAsState()
+    val json by vm.backupJsonText.collectAsState()
+    val preview by vm.backupPreview.collectAsState()
+    val result by vm.backupImportResult.collectAsState()
+    val replaceConfirmed by vm.replaceAllConfirmed.collectAsState()
+
+    ScreenScaffold {
+        Text(stringResource(R.string.backup), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        MessageLine(vm)
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("${stringResource(R.string.backup_profiles_count)}: ${profiles.size}")
+                Text("${stringResource(R.string.backup_scenarios_count)}: ${scenarios.size}")
+                Text(stringResource(R.string.backup_simulation_only), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.backup_does_not_include_audit_log), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.no_permissions_required), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Button(onClick = { vm.shareBackupJson() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.export_backup)) }
+
+        Divider()
+        Text(stringResource(R.string.import_backup), fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = json,
+            onValueChange = { vm.updateBackupJsonText(it) },
+            label = { Text(stringResource(R.string.paste_backup_json)) },
+            modifier = Modifier.fillMaxWidth().height(160.dp),
+        )
+        OutlinedButton(onClick = { vm.validateBackupJson() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.validate_backup)) }
+
+        preview?.let { p ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(if (p.valid) R.string.backup_valid else R.string.backup_invalid), fontWeight = FontWeight.SemiBold, color = if (p.valid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                    Text("${stringResource(R.string.backup_profiles_count)}: ${p.profilesCount}")
+                    Text("${stringResource(R.string.backup_scenarios_count)}: ${p.scenariosCount}")
+                    Text("${stringResource(R.string.invalid_items_count)}: ${p.invalidItemsCount}")
+                    if (p.warnings.isNotEmpty()) Text("${stringResource(R.string.backup_warnings)}: ${p.warnings.size}", style = MaterialTheme.typography.bodySmall)
+                    p.appVersion?.let { Text("appVersion: $it", style = MaterialTheme.typography.bodySmall) }
+                    p.createdAt?.let { Text("createdAt: $it", style = MaterialTheme.typography.bodySmall) }
+                }
+            }
+        }
+
+        val canImport = preview?.valid == true
+        Text(stringResource(R.string.import_strategy), fontWeight = FontWeight.SemiBold)
+        Button(onClick = { vm.importBackup(com.clickflow.android.backup.ImportStrategy.MERGE_RENAME_CONFLICTS) }, enabled = canImport, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.merge_rename_conflicts))
+        }
+        OutlinedButton(onClick = { vm.setReplaceAllConfirmed(!replaceConfirmed) }, modifier = Modifier.fillMaxWidth()) {
+            Text((if (replaceConfirmed) "☑ " else "☐ ") + stringResource(R.string.replace_all_requires_confirmation))
+        }
+        Button(onClick = { vm.importBackup(com.clickflow.android.backup.ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION) }, enabled = canImport && replaceConfirmed, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.replace_all_requires_confirmation))
+        }
+
+        result?.let { r ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.import_result), fontWeight = FontWeight.SemiBold)
+                    Text("${stringResource(R.string.imported_profiles)}: ${r.importedProfiles}")
+                    Text("${stringResource(R.string.imported_scenarios)}: ${r.importedScenarios}")
+                    Text("${stringResource(R.string.skipped_items)}: ${r.skippedItems}")
+                    if (r.warnings.isNotEmpty()) Text("${stringResource(R.string.backup_warnings)}: ${r.warnings.size}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        OutlinedButton(onClick = { vm.clearBackupImportState() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clear_import)) }
+        NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }
+    }
+}
+
 // ---- Safety Center --------------------------------------------------------
 
 @Composable
@@ -481,6 +568,13 @@ private fun DiagnosticsScreen(vm: ClickFlowViewModel) {
                 Text("${stringResource(R.string.corrupted_profile_storage_recovered)}: ${d.corruptedProfileStorageRecovered}")
                 Text("${stringResource(R.string.audit_storage_ready)}: ${d.auditStorageReady}")
                 Text("${stringResource(R.string.corrupted_audit_recovered)}: ${d.corruptedAuditRecovered}")
+                Text("backupAvailable: ${d.backupAvailable}")
+                Text("lastBackupExportAt: ${d.lastBackupExportAt ?: "—"}")
+                Text("lastBackupImportAt: ${d.lastBackupImportAt ?: "—"}")
+                Text("invalidImportItemsLast: ${d.invalidImportItemsLast}")
+                Text("backupContainsAuditLog: ${d.backupContainsAuditLog}")
+                Text("externalStorageUsed: ${d.externalStorageUsed}")
+                Text("permissionsRequired: ${d.permissionsRequired}")
             }
         }
         NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.HOME) }

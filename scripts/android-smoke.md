@@ -67,11 +67,24 @@ Manual smoke test to confirm the foundation works end-to-end.
 25. **Audit share** — Share opens the system share sheet with the text report.
 26. **Audit clear** — Clear empties the persisted log (stays empty after restart).
 
+## Step 56 — backup import/export checks
+
+27. **Backup screen** — Home → Backup; status shows profile/scenario counts + simulation-only note.
+28. **Export backup** — Export opens the share sheet with backup JSON text.
+29. **Round-trip import** — copy the exported JSON, paste into Import, **Validate** → preview valid.
+30. **Merge & rename** — Import (merge & rename); imported profile gets `(Imported)`; counts update.
+31. **No silent overwrite** — existing profiles/scenarios remain; conflicts get new ids.
+32. **Invalid JSON** — paste garbage → Validate shows invalid; Import stays disabled.
+33. **Replace-all** — toggle confirm, then Replace all; data replaced (default profile ensured).
+34. **Backup excludes audit log** — exported JSON has `"containsAuditLog": false` and no audit data.
+
 ## Pass criteria
 - App builds, installs, launches.
 - Start / Stop / Emergency Stop transition status correctly.
 - Multi-step scenarios: actions add/edit/delete/move/run with progress.
 - Profiles: create/edit/select/delete with rules; scenarios filtered by active profile.
 - Audit log persists across restarts, summarizes, shares as text, and clears.
+- Backup: export shares text; import validates, previews, merges without overwriting; replace-all
+  requires confirmation; backups exclude the audit log.
 - Safety Center and Diagnostics open and report simulation-only / real taps disabled.
 - No real taps occur anywhere; no permissions requested.

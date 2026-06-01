@@ -19,6 +19,15 @@ object AuditType {
     const val STORAGE_RECOVERED = "storage.recovered"
     const val STORAGE_MIGRATED = "storage.migrated"
     const val SAFETY_REAL_TAP_BLOCKED = "safety.realTapBlocked"
+    const val BACKUP_EXPORT_REQUESTED = "backup.export.requested"
+    const val BACKUP_EXPORT_SHARED = "backup.export.shared"
+    const val BACKUP_EXPORT_FAILED = "backup.export.failed"
+    const val BACKUP_IMPORT_VALIDATION_STARTED = "backup.import.validationStarted"
+    const val BACKUP_IMPORT_VALIDATION_FAILED = "backup.import.validationFailed"
+    const val BACKUP_IMPORT_COMPLETED = "backup.import.completed"
+    const val BACKUP_IMPORT_SKIPPED_INVALID_ITEM = "backup.import.skippedInvalidItem"
+    const val BACKUP_IMPORT_REPLACE_ALL_REQUESTED = "backup.import.replaceAllRequested"
+    const val BACKUP_IMPORT_REPLACE_ALL_CONFIRMED = "backup.import.replaceAllConfirmed"
 }
 
 /**

@@ -10,6 +10,10 @@ import com.clickflow.android.audit.AuditLogManager
 import com.clickflow.android.audit.AuditSeverity
 import com.clickflow.android.audit.AuditSummary
 import com.clickflow.android.audit.AuditType
+import com.clickflow.android.backup.BackupImportResult
+import com.clickflow.android.backup.BackupManager
+import com.clickflow.android.backup.BackupPreview
+import com.clickflow.android.backup.ImportStrategy
 import com.clickflow.android.diagnostics.DiagnosticsManager
 import com.clickflow.android.diagnostics.DiagnosticsState
 import com.clickflow.android.profiles.DeleteResult
@@ -41,7 +45,7 @@ import java.io.File
 /** Screens reachable in the app. */
 enum class Screen {
     HOME, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM,
-    PROFILES, PROFILE_FORM, SAFETY, DIAGNOSTICS, AUDIT_LOG,
+    PROFILES, PROFILE_FORM, BACKUP, SAFETY, DIAGNOSTICS, AUDIT_LOG,
 }
 
 data class ScenarioFormState(
@@ -106,6 +110,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
     private val profileManager = ProfileManager(profileRepo)
 
     private val auditLog = AuditLogManager(File(app.filesDir, "audit-log.jsonl"))
+    private val backupManager = BackupManager()
     private val diagnosticsManager = DiagnosticsManager()
 
     private val messages = SimMessages(
@@ -156,6 +161,19 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _message = MutableStateFlow<UiMessage?>(null)
     val message: StateFlow<UiMessage?> = _message.asStateFlow()
+
+    // Backup (Step 56)
+    private val _backupJsonText = MutableStateFlow("")
+    val backupJsonText: StateFlow<String> = _backupJsonText.asStateFlow()
+    private val _backupPreview = MutableStateFlow<BackupPreview?>(null)
+    val backupPreview: StateFlow<BackupPreview?> = _backupPreview.asStateFlow()
+    private val _backupImportResult = MutableStateFlow<BackupImportResult?>(null)
+    val backupImportResult: StateFlow<BackupImportResult?> = _backupImportResult.asStateFlow()
+    private val _replaceAllConfirmed = MutableStateFlow(false)
+    val replaceAllConfirmed: StateFlow<Boolean> = _replaceAllConfirmed.asStateFlow()
+    private var lastBackupExportAt: Long? = null
+    private var lastBackupImportAt: Long? = null
+    private var invalidImportItemsLast: Int = 0
 
     val scenarioStorageReady: Boolean get() = scenarioManager.storageReady
     val corruptedScenarioRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
@@ -400,6 +418,100 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         return gate.attemptRealTap()
     }
 
+    // ---- Backup (export / import) -----------------------------------------
+
+    fun openBackup() {
+        _screen.value = Screen.BACKUP
+    }
+
+    fun updateBackupJsonText(text: String) { _backupJsonText.value = text }
+
+    fun setReplaceAllConfirmed(value: Boolean) { _replaceAllConfirmed.value = value }
+
+    fun clearBackupImportState() {
+        _backupJsonText.value = ""
+        _backupPreview.value = null
+        _backupImportResult.value = null
+        _replaceAllConfirmed.value = false
+    }
+
+    /** Builds backup JSON from current profiles + scenarios (no audit log). */
+    fun createBackupJson(): String = backupManager.createBackup(profiles.value, scenarios.value)
+
+    /** Shares the backup JSON as plain text via the share sheet. No file, no permissions. */
+    fun shareBackupJson(): Boolean {
+        auditLog.log(AuditType.BACKUP_EXPORT_REQUESTED, AuditSeverity.INFO,
+            "Backup export requested (profiles=${profiles.value.size}, scenarios=${scenarios.value.size})")
+        return runCatching {
+            val json = createBackupJson()
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "ClickFlow Android Backup")
+                putExtra(Intent.EXTRA_TEXT, json)
+            }
+            val chooser = Intent.createChooser(send, appRef.getString(R.string.export_backup))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            appRef.startActivity(chooser)
+            lastBackupExportAt = System.currentTimeMillis()
+            auditLog.log(AuditType.BACKUP_EXPORT_SHARED, AuditSeverity.INFO, "Backup shared as text")
+            _message.value = UiMessage("backup_exported")
+            true
+        }.getOrElse {
+            auditLog.log(AuditType.BACKUP_EXPORT_FAILED, AuditSeverity.WARNING, "Backup export failed")
+            _message.value = UiMessage("backup_export_failed")
+            false
+        }
+    }
+
+    /** Validates the pasted JSON and produces a preview. Does not modify any data. */
+    fun validateBackupJson() {
+        auditLog.log(AuditType.BACKUP_IMPORT_VALIDATION_STARTED, AuditSeverity.INFO, "Backup validation started")
+        val preview = backupManager.previewBackup(_backupJsonText.value)
+        _backupPreview.value = preview
+        invalidImportItemsLast = preview.invalidItemsCount
+        if (!preview.valid) {
+            auditLog.log(AuditType.BACKUP_IMPORT_VALIDATION_FAILED, AuditSeverity.WARNING,
+                "Backup validation failed (errors=${preview.errors.size})")
+        }
+    }
+
+    /** Imports the pasted backup using [strategy]. REPLACE_ALL needs prior confirmation. */
+    fun importBackup(strategy: ImportStrategy) {
+        if (strategy == ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION && !_replaceAllConfirmed.value) {
+            auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_REQUESTED, AuditSeverity.WARNING,
+                "Replace-all requested without confirmation")
+            _message.value = UiMessage("replace_all_requires_confirmation")
+            return
+        }
+        if (strategy == ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION) {
+            auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_CONFIRMED, AuditSeverity.SAFETY, "Replace-all confirmed")
+        }
+        val result = backupManager.importBackup(
+            json = _backupJsonText.value,
+            strategy = strategy,
+            currentProfiles = profiles.value,
+            currentScenarios = scenarios.value,
+            replaceConfirmed = _replaceAllConfirmed.value,
+        )
+        _backupImportResult.value = result
+        if (!result.success) {
+            _message.value = UiMessage("backup_import_failed")
+            return
+        }
+        // Apply + reload.
+        profileManager.applyImported(result.mergedProfiles)
+        scenarioManager.applyImported(result.mergedScenarios)
+        if (result.skippedItems > 0) {
+            auditLog.log(AuditType.BACKUP_IMPORT_SKIPPED_INVALID_ITEM, AuditSeverity.WARNING,
+                "Skipped ${result.skippedItems} invalid/conflicting item(s)")
+        }
+        invalidImportItemsLast = result.skippedItems
+        lastBackupImportAt = System.currentTimeMillis()
+        auditLog.log(AuditType.BACKUP_IMPORT_COMPLETED, AuditSeverity.INFO,
+            "Backup import completed (profiles=${result.importedProfiles}, scenarios=${result.importedScenarios}, skipped=${result.skippedItems})")
+        _message.value = UiMessage("backup_import_completed")
+    }
+
     // ---- Diagnostics -------------------------------------------------------
 
     fun diagnostics(): DiagnosticsState = diagnosticsManager.build(
@@ -418,6 +530,9 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
         corruptedProfileStorageRecovered = corruptedProfileStorageRecovered,
         auditStorageReady = auditStorageReady,
         corruptedAuditRecovered = corruptedAuditRecovered,
+        lastBackupExportAt = lastBackupExportAt,
+        lastBackupImportAt = lastBackupImportAt,
+        invalidImportItemsLast = invalidImportItemsLast,
     )
 
     fun blockedReasons(): List<String> = gate.getBlockedReasons()

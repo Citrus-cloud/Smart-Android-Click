@@ -90,6 +90,13 @@ repository serializes `profileId` and, on load, assigns scenarios without one to
 (`profile_default`), setting `storageMigrated`. Profiles themselves are stored separately in
 `filesDir/profiles.json`. The active profile determines which scenarios the UI shows.
 
+## Backup schema (Step 56)
+
+Scenarios (with `profileId`, settings, and actions) are serialized into the backup document
+(`schema: "clickflow-android-backup"`, `version: 1`) alongside profiles, using the same field layout
+as on-disk storage. Backups exclude the audit log. See `ANDROID_BACKUP_EXPORT.md` /
+`ANDROID_BACKUP_IMPORT.md`.
+
 ## Future import/export
 
 A later step may add JSON import/export of scenarios (share/back up presets), still without

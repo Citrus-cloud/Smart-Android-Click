@@ -65,6 +65,9 @@ class ScenarioManager(private val repository: ScenarioRepository) {
     fun setActiveScenario(id: String) { _scenarios.value = repository.setActiveScenario(id, _scenarios.value) }
     fun resetToDefaults() { _scenarios.value = repository.resetScenarios() }
 
+    /** Applies an imported scenario list (backup restore). */
+    fun applyImported(scenarios: List<Scenario>) { _scenarios.value = repository.replaceAll(scenarios) }
+
     // ---- action-level ------------------------------------------------------
 
     /** Builds a validated [ScenarioAction] from input, or null if invalid. */

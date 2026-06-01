@@ -20,6 +20,7 @@ class SafetyCenter(private val gate: SafetyGate = SafetyGate()) {
         SafetyItem("Profiles", "local only", blocked = false),
         SafetyItem("Audit log", "persistent (internal)", blocked = false),
         SafetyItem("Audit export", "share text only", blocked = false),
+        SafetyItem("Backup export/import", "text only (no audit log)", blocked = false),
         SafetyItem("Local storage", "used (internal, no permissions)", blocked = false),
         SafetyItem("Real taps", "disabled (canRunRealTap=false)", blocked = true),
         SafetyItem("Accessibility Service", "planned", blocked = true),

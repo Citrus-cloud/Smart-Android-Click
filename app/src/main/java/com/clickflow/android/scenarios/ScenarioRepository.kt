@@ -166,6 +166,13 @@ class ScenarioRepository(private val storageFile: File) {
 
     fun resetScenarios(): List<Scenario> = seedDefault(persist = true)
 
+    /** Replaces all scenarios (used by backup import). Persists; never leaves an empty store. */
+    fun replaceAll(scenarios: List<Scenario>): List<Scenario> {
+        if (scenarios.isEmpty()) return seedDefault(persist = true)
+        saveScenarios(scenarios)
+        return scenarios
+    }
+
     fun newActionId(): String = nextId("act")
 
     // ---- JSON + migration --------------------------------------------------

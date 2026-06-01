@@ -48,6 +48,18 @@ building the debug APK.
 - [ ] **audit clear** — empties the persisted log.
 - [ ] **audit share** — share-sheet opens with the text report (no permissions).
 
+## Step 56 — Backup Import/Export + Pre-alpha QA
+
+- [ ] **backup screen** — opens and shows profile/scenario counts + simulation-only note.
+- [ ] **export backup** — share-sheet opens with backup JSON text.
+- [ ] **paste + validate** — preview shows profiles/scenarios/invalid counts; Import gated on valid.
+- [ ] **import merge/rename** — imported items added; conflicts renamed; existing data preserved.
+- [ ] **invalid items skipped** — warnings reported; nothing crashes.
+- [ ] **replace-all** — only after explicit confirmation.
+- [ ] **reload after import** — profiles + scenarios refresh.
+- [ ] **backup excludes audit log** — `containsAuditLog: false`; no screenshots/base64.
+- [ ] **diagnostics** — backup status/timestamps shown; no permissions, no external storage.
+
 ## Build environment note
 
 Building requires JDK 17 and the Android SDK (`compileSdk 34`, `build-tools`, `platform-34`). On a

@@ -24,6 +24,9 @@ class DiagnosticsManager {
         corruptedProfileStorageRecovered: Boolean,
         auditStorageReady: Boolean,
         corruptedAuditRecovered: Boolean,
+        lastBackupExportAt: Long?,
+        lastBackupImportAt: Long?,
+        invalidImportItemsLast: Int,
     ): DiagnosticsState = DiagnosticsState(
         appVersion = AppInfo.VERSION_NAME,
         scenariosCount = scenariosCount,
@@ -44,5 +47,12 @@ class DiagnosticsManager {
         corruptedProfileStorageRecovered = corruptedProfileStorageRecovered,
         auditStorageReady = auditStorageReady,
         corruptedAuditRecovered = corruptedAuditRecovered,
+        backupAvailable = true,
+        lastBackupExportAt = lastBackupExportAt,
+        lastBackupImportAt = lastBackupImportAt,
+        invalidImportItemsLast = invalidImportItemsLast,
+        backupContainsAuditLog = false,
+        externalStorageUsed = false,
+        permissionsRequired = false,
     )
 }

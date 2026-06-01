@@ -111,6 +111,13 @@ class ProfileRepository(private val storageFile: File) {
 
     fun resetProfiles(): List<Profile> = seedDefault()
 
+    /** Replaces all profiles (used by backup import). Enforces invariants and persists. */
+    fun replaceAll(profiles: List<Profile>): List<Profile> {
+        val fixed = ensureInvariants(if (profiles.isEmpty()) listOf(defaultProfile(nowMillis())) else profiles)
+        saveProfiles(fixed)
+        return fixed
+    }
+
     // ---- JSON --------------------------------------------------------------
 
     private fun parse(text: String): List<Profile> {

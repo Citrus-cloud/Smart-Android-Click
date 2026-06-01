@@ -29,4 +29,11 @@ data class DiagnosticsState(
     val corruptedProfileStorageRecovered: Boolean = false,
     val auditStorageReady: Boolean = false,
     val corruptedAuditRecovered: Boolean = false,
+    val backupAvailable: Boolean = true,
+    val lastBackupExportAt: Long? = null,
+    val lastBackupImportAt: Long? = null,
+    val invalidImportItemsLast: Int = 0,
+    val backupContainsAuditLog: Boolean = false,
+    val externalStorageUsed: Boolean = false,
+    val permissionsRequired: Boolean = false,
 )

@@ -54,8 +54,14 @@ profiles / reassigning on delete is deferred to a future step.)
 `load`, `getProfiles`, `getActiveProfile`, `createProfile`, `updateProfile`, `deleteProfile`
 (returns `DeleteResult.Success` / `Blocked(reasonKey)`), `setActiveProfile`, `resetProfiles`.
 
+## Backup behavior (Step 56)
+
+Profiles are included in backups (export/import) — see `ANDROID_BACKUP_EXPORT.md` /
+`ANDROID_BACKUP_IMPORT.md`. On import, profile id/name conflicts are resolved (new id / `(Imported)`
+suffix); imported profiles are never active by default; the default profile is always ensured.
+
 ## Not implemented / future
 
-- Import/export of profiles + their scenarios (planned — see `ANDROID_EXPORT_MODEL.md`).
 - Reassigning scenarios to another profile on delete.
+- File-based import/export (picker / FileProvider) — text paste/share only for now.
 - No real taps, no permissions — unchanged.

@@ -133,4 +133,37 @@
     <string name="audit_log_export_failed">Не удалось отправить журнал.</string>
     <string name="audit_log_persisted">Журнал сохраняется локально.</string>
     <string name="storage_recovered">Хранилище восстановлено.</string>
+
+    <!-- Backup import/export (Step 56) -->
+    <string name="backup">Резервная копия</string>
+    <string name="export_backup">Экспорт backup</string>
+    <string name="import_backup">Импорт backup</string>
+    <string name="share_backup">Поделиться backup</string>
+    <string name="backup_json">JSON backup</string>
+    <string name="paste_backup_json">Вставьте JSON backup сюда</string>
+    <string name="validate_backup">Проверить</string>
+    <string name="backup_preview">Предпросмотр backup</string>
+    <string name="backup_valid">Backup корректен.</string>
+    <string name="backup_invalid">Backup некорректен.</string>
+    <string name="backup_profiles_count">Профили</string>
+    <string name="backup_scenarios_count">Сценарии</string>
+    <string name="invalid_items_count">Некорректных элементов</string>
+    <string name="import_strategy">Стратегия импорта</string>
+    <string name="merge_rename_conflicts">Объединить и переименовать конфликты</string>
+    <string name="replace_all_requires_confirmation">Заменить всё (нужно подтверждение)</string>
+    <string name="import_result">Результат импорта</string>
+    <string name="imported_profiles">Импортировано профилей</string>
+    <string name="imported_scenarios">Импортировано сценариев</string>
+    <string name="skipped_items">Пропущено элементов</string>
+    <string name="backup_warnings">Предупреждения</string>
+    <string name="clear_import">Очистить</string>
+    <string name="imported_suffix">(Импортировано)</string>
+    <string name="backup_exported">Backup отправлен.</string>
+    <string name="backup_export_failed">Не удалось отправить backup.</string>
+    <string name="backup_import_completed">Backup импортирован.</string>
+    <string name="backup_import_failed">Импорт backup не удался.</string>
+    <string name="backup_does_not_include_audit_log">Backup не включает журнал аудита.</string>
+    <string name="backup_simulation_only">Backup содержит только данные симуляции.</string>
+    <string name="no_external_storage_used">Внешнее хранилище не используется.</string>
+    <string name="no_permissions_required">Разрешения не требуются.</string>
 </resources>

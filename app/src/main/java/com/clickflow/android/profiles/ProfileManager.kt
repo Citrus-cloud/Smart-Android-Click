@@ -59,4 +59,7 @@ class ProfileManager(private val repository: ProfileRepository) {
 
     fun setActiveProfile(id: String) { _profiles.value = repository.setActiveProfile(id, _profiles.value) }
     fun resetProfiles() { _profiles.value = repository.resetProfiles() }
+
+    /** Applies an imported profile list (backup restore). */
+    fun applyImported(profiles: List<Profile>) { _profiles.value = repository.replaceAll(profiles) }
 }

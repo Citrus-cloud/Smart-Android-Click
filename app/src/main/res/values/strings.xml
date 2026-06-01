@@ -133,4 +133,37 @@
     <string name="audit_log_export_failed">Could not share the audit log.</string>
     <string name="audit_log_persisted">Audit log is saved locally.</string>
     <string name="storage_recovered">Storage recovered.</string>
+
+    <!-- Backup import/export (Step 56) -->
+    <string name="backup">Backup</string>
+    <string name="export_backup">Export backup</string>
+    <string name="import_backup">Import backup</string>
+    <string name="share_backup">Share backup</string>
+    <string name="backup_json">Backup JSON</string>
+    <string name="paste_backup_json">Paste backup JSON here</string>
+    <string name="validate_backup">Validate</string>
+    <string name="backup_preview">Backup preview</string>
+    <string name="backup_valid">Backup is valid.</string>
+    <string name="backup_invalid">Backup is invalid.</string>
+    <string name="backup_profiles_count">Profiles</string>
+    <string name="backup_scenarios_count">Scenarios</string>
+    <string name="invalid_items_count">Invalid items</string>
+    <string name="import_strategy">Import strategy</string>
+    <string name="merge_rename_conflicts">Merge and rename conflicts</string>
+    <string name="replace_all_requires_confirmation">Replace all (requires confirmation)</string>
+    <string name="import_result">Import result</string>
+    <string name="imported_profiles">Imported profiles</string>
+    <string name="imported_scenarios">Imported scenarios</string>
+    <string name="skipped_items">Skipped items</string>
+    <string name="backup_warnings">Warnings</string>
+    <string name="clear_import">Clear</string>
+    <string name="imported_suffix">(Imported)</string>
+    <string name="backup_exported">Backup shared.</string>
+    <string name="backup_export_failed">Could not share the backup.</string>
+    <string name="backup_import_completed">Backup imported.</string>
+    <string name="backup_import_failed">Backup import failed.</string>
+    <string name="backup_does_not_include_audit_log">Backup does not include the audit log.</string>
+    <string name="backup_simulation_only">Backup is simulation-only data.</string>
+    <string name="no_external_storage_used">No external storage used.</string>
+    <string name="no_permissions_required">No permissions required.</string>
 </resources>

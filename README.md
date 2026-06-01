@@ -4,7 +4,7 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 55 — Audit Persistence + Export + Profiles Foundation. Simulation-only. No real taps.**
+> **Status: Step 56 — Backup Import/Export + Pre-alpha QA Prep. Simulation-only. No real taps.**
 
 ## Relation to desktop ClickFlow
 
@@ -17,22 +17,22 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 55)
+## Current status (Step 56)
 
-Adds **profiles** and makes the **audit log persistent + exportable**:
+Adds **backup import/export** (text-only) and **pre-alpha QA** docs:
 
-- **Profiles** group scenarios into local workspaces (create/edit/select/delete, default profile,
-  one active). Scenarios are bound to a `profileId`; the UI shows the active profile's scenarios.
-- **Persistent audit log** in internal storage (`audit-log.jsonl`, bounded 1000, corrupted fallback),
-  with a severity **summary**.
-- **Audit export** via the Android share sheet (plain text, no permissions, no FileProvider).
-- Backward-compatible migration assigns existing scenarios to the default profile.
-- Diagnostics shows profile/audit storage state; Safety Center reports audit persistence + export +
-  real taps disabled.
-- RU/EN localization for profiles + audit.
+- **Export backup** — profiles + scenarios as JSON text via the share sheet (no audit log, no
+  permissions, no FileProvider).
+- **Import backup** — paste JSON, **validate + preview**, then merge with strategies
+  (`MERGE_RENAME_CONFLICTS` primary, `MERGE_KEEP_EXISTING`, `REPLACE_ALL` with confirmation).
+- Conflicts never overwrite silently; invalid items are skipped with warnings; profiles/scenarios
+  reload after import.
+- Backup audit events; Diagnostics shows backup status; Safety Center states text-only / no
+  permissions / no audit log in backups.
+- Pre-alpha QA + release checklist docs.
 
-Earlier work — Step 52 (app shell, safety), Step 53 (scenario CRUD + storage), Step 54 (multi-step
-scenarios + audit log) — remains intact.
+Earlier work — Steps 52–55 (foundation, scenario CRUD + storage, multi-step + audit, profiles +
+persistent/exportable audit) — remains intact.
 
 **Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
 Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
@@ -85,6 +85,10 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_BACKUP_EXPORT.md](docs/ANDROID_BACKUP_EXPORT.md)
+- [docs/ANDROID_BACKUP_IMPORT.md](docs/ANDROID_BACKUP_IMPORT.md)
+- [docs/ANDROID_PRE_ALPHA_QA.md](docs/ANDROID_PRE_ALPHA_QA.md)
+- [docs/ANDROID_PRE_ALPHA_RELEASE_CHECKLIST.md](docs/ANDROID_PRE_ALPHA_RELEASE_CHECKLIST.md)
 - [docs/ANDROID_PROFILES.md](docs/ANDROID_PROFILES.md)
 - [docs/ANDROID_AUDIT_PERSISTENCE.md](docs/ANDROID_AUDIT_PERSISTENCE.md)
 - [docs/ANDROID_EXPORT_MODEL.md](docs/ANDROID_EXPORT_MODEL.md)

@@ -34,8 +34,13 @@ the need today.
 - No personal data, credentials, or device identifiers.
 - No scenario/profile JSON (scenario/profile import-export is planned for a future step).
 
+## Backup JSON text export (Step 56)
+
+Scenario + profile **backup** export/import is now implemented as **JSON text** over the same
+share-sheet mechanism (no file, no FileProvider, no permissions). The backup excludes the audit log.
+See `ANDROID_BACKUP_EXPORT.md` and `ANDROID_BACKUP_IMPORT.md`.
+
 ## Future import/export
 
-- Export scenarios + profiles as JSON (share text or, if justified, a `FileProvider` URI).
-- Import with strict validation and the same corrupted-input fallback used for storage.
-- Optional on-disk audit export file. All deferred; none added in Step 55.
+- File-based import/export (document picker or `FileProvider` URI) if a concrete need justifies it.
+- Optional on-disk audit export file. Deferred.

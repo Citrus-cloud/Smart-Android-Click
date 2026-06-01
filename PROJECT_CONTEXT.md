@@ -6,17 +6,22 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 55)
+## Current state (Step 56)
 
-- **profiles + persistent/exportable audit log** on top of Steps 52–54;
-- **profiles** group scenarios into local workspaces (default profile, one active); scenarios bound
-  to `profileId`; UI shows the active profile's scenarios;
-- **audit log persisted** to `filesDir/audit-log.jsonl` (bounded, corrupted fallback) with summary;
-- **audit export** via share-text only (no permissions, no FileProvider);
-- migration assigns legacy scenarios to the default profile;
+- **backup import/export (text-only) + pre-alpha QA** on top of Steps 52–55;
+- **export**: profiles + scenarios as JSON text via share sheet (no audit log, no permissions, no
+  FileProvider);
+- **import**: paste JSON → validate + preview → merge (`MERGE_RENAME_CONFLICTS` primary,
+  `MERGE_KEEP_EXISTING`, `REPLACE_ALL` with confirmation); conflicts never overwrite silently;
+- pre-alpha QA + release checklist docs added;
 - **real taps disabled**; **no permissions**; no external storage;
 - **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**;
 - a **future branch will add Android Accessibility Service after safety review**.
+
+### Steps 52–55 (still in place)
+
+- 52 foundation; 53 scenario CRUD + storage; 54 multi-step + audit log; 55 profiles + persistent
+  audit + audit export.
 
 ### Steps 52–54 (still in place)
 
