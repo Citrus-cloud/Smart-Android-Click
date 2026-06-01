@@ -5,6 +5,17 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 58 — Android Pre-alpha Release Published
+
+- published GitHub **pre-release** `android-v0.1.0-prealpha` (title "ClickFlow Android Pre-alpha")
+  from commit `b9cb875`; body from `ANDROID_PRE_ALPHA_RELEASE_DRAFT.md`; marked pre-release;
+- annotated tag `android-v0.1.0-prealpha` created and pushed;
+- uploaded asset `app-debug.apk` (15,761,368 bytes, debug-signed);
+- release URL:
+  https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha
+- re-ran final checks before publishing (build succeeds; 0 permissions; 0 providers; no real taps);
+- added `ANDROID_PRE_ALPHA_POST_RELEASE_CHECKLIST.md`; updated README/PROJECT_CONTEXT.
+
 ### Step 57 — Android Pre-alpha Build/QA and Release Prep
 
 - **validated the APK build**: `./gradlew assembleDebug` succeeds with JDK 17 + Android SDK 34,

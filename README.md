@@ -4,9 +4,10 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 57 — Pre-alpha Build/QA + Release Prep. Build verified (debug APK). Simulation-only. No real taps.**
+> **Status: Step 58 — Pre-alpha GitHub release PUBLISHED. Simulation-only. No real taps.**
 >
-> Release target: **`android-v0.1.0-prealpha`** · versionName **`0.1.0-prealpha`** · debug build only.
+> Release: **[ClickFlow Android Pre-alpha](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha)**
+> · tag `android-v0.1.0-prealpha` (pre-release) · asset `app-debug.apk` (debug-signed) · versionName `0.1.0-prealpha`.
 
 ## Relation to desktop ClickFlow
 

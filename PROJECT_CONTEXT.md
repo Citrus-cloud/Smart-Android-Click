@@ -6,14 +6,15 @@ The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
 It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
 copy of the desktop ClickFlow code.
 
-## Current state (Step 57)
+## Current state (Step 58)
 
-- **pre-alpha build/QA + release prep** on top of Steps 52–56;
-- **build verified**: `./gradlew assembleDebug` succeeds (JDK 17 + Android SDK 34) → debug-signed
-  `app-debug.apk`; only minor cleanups, no new runtime features;
-- `versionName = 0.1.0-prealpha` (Android branch, distinct from desktop `v1.0.0-alpha.1`),
-  `versionCode = 1`;
-- release target tag: **`android-v0.1.0-prealpha`** (tag/publish only on explicit request);
+- **pre-alpha GitHub release PUBLISHED** on top of Steps 52–57;
+- tag **`android-v0.1.0-prealpha`** (annotated, at commit `b9cb875`) pushed; GitHub **pre-release**
+  created with `app-debug.apk` (15,761,368 bytes, debug-signed) attached;
+- release URL:
+  https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha
+- build verified: `./gradlew assembleDebug` succeeds (JDK 17 + Android SDK 34);
+- `versionName = 0.1.0-prealpha`, `versionCode = 1` (Android branch, distinct from desktop);
 - **real taps disabled**; **0 permissions**; **0 providers**; no external storage;
 - **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**;
 - next after release: polish, or an **Accessibility skeleton strictly behind explicit consent +
