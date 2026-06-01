@@ -13,10 +13,17 @@ class SafetyGate(private val state: SafetyState = SafetyState.STEP_52_DEFAULT) {
     fun canRunSimulation(): Boolean = state.simulationOnly || true
 
     /**
-     * Real taps are NOT implemented in Step 52 and must never be allowed.
+     * Real taps are NOT implemented and must never be allowed.
      * Returns false unconditionally.
      */
     fun canRunRealTap(): Boolean = false
+
+    /**
+     * Single defensive chokepoint for any hypothetical real-tap attempt. Always denies.
+     * Callers should record a `safety.realTapBlocked` audit event. There is intentionally no
+     * code path in the app that would make this perform input.
+     */
+    fun attemptRealTap(): Boolean = false
 
     /**
      * Human-readable reasons that real automation is blocked.

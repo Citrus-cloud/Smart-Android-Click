@@ -10,21 +10,20 @@ data class SafetyItem(
 /**
  * Read-only view model of the safety posture for the Safety Center screen.
  *
- * Step 52: intentionally exposes NO control to enable real taps. It only
- * reports status. There is deliberately no `enableRealTaps()` method.
+ * Step 54: still exposes NO control to enable real taps. It only reports status.
  */
 class SafetyCenter(private val gate: SafetyGate = SafetyGate()) {
 
     fun items(): List<SafetyItem> = listOf(
         SafetyItem("Simulation-only", "enabled", blocked = false),
-        SafetyItem("Scenarios", "simulation only", blocked = false),
+        SafetyItem("Multi-step scenarios", "simulation only", blocked = false),
+        SafetyItem("Audit log", "enabled (in-memory)", blocked = false),
         SafetyItem("Local storage", "used (internal, no permissions)", blocked = false),
-        SafetyItem("Real taps", "not implemented", blocked = true),
+        SafetyItem("Real taps", "disabled (canRunRealTap=false)", blocked = true),
         SafetyItem("Accessibility Service", "planned", blocked = true),
         SafetyItem("Screen capture / MediaProjection", "planned", blocked = true),
         SafetyItem("Overlay permission", "planned", blocked = true),
-        SafetyItem("Emergency Stop", "available", blocked = false),
-        SafetyItem("Audit logs", "planned", blocked = true),
+        SafetyItem("Android permissions", "none requested", blocked = false),
         SafetyItem("Prohibited automation", "blocked", blocked = true),
     )
 

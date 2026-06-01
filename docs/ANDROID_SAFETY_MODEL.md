@@ -18,6 +18,19 @@ future steps.
   simulation engine; there is no code path from storage to real input.
 - Corrupted storage falls back to a default scenario and never crashes the app.
 
+## Audit log (Step 54)
+
+- An in-memory audit log records lifecycle, per-action, validation, storage, and safety events.
+- **The audit log does not enable real taps** — it only records simulation/dry-run activity.
+- It stores no screenshots, no base64, no captured screen content, and no personal data.
+- Emergency Stop logs a `scenario.emergencyStopped` SAFETY event; any hypothetical real-tap attempt
+  routes through `SafetyGate.attemptRealTap()` (always false) and logs `safety.realTapBlocked`.
+
+## Multi-step scenarios (Step 54)
+
+- Multi-step scenarios are **simulation only**. Each `SIMULATED_TAP` action logs and updates progress
+  but performs **no real input**; `WAIT` only delays; `NOTE` only logs.
+
 ## Categorically prohibited (now and in the future)
 
 - Captcha solving / bypass.

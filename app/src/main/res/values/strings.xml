@@ -16,10 +16,12 @@
 
     <!-- Scenarios -->
     <string name="scenarios">Scenarios</string>
+    <string name="multi_step_scenarios">Multi-step simulation scenarios</string>
     <string name="create_scenario">Create scenario</string>
     <string name="edit_scenario">Edit scenario</string>
     <string name="delete_scenario">Delete</string>
     <string name="select_scenario">Select</string>
+    <string name="open_scenario">Open</string>
     <string name="active_scenario">Active scenario</string>
     <string name="active_scenario_none">No active scenario. Create or select one.</string>
     <string name="active_badge">ACTIVE</string>
@@ -27,32 +29,70 @@
     <string name="create_default_scenario">Create default scenario</string>
     <string name="reset_scenarios">Reset to defaults</string>
     <string name="run_simulation">Run simulation</string>
-    <string name="scenario_summary">x=%1$d, y=%2$d, repeat=%3$d, interval=%4$d ms</string>
+    <string name="scenario_meta_summary">actions=%1$d, repeat=%2$d, interval=%3$d ms</string>
 
-    <!-- Scenario form -->
+    <!-- Scenario metadata form -->
     <string name="scenario_name">Scenario name</string>
-    <string name="coordinates">Coordinates (X, Y)</string>
     <string name="repeat_count">Repeat count (1–1000)</string>
     <string name="interval_ms">Interval (ms, ≥ 100)</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="simulation_only_scenario">Simulation only — these coordinates never trigger real taps.</string>
+    <string name="simulation_only_scenario">Simulation only — no real taps.</string>
+
+    <!-- Actions -->
+    <string name="actions">Actions</string>
+    <string name="add_action">Add action</string>
+    <string name="edit_action">Edit</string>
+    <string name="delete_action">Delete</string>
+    <string name="move_up">Up</string>
+    <string name="move_down">Down</string>
+    <string name="add_tap_action">Add tap action</string>
+    <string name="add_wait_action">Add wait action</string>
+    <string name="add_note_action">Add note action</string>
+    <string name="simulated_tap_action">Simulated tap</string>
+    <string name="wait_action">Wait</string>
+    <string name="note_action">Note</string>
+    <string name="action_type">Action type</string>
+    <string name="action_label">Label (optional)</string>
+    <string name="duration_ms">Duration (ms, ≥ 100)</string>
+    <string name="note_message">Note message</string>
+    <string name="simulation_only_actions">All actions are simulation only — no real taps.</string>
+    <string name="real_tap_still_disabled">Real taps remain disabled.</string>
+
+    <!-- Progress -->
+    <string name="current_action">Action %1$d/%2$d</string>
+    <string name="current_repeat">Repeat %1$d/%2$d</string>
+
+    <!-- Audit log -->
+    <string name="audit_log">Audit Log</string>
+    <string name="clear_audit_log">Clear audit log</string>
+    <string name="audit_events">Events: %1$d</string>
+
+    <!-- Simulation messages -->
+    <string name="scenario_started">Scenario started: %1$s</string>
+    <string name="scenario_completed">Scenario completed: %1$s</string>
+    <string name="scenario_stopped">Simulation stopped by user</string>
+    <string name="scenario_emergency_stopped">Emergency stop — simulation cancelled immediately</string>
+    <string name="simulated_tap_at">Simulated tap at %1$d,%2$d</string>
+    <string name="waited_ms">Waited %1$d ms</string>
 
     <!-- Validation -->
     <string name="validation_name_required">Name is required.</string>
-    <string name="validation_coordinate_invalid">X and Y must be 0 or greater.</string>
     <string name="validation_repeat_invalid">Repeat count must be between 1 and 1000.</string>
     <string name="validation_interval_invalid">Interval must be at least 100 ms.</string>
+    <string name="validation_actions_required">A scenario needs at least one action.</string>
+    <string name="validation_action_required">At least one action is required.</string>
+    <string name="validation_coordinate_invalid">X and Y must be 0 or greater.</string>
+    <string name="validation_duration_invalid">Duration must be at least 100 ms.</string>
+    <string name="validation_message_required">Note message is required (max 300 chars).</string>
 
-    <!-- Simulation -->
-    <string name="simulated_tap_at">Simulated tap at %1$d,%2$d (step %3$d/%4$d)</string>
-
-    <!-- Safety / diagnostics / storage -->
+    <!-- Safety / storage -->
     <string name="real_taps_disabled">Real taps are disabled.</string>
     <string name="storage_ready">storageReady</string>
     <string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
+    <string name="storage_migrated">storageMigrated</string>
 
     <!-- Messages -->
-    <string name="scenario_saved">Scenario saved.</string>
-    <string name="scenario_deleted">Scenario deleted.</string>
+    <string name="scenario_saved">Saved.</string>
+    <string name="scenario_deleted">Deleted.</string>
 </resources>

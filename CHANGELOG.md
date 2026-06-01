@@ -5,6 +5,32 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 54 — Android Multi-step Scenarios and Simulation Audit Log
+
+- expanded `Scenario` to schema **v2**: ordered `actions: List<ScenarioAction>`, `version=2`,
+  `MULTI_STEP_SIMULATION` type; `ScenarioSettings` reduced to `repeatCount`/`intervalMs`;
+- added action types `SIMULATED_TAP` / `WAIT` / `NOTE` (`ScenarioAction`, `ScenarioActionType`) with
+  per-type validation (x/y ≥ 0; duration ≥ 100 ms; note ≤ 300 chars);
+- `ScenarioRepository`: backward-compatible **v1→v2 migration** (old `x/y` → one `SIMULATED_TAP`
+  action), `storageMigrated` flag, action-list persistence, multi-step default scenario, corrupted
+  fallback;
+- `ScenarioManager`: action CRUD — `addAction` / `updateAction` / `deleteAction` / `moveAction` /
+  `duplicateAction`;
+- `SimulationEngine`: executes `repeatCount × actions` in order with progress
+  (`currentActionIndex` / `currentRepeatIndex` / percent); WAIT delays; emits audit events; statuses
+  include `error`; still no real input;
+- added `audit/` package: `AuditEvent`, `AuditSeverity`, `AuditType`, `AuditLogManager` (in-memory,
+  bounded, `StateFlow`, `exportText()`);
+- `ClickFlowViewModel`: scenario detail + action form state, audit events, run history, run indices,
+  defensive `attemptRealTapBlocked()` (audits `safety.realTapBlocked`);
+- UI: Scenario Detail (action list + add/edit/delete/move + run), Action form (per-type fields with
+  inline validation), Audit Log screen (list + clear), Home progress (current action/repeat/percent);
+- Diagnostics: actions count, current action/repeat, audit count + last type, storage migrated;
+  Safety Center: multi-step simulation-only, audit log enabled, no permissions, real taps disabled;
+- RU/EN strings (75/75); docs `ANDROID_MULTI_STEP_SCENARIOS.md` + `ANDROID_AUDIT_LOG.md`; updated
+  README, PROJECT_CONTEXT, scenario storage/UI docs, MVP checklist, safety model, smoke script;
+- no real taps implemented.
+
 ### Step 53 — Android Scenario UI and Local Storage
 
 - expanded `Scenario` with `ScenarioSettings` (x, y, repeatCount, intervalMs) and `isActive`;

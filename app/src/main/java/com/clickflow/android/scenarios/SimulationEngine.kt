@@ -1,5 +1,8 @@
 package com.clickflow.android.scenarios
 
+import com.clickflow.android.audit.AuditLogManager
+import com.clickflow.android.audit.AuditSeverity
+import com.clickflow.android.audit.AuditType
 import com.clickflow.android.safety.SafetyGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -12,38 +15,43 @@ import kotlinx.coroutines.launch
 
 /** Lifecycle status of the simulation engine, mirrored into the UI. */
 enum class SimulationStatus {
-    IDLE,
-    RUNNING,
-    COMPLETED,
-    STOPPED,
-    EMERGENCY_STOPPED,
-    ERROR,
+    IDLE, RUNNING, COMPLETED, STOPPED, EMERGENCY_STOPPED, ERROR,
 }
 
 /** Progress of the current/last simulation run. */
 data class SimulationProgress(
     val currentStep: Int = 0,
     val totalSteps: Int = 0,
+    val currentActionIndex: Int = 0,
+    val currentRepeatIndex: Int = 0,
     val lastLog: String? = null,
 ) {
     val percent: Int
         get() = if (totalSteps <= 0) 0 else ((currentStep * 100) / totalSteps).coerceIn(0, 100)
 }
 
+/** Localized message builders injected by the ViewModel (resources need a Context). */
+data class SimMessages(
+    val started: (name: String) -> String,
+    val completed: (name: String) -> String,
+    val stopped: () -> String,
+    val emergencyStopped: () -> String,
+    val simulatedTap: (x: Int, y: Int, label: String?) -> String,
+    val waited: (ms: Long) -> String,
+)
+
 /**
- * Executes scenarios in SIMULATION ONLY mode.
+ * Executes multi-step scenarios in SIMULATION ONLY mode.
  *
- * Step 53 guarantee: this engine performs NO real input. For each scenario it loops
- * `repeatCount` times, waiting `intervalMs` between steps, and emits a dry-run log line
- * ("Simulated tap at x,y") plus progress. Before running it consults [SafetyGate]; the gate
- * permits simulation and forbids real taps, and there is no real-tap code path to call.
- *
- * @param logFormatter renders the per-step log line; injected so strings can be localized.
+ * Step 54 guarantee: NO real input. For each of `repeatCount` cycles it walks the scenario's
+ * [ScenarioAction] list in order, pacing each step by `intervalMs`; SIMULATED_TAP only logs,
+ * WAIT additionally `delay`s its duration, NOTE logs its message. Every step and lifecycle
+ * transition emits an audit event. There is no real-tap code path.
  */
 class SimulationEngine(
-    private val gate: SafetyGate = SafetyGate(),
-    private val logFormatter: (x: Int, y: Int, step: Int, total: Int) -> String =
-        { x, y, step, total -> "Simulated tap at $x,$y (step $step/$total)" },
+    private val gate: SafetyGate,
+    private val audit: AuditLogManager,
+    private val messages: SimMessages,
 ) {
     private val _status = MutableStateFlow(SimulationStatus.IDLE)
     val status: StateFlow<SimulationStatus> = _status.asStateFlow()
@@ -54,70 +62,112 @@ class SimulationEngine(
     private var activeScenarioId: String? = null
     private var job: Job? = null
 
-    /**
-     * Starts a simulation run for [scenario] on [scope]. Returns the immediate status.
-     * No real input is ever performed.
-     */
-    fun startSimulation(scenario: Scenario, scope: CoroutineScope): SimulationStatus {
-        if (!gate.canRunSimulation()) {
+    fun startSimulation(
+        scenario: Scenario,
+        scope: CoroutineScope,
+        onTerminal: (SimulationStatus) -> Unit = {},
+    ): SimulationStatus {
+        if (!gate.canRunSimulation() || scenario.actions.isEmpty()) {
             _status.value = SimulationStatus.ERROR
+            audit.log(AuditType.VALIDATION_FAILED, AuditSeverity.ERROR,
+                "Scenario has no actions to simulate", scenarioId = scenario.id)
+            onTerminal(_status.value)
             return _status.value
         }
-        // SAFETY: real taps are never executed; canRunRealTap() is false and unused here.
         job?.cancel()
         activeScenarioId = scenario.id
 
-        val total = scenario.settings.repeatCount.coerceAtLeast(1)
+        val repeat = scenario.settings.repeatCount.coerceAtLeast(1)
         val interval = scenario.settings.intervalMs.coerceAtLeast(ScenarioValidator.MIN_INTERVAL_MS)
-        val x = scenario.settings.x
-        val y = scenario.settings.y
+        val actions = scenario.actions
+        val total = repeat * actions.size
 
-        _progress.value = SimulationProgress(currentStep = 0, totalSteps = total, lastLog = null)
+        _progress.value = SimulationProgress(0, total, 0, 0, null)
         _status.value = SimulationStatus.RUNNING
+        audit.log(AuditType.SCENARIO_STARTED, AuditSeverity.INFO,
+            messages.started(scenario.name), scenarioId = scenario.id,
+            metadata = mapOf("repeatCount" to repeat.toString(), "actions" to actions.size.toString()))
 
         job = scope.launch {
+            var step = 0
             try {
-                for (step in 1..total) {
+                for (r in 1..repeat) {
                     if (!isActive) break
-                    delay(interval)
-                    if (!isActive) break
-                    _progress.value = SimulationProgress(
-                        currentStep = step,
-                        totalSteps = total,
-                        lastLog = logFormatter(x, y, step, total),
-                    )
+                    for ((ai, action) in actions.withIndex()) {
+                        if (!isActive) break
+                        delay(interval)
+                        if (!isActive) break
+                        // SAFETY: no real input. We only log + (for WAIT) delay.
+                        val log = executeSimulated(action, scenario.id)
+                        if (action.type == ScenarioActionType.WAIT) {
+                            val d = (action.durationMs ?: ScenarioValidator.MIN_WAIT_MS)
+                                .coerceAtLeast(ScenarioValidator.MIN_WAIT_MS)
+                            delay(d)
+                        }
+                        step++
+                        _progress.value = SimulationProgress(
+                            currentStep = step,
+                            totalSteps = total,
+                            currentActionIndex = ai,
+                            currentRepeatIndex = r,
+                            lastLog = log,
+                        )
+                    }
                 }
-                // Only mark completed if we were not stopped/emergency-stopped meanwhile.
                 if (_status.value == SimulationStatus.RUNNING) {
                     _status.value = SimulationStatus.COMPLETED
+                    audit.log(AuditType.SCENARIO_COMPLETED, AuditSeverity.INFO,
+                        messages.completed(scenario.name), scenarioId = scenario.id)
                 }
             } catch (_: Throwable) {
                 if (_status.value == SimulationStatus.RUNNING) {
                     _status.value = SimulationStatus.ERROR
                 }
+            } finally {
+                onTerminal(_status.value)
             }
         }
         return _status.value
     }
 
+    /** Logs an audit event for a simulated action and returns the log line. No real input. */
+    private fun executeSimulated(action: ScenarioAction, scenarioId: String): String = when (action.type) {
+        ScenarioActionType.SIMULATED_TAP -> {
+            val msg = messages.simulatedTap(action.x ?: 0, action.y ?: 0, action.label)
+            audit.log(AuditType.ACTION_SIMULATED_TAP, AuditSeverity.INFO, msg, scenarioId, action.id)
+            msg
+        }
+        ScenarioActionType.WAIT -> {
+            val msg = messages.waited(action.durationMs ?: 0L)
+            audit.log(AuditType.ACTION_WAIT, AuditSeverity.INFO, msg, scenarioId, action.id)
+            msg
+        }
+        ScenarioActionType.NOTE -> {
+            val msg = action.message.orEmpty()
+            audit.log(AuditType.ACTION_NOTE, AuditSeverity.INFO, msg, scenarioId, action.id)
+            msg
+        }
+    }
+
     fun stopSimulation(): SimulationStatus {
-        job?.cancel()
-        job = null
+        job?.cancel(); job = null
+        val sid = activeScenarioId
         activeScenarioId = null
         _status.value = SimulationStatus.STOPPED
+        audit.log(AuditType.SCENARIO_STOPPED, AuditSeverity.WARNING, messages.stopped(), scenarioId = sid)
         return _status.value
     }
 
-    /** Hard stop. Always available; cancels any in-flight run immediately. */
     fun emergencyStop(): SimulationStatus {
-        job?.cancel()
-        job = null
+        job?.cancel(); job = null
+        val sid = activeScenarioId
         activeScenarioId = null
         _status.value = SimulationStatus.EMERGENCY_STOPPED
+        audit.log(AuditType.SCENARIO_EMERGENCY_STOPPED, AuditSeverity.SAFETY,
+            messages.emergencyStopped(), scenarioId = sid)
         return _status.value
     }
 
     fun getStatus(): SimulationStatus = _status.value
-
     fun activeScenarioId(): String? = activeScenarioId
 }

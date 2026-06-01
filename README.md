@@ -4,7 +4,7 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 53 — Scenario UI + Local Storage. Simulation-only. No real taps.**
+> **Status: Step 54 — Multi-step Scenarios + Simulation Audit Log. Simulation-only. No real taps.**
 
 ## Relation to desktop ClickFlow
 
@@ -17,20 +17,21 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 53)
+## Current status (Step 54)
 
-Builds on the Step 52 foundation with a real scenario layer:
+Extends the scenario layer to **multi-step** simulation and adds an **audit log**:
 
-- Full scenario CRUD UI: list, create, edit, delete, select active.
-- **Local persistence** — scenarios stored as JSON in internal app storage; restored on restart.
-- Inline form validation (name, coordinates, repeat count, interval).
-- Simulation runs the active scenario with **progress** (steps, percent, dry-run log).
-- Diagnostics shows scenario count, active scenario, storage state, corruption recovery.
-- Safety Center reports simulation-only + local-storage + real taps disabled.
-- RU/EN localization for the scenario layer.
+- Scenarios are ordered lists of **actions**: `SIMULATED_TAP`, `WAIT`, `NOTE` (schema v2).
+- Scenario detail editor: add/edit/delete/move actions; per-scenario repeat + interval.
+- **Backward-compatible migration** of Step 53 (v1) scenarios into v2 on load.
+- Simulation runs all actions × repeats with progress (current action / repeat / percent).
+- **Audit log** of lifecycle, per-action, validation, storage, and safety events (in-memory).
+- Diagnostics shows actions/audit/storage state; Safety Center reports audit enabled + real taps
+  disabled.
+- RU/EN localization for the multi-step + audit layer.
 
-Foundation from Step 52 (Kotlin + Jetpack Compose app shell, Safety gate/state/center, Diagnostics)
-remains intact.
+Earlier work — Step 52 (app shell, safety gate/state/center, diagnostics) and Step 53 (scenario CRUD
++ local JSON storage) — remains intact.
 
 **Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
 Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
@@ -83,6 +84,8 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_MULTI_STEP_SCENARIOS.md](docs/ANDROID_MULTI_STEP_SCENARIOS.md)
+- [docs/ANDROID_AUDIT_LOG.md](docs/ANDROID_AUDIT_LOG.md)
 - [docs/ANDROID_SCENARIO_STORAGE.md](docs/ANDROID_SCENARIO_STORAGE.md)
 - [docs/ANDROID_SCENARIO_UI.md](docs/ANDROID_SCENARIO_UI.md)
 - [docs/ANDROID_PRODUCT_PLAN.md](docs/ANDROID_PRODUCT_PLAN.md)

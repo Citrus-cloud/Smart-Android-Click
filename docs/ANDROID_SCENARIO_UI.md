@@ -49,6 +49,36 @@ instead of crashing.
 Centralized in `ScenarioValidator`. The form, `ScenarioManager`, and the repository all use the same
 rules, so invalid scenarios cannot be saved or persisted.
 
+## Action editor (Step 54)
+
+Tapping **Open** on a scenario opens the **Scenario Detail** screen — the multi-step editor:
+
+- Header: scenario name + summary (`actions=N, repeat=R, interval=I ms`), plus **Edit scenario**
+  (metadata form) and **Select** (make active).
+- Ordered **action cards**, each showing its index, type, and a summary, with per-card actions:
+  **Edit**, **Delete**, **Up**, **Down**.
+- Add buttons: **Add tap action**, **Add wait action**, **Add note action** (each opens the Action
+  form pre-set to that type).
+- **Run simulation** runs this scenario; **Back** returns to the list.
+
+### Action form
+
+Fields depend on the action type:
+
+- **Simulated tap**: X, Y (numeric), Label (optional).
+- **Wait**: Duration ms (numeric).
+- **Note**: message.
+
+Inline validation: x/y ≥ 0; duration ≥ 100 ms; note message non-blank (≤ 300 chars). Save returns to
+the detail screen; Cancel discards. The metadata form (name / repeat / interval) is reached via
+**Create scenario** or **Edit scenario**; creating a scenario opens its detail so actions can be
+added immediately.
+
+### Audit Log screen
+
+Reached from Home. Lists audit events (severity · type · message · timestamp), shows the event count,
+and offers **Clear**. See `ANDROID_AUDIT_LOG.md`.
+
 ## Simulation run
 
 `SimulationEngine` runs the active scenario for `repeatCount` steps, waiting `intervalMs` between

@@ -65,6 +65,24 @@ valid ranges on read; exactly one scenario is forced active.
 Stored `x/y/repeatCount/intervalMs` drive only the dry-run engine (status, progress, and a localized
 "Simulated tap at x,y" log line). They are never sent to any real input API.
 
+## Schema v2 migration (Step 54)
+
+Step 54 introduces **schema version 2** (multi-step). Scenarios now persist `settings`
+(`repeatCount`, `intervalMs`) and an `actions` array; each action stores `type` plus the fields
+relevant to it (`x/y/label`, `durationMs`, or `message`).
+
+On load, the repository auto-migrates older records:
+
+- A v1 (Step 53) scenario — single tap stored as top-level `x/y` — becomes one `SIMULATED_TAP`
+  action, preserving `repeatCount`/`intervalMs`. The record is upgraded to `version: 2`, re-saved,
+  and `storageMigrated` is set (also logged as a `storage.migrated` audit event).
+- Settings are read from either the nested `settings` object (v2) or top-level fields (v1).
+- Per-field values are coerced into valid ranges on read; an empty action list is repaired with a
+  placeholder `NOTE` so a scenario is never empty.
+
+The corrupted-storage fallback now seeds a **multi-step** default (NOTE → SIMULATED_TAP → WAIT →
+NOTE) instead of a single tap.
+
 ## Future import/export
 
 A later step may add JSON import/export of scenarios (share/back up presets), still without

@@ -5,68 +5,68 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Persists scenarios as JSON in the app's INTERNAL storage.
+ * Persists scenarios as JSON in INTERNAL app storage (`filesDir/scenarios.json`).
  *
- * Storage choice: **Option B — JSON in internal app storage** (`filesDir/scenarios.json`).
- * Chosen over DataStore for simplicity and crash-safety: a single file, hand-rolled JSON via
- * `org.json` (bundled with Android, no serialization plugin), with a hard fallback to a default
- * scenario when the file is missing or corrupted.
+ * Step 54 schema = **version 2 (multi-step)**: each scenario has an ordered [Scenario.actions]
+ * list. The repository transparently **migrates** version-1 (Step 53) scenarios — which stored a
+ * single tap as top-level `x/y` — into a single `SIMULATED_TAP` action, preserving
+ * `repeatCount`/`intervalMs`.
  *
- * Guarantees:
- *  - No permissions required, no external storage.
- *  - Corrupted/invalid JSON never crashes the app — it falls back to the default scenario and
- *    sets [corruptedStorageRecovered].
- *  - Exactly one scenario is active at a time.
+ * Guarantees: no permissions, no external storage, never crashes on corrupted JSON (falls back to a
+ * default multi-step scenario and flags [corruptedStorageRecovered]).
  *
- * SAFETY: this layer stores simulation parameters only. It cannot and does not enable real taps.
+ * SAFETY: stores simulation parameters only; cannot enable real taps.
  */
 class ScenarioRepository(private val storageFile: File) {
 
-    @Volatile
-    var corruptedStorageRecovered: Boolean = false
-        private set
-
-    @Volatile
-    var storageReady: Boolean = false
-        private set
+    @Volatile var corruptedStorageRecovered: Boolean = false; private set
+    @Volatile var storageMigrated: Boolean = false; private set
+    @Volatile var storageReady: Boolean = false; private set
 
     private var seq: Long = 0
 
     companion object {
         const val FILE_NAME = "scenarios.json"
+        const val SCHEMA_VERSION = 2
 
-        fun default(now: Long): Scenario = Scenario(
-            id = "scn_default",
-            name = "Demo simulation tap",
-            type = ScenarioType.SIMPLE_TAP_SIMULATION,
-            settings = ScenarioSettings(x = 500, y = 800, repeatCount = 5, intervalMs = 500L),
+        fun defaultScenario(now: Long, idSeed: String = "scn_default"): Scenario = Scenario(
+            id = idSeed,
+            name = "Demo multi-step simulation",
+            type = ScenarioType.MULTI_STEP_SIMULATION,
+            settings = ScenarioSettings(repeatCount = 1, intervalMs = 500L),
+            actions = listOf(
+                ScenarioAction(id = "act_d1", type = ScenarioActionType.NOTE, message = "Demo scenario started"),
+                ScenarioAction(id = "act_d2", type = ScenarioActionType.SIMULATED_TAP, x = 500, y = 800, label = "Demo tap"),
+                ScenarioAction(id = "act_d3", type = ScenarioActionType.WAIT, durationMs = 500L),
+                ScenarioAction(id = "act_d4", type = ScenarioActionType.NOTE, message = "Demo scenario completed"),
+            ),
             createdAt = now,
             updatedAt = now,
             isActive = true,
+            version = SCHEMA_VERSION,
         )
     }
 
     private fun nowMillis(): Long = System.currentTimeMillis()
-
-    private fun nextId(): String = "scn_${nowMillis()}_${++seq}"
+    fun nextId(prefix: String = "scn"): String = "${prefix}_${nowMillis()}_${++seq}"
 
     // ---- Load / save -------------------------------------------------------
 
-    /**
-     * Loads scenarios from disk. Never throws. On any problem (missing file, bad JSON,
-     * empty list) returns a single default scenario and flags recovery when corruption
-     * was the cause.
-     */
     fun loadScenarios(): List<Scenario> {
         corruptedStorageRecovered = false
+        storageMigrated = false
         val result = runCatching {
             if (!storageFile.exists()) return@runCatching seedDefault(persist = true)
             val text = storageFile.readText()
             if (text.isBlank()) return@runCatching seedDefault(persist = true)
             val parsed = parse(text)
-            if (parsed.isEmpty()) seedDefault(persist = true) else ensureSingleActive(parsed)
+            if (parsed.isEmpty()) seedDefault(persist = true) else {
+                val fixed = ensureSingleActive(parsed)
+                // Persist if we migrated, so the file is upgraded to v2 on disk.
+                if (storageMigrated) saveScenarios(fixed)
+                fixed
+            }
         }.getOrElse {
-            // Corrupted JSON or read error → safe fallback, do not crash.
             corruptedStorageRecovered = true
             seedDefault(persist = true)
         }
@@ -78,9 +78,8 @@ class ScenarioRepository(private val storageFile: File) {
         runCatching {
             val arr = JSONArray()
             scenarios.forEach { arr.put(toJson(it)) }
-            val root = JSONObject().put("version", 1).put("scenarios", arr)
-            // Atomic-ish write: write to temp then rename.
-            val tmp = File(storageFile.parentFile, "${FILE_NAME}.tmp")
+            val root = JSONObject().put("version", SCHEMA_VERSION).put("scenarios", arr)
+            val tmp = File(storageFile.parentFile, "$FILE_NAME.tmp")
             tmp.writeText(root.toString())
             if (!tmp.renameTo(storageFile)) {
                 storageFile.writeText(root.toString())
@@ -91,37 +90,40 @@ class ScenarioRepository(private val storageFile: File) {
     }
 
     private fun seedDefault(persist: Boolean): List<Scenario> {
-        val list = listOf(default(nowMillis()))
+        val list = listOf(defaultScenario(nowMillis()))
         if (persist) saveScenarios(list)
         return list
     }
 
-    // ---- CRUD --------------------------------------------------------------
+    // ---- CRUD (scenario level) --------------------------------------------
 
-    /** Creates and persists a new scenario. Caller is expected to pre-validate input. */
+    /** Creates a new multi-step scenario seeded with one starter NOTE action (never empty). */
     fun createScenario(input: ScenarioInput, current: List<Scenario>): List<Scenario> {
         val now = nowMillis()
         val scenario = Scenario(
             id = nextId(),
             name = input.name.trim(),
-            type = input.type,
-            settings = ScenarioSettings(input.x, input.y, input.repeatCount, input.intervalMs),
+            type = ScenarioType.MULTI_STEP_SIMULATION,
+            settings = ScenarioSettings(input.repeatCount, input.intervalMs),
+            actions = listOf(
+                ScenarioAction(id = nextId("act"), type = ScenarioActionType.NOTE, message = "New scenario"),
+            ),
             createdAt = now,
             updatedAt = now,
             isActive = current.isEmpty(),
+            version = SCHEMA_VERSION,
         )
         val updated = current + scenario
         saveScenarios(updated)
         return updated
     }
 
-    fun updateScenario(id: String, input: ScenarioInput, current: List<Scenario>): List<Scenario> {
+    fun updateScenarioMeta(id: String, input: ScenarioInput, current: List<Scenario>): List<Scenario> {
         val now = nowMillis()
         val updated = current.map {
             if (it.id == id) it.copy(
                 name = input.name.trim(),
-                type = input.type,
-                settings = ScenarioSettings(input.x, input.y, input.repeatCount, input.intervalMs),
+                settings = ScenarioSettings(input.repeatCount, input.intervalMs),
                 updatedAt = now,
             ) else it
         }
@@ -129,10 +131,17 @@ class ScenarioRepository(private val storageFile: File) {
         return updated
     }
 
+    /** Replaces the action list of a scenario (used by all action-level edits). */
+    fun replaceActions(id: String, actions: List<ScenarioAction>, current: List<Scenario>): List<Scenario> {
+        val now = nowMillis()
+        val updated = current.map { if (it.id == id) it.copy(actions = actions, updatedAt = now) else it }
+        saveScenarios(updated)
+        return updated
+    }
+
     fun deleteScenario(id: String, current: List<Scenario>): List<Scenario> {
         val remaining = current.filterNot { it.id == id }
         if (remaining.isEmpty()) return seedDefault(persist = true)
-        // If we removed the active one, promote the first remaining scenario.
         val hadActive = current.firstOrNull { it.id == id }?.isActive == true
         val fixed = if (hadActive) remaining.mapIndexed { i, s -> s.copy(isActive = i == 0) }
         else ensureSingleActive(remaining)
@@ -150,18 +159,17 @@ class ScenarioRepository(private val storageFile: File) {
     fun getActiveScenario(current: List<Scenario>): Scenario? =
         current.firstOrNull { it.isActive } ?: current.firstOrNull()
 
-    /** Wipes storage back to the single default scenario. */
     fun resetScenarios(): List<Scenario> = seedDefault(persist = true)
 
-    // ---- JSON helpers ------------------------------------------------------
+    fun newActionId(): String = nextId("act")
+
+    // ---- JSON + migration --------------------------------------------------
 
     private fun parse(text: String): List<Scenario> {
         val root = JSONObject(text)
         val arr = root.getJSONArray("scenarios")
         val out = ArrayList<Scenario>(arr.length())
-        for (i in 0 until arr.length()) {
-            out.add(fromJson(arr.getJSONObject(i)))
-        }
+        for (i in 0 until arr.length()) out.add(fromJson(arr.getJSONObject(i)))
         return out
     }
 
@@ -169,38 +177,94 @@ class ScenarioRepository(private val storageFile: File) {
         put("id", s.id)
         put("name", s.name)
         put("type", s.type.name)
-        put("x", s.settings.x)
-        put("y", s.settings.y)
-        put("repeatCount", s.settings.repeatCount)
-        put("intervalMs", s.settings.intervalMs)
+        put("version", SCHEMA_VERSION)
+        put("settings", JSONObject()
+            .put("repeatCount", s.settings.repeatCount)
+            .put("intervalMs", s.settings.intervalMs))
+        val acts = JSONArray()
+        s.actions.forEach { a ->
+            val ao = JSONObject().put("id", a.id).put("type", a.type.name)
+            a.x?.let { ao.put("x", it) }
+            a.y?.let { ao.put("y", it) }
+            a.durationMs?.let { ao.put("durationMs", it) }
+            a.message?.let { ao.put("message", it) }
+            a.label?.let { ao.put("label", it) }
+            acts.put(ao)
+        }
+        put("actions", acts)
         put("createdAt", s.createdAt)
         put("updatedAt", s.updatedAt)
         put("isActive", s.isActive)
     }
 
     private fun fromJson(o: JSONObject): Scenario {
-        val type = runCatching { ScenarioType.valueOf(o.optString("type")) }
-            .getOrDefault(ScenarioType.SIMPLE_TAP_SIMULATION)
         val name = o.optString("name").ifBlank { "Scenario" }
+        // Settings can be nested (v2) or top-level (v1).
+        val settingsObj = o.optJSONObject("settings")
+        val repeatCount = (settingsObj?.optInt("repeatCount") ?: o.optInt("repeatCount", 1))
+            .coerceIn(ScenarioValidator.MIN_REPEAT, ScenarioValidator.MAX_REPEAT)
+        val intervalMs = (settingsObj?.optLong("intervalMs") ?: o.optLong("intervalMs", 500L))
+            .coerceAtLeast(ScenarioValidator.MIN_INTERVAL_MS)
+
+        val actions: List<ScenarioAction>
+        val type: ScenarioType
+        if (o.has("actions")) {
+            // v2
+            actions = parseActions(o.getJSONArray("actions"))
+            type = runCatching { ScenarioType.valueOf(o.optString("type")) }
+                .getOrDefault(ScenarioType.MULTI_STEP_SIMULATION)
+        } else {
+            // v1 (Step 53) → migrate single tap into one SIMULATED_TAP action.
+            storageMigrated = true
+            actions = listOf(
+                ScenarioAction(
+                    id = newActionId(),
+                    type = ScenarioActionType.SIMULATED_TAP,
+                    x = o.optInt("x", 0).coerceAtLeast(0),
+                    y = o.optInt("y", 0).coerceAtLeast(0),
+                    label = "Migrated tap",
+                ),
+            )
+            type = ScenarioType.MULTI_STEP_SIMULATION
+        }
+
         return Scenario(
             id = o.optString("id").ifBlank { nextId() },
             name = name,
             type = type,
-            settings = ScenarioSettings(
-                x = o.optInt("x", 0).coerceAtLeast(0),
-                y = o.optInt("y", 0).coerceAtLeast(0),
-                repeatCount = o.optInt("repeatCount", 1)
-                    .coerceIn(ScenarioValidator.MIN_REPEAT, ScenarioValidator.MAX_REPEAT),
-                intervalMs = o.optLong("intervalMs", 500L)
-                    .coerceAtLeast(ScenarioValidator.MIN_INTERVAL_MS),
-            ),
+            settings = ScenarioSettings(repeatCount, intervalMs),
+            actions = if (actions.isEmpty())
+                listOf(ScenarioAction(id = newActionId(), type = ScenarioActionType.NOTE, message = "Recovered scenario"))
+            else actions,
             createdAt = o.optLong("createdAt", nowMillis()),
             updatedAt = o.optLong("updatedAt", nowMillis()),
             isActive = o.optBoolean("isActive", false),
+            version = SCHEMA_VERSION,
         )
     }
 
-    /** Ensures exactly one scenario is marked active (the first, if none/multiple). */
+    private fun parseActions(arr: JSONArray): List<ScenarioAction> {
+        val out = ArrayList<ScenarioAction>(arr.length())
+        for (i in 0 until arr.length()) {
+            val a = arr.getJSONObject(i)
+            val type = runCatching { ScenarioActionType.valueOf(a.optString("type")) }
+                .getOrDefault(ScenarioActionType.NOTE)
+            out.add(
+                ScenarioAction(
+                    id = a.optString("id").ifBlank { newActionId() },
+                    type = type,
+                    x = if (a.has("x") && !a.isNull("x")) a.optInt("x").coerceAtLeast(0) else null,
+                    y = if (a.has("y") && !a.isNull("y")) a.optInt("y").coerceAtLeast(0) else null,
+                    durationMs = if (a.has("durationMs") && !a.isNull("durationMs"))
+                        a.optLong("durationMs").coerceAtLeast(ScenarioValidator.MIN_WAIT_MS) else null,
+                    message = if (a.has("message") && !a.isNull("message")) a.optString("message") else null,
+                    label = if (a.has("label") && !a.isNull("label")) a.optString("label") else null,
+                ),
+            )
+        }
+        return out
+    }
+
     private fun ensureSingleActive(list: List<Scenario>): List<Scenario> {
         if (list.isEmpty()) return list
         val activeIndex = list.indexOfFirst { it.isActive }.let { if (it < 0) 0 else it }

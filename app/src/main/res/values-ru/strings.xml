@@ -16,10 +16,12 @@
 
     <!-- Scenarios -->
     <string name="scenarios">Сценарии</string>
+    <string name="multi_step_scenarios">Мульти-шаговые сценарии (симуляция)</string>
     <string name="create_scenario">Создать сценарий</string>
-    <string name="edit_scenario">Редактировать</string>
+    <string name="edit_scenario">Редактировать сценарий</string>
     <string name="delete_scenario">Удалить</string>
     <string name="select_scenario">Выбрать</string>
+    <string name="open_scenario">Открыть</string>
     <string name="active_scenario">Активный сценарий</string>
     <string name="active_scenario_none">Нет активного сценария. Создайте или выберите.</string>
     <string name="active_badge">АКТИВЕН</string>
@@ -27,32 +29,70 @@
     <string name="create_default_scenario">Создать сценарий по умолчанию</string>
     <string name="reset_scenarios">Сбросить к умолчанию</string>
     <string name="run_simulation">Запустить симуляцию</string>
-    <string name="scenario_summary">x=%1$d, y=%2$d, повторов=%3$d, интервал=%4$d мс</string>
+    <string name="scenario_meta_summary">действий=%1$d, повторов=%2$d, интервал=%3$d мс</string>
 
-    <!-- Scenario form -->
+    <!-- Scenario metadata form -->
     <string name="scenario_name">Название сценария</string>
-    <string name="coordinates">Координаты (X, Y)</string>
     <string name="repeat_count">Кол-во повторов (1–1000)</string>
     <string name="interval_ms">Интервал (мс, ≥ 100)</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
-    <string name="simulation_only_scenario">Только симуляция — эти координаты не вызывают реальных нажатий.</string>
+    <string name="simulation_only_scenario">Только симуляция — без реальных нажатий.</string>
+
+    <!-- Actions -->
+    <string name="actions">Действия</string>
+    <string name="add_action">Добавить действие</string>
+    <string name="edit_action">Изменить</string>
+    <string name="delete_action">Удалить</string>
+    <string name="move_up">Вверх</string>
+    <string name="move_down">Вниз</string>
+    <string name="add_tap_action">Добавить tap-действие</string>
+    <string name="add_wait_action">Добавить wait-действие</string>
+    <string name="add_note_action">Добавить note-действие</string>
+    <string name="simulated_tap_action">Симулированный tap</string>
+    <string name="wait_action">Ожидание</string>
+    <string name="note_action">Заметка</string>
+    <string name="action_type">Тип действия</string>
+    <string name="action_label">Метка (необязательно)</string>
+    <string name="duration_ms">Длительность (мс, ≥ 100)</string>
+    <string name="note_message">Текст заметки</string>
+    <string name="simulation_only_actions">Все действия — только симуляция, без реальных нажатий.</string>
+    <string name="real_tap_still_disabled">Реальные нажатия по-прежнему отключены.</string>
+
+    <!-- Progress -->
+    <string name="current_action">Действие %1$d/%2$d</string>
+    <string name="current_repeat">Повтор %1$d/%2$d</string>
+
+    <!-- Audit log -->
+    <string name="audit_log">Журнал аудита</string>
+    <string name="clear_audit_log">Очистить журнал</string>
+    <string name="audit_events">Событий: %1$d</string>
+
+    <!-- Simulation messages -->
+    <string name="scenario_started">Сценарий запущен: %1$s</string>
+    <string name="scenario_completed">Сценарий завершён: %1$s</string>
+    <string name="scenario_stopped">Симуляция остановлена пользователем</string>
+    <string name="scenario_emergency_stopped">Аварийная остановка — симуляция немедленно отменена</string>
+    <string name="simulated_tap_at">Симуляция нажатия в %1$d,%2$d</string>
+    <string name="waited_ms">Ожидание %1$d мс</string>
 
     <!-- Validation -->
     <string name="validation_name_required">Укажите название.</string>
-    <string name="validation_coordinate_invalid">X и Y должны быть не меньше 0.</string>
     <string name="validation_repeat_invalid">Кол-во повторов должно быть от 1 до 1000.</string>
     <string name="validation_interval_invalid">Интервал должен быть не меньше 100 мс.</string>
+    <string name="validation_actions_required">В сценарии нужно хотя бы одно действие.</string>
+    <string name="validation_action_required">Требуется хотя бы одно действие.</string>
+    <string name="validation_coordinate_invalid">X и Y должны быть не меньше 0.</string>
+    <string name="validation_duration_invalid">Длительность должна быть не меньше 100 мс.</string>
+    <string name="validation_message_required">Текст заметки обязателен (макс. 300 символов).</string>
 
-    <!-- Simulation -->
-    <string name="simulated_tap_at">Симуляция нажатия в %1$d,%2$d (шаг %3$d/%4$d)</string>
-
-    <!-- Safety / diagnostics / storage -->
+    <!-- Safety / storage -->
     <string name="real_taps_disabled">Реальные нажатия отключены.</string>
     <string name="storage_ready">storageReady</string>
     <string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
+    <string name="storage_migrated">storageMigrated</string>
 
     <!-- Messages -->
-    <string name="scenario_saved">Сценарий сохранён.</string>
-    <string name="scenario_deleted">Сценарий удалён.</string>
+    <string name="scenario_saved">Сохранено.</string>
+    <string name="scenario_deleted">Удалено.</string>
 </resources>

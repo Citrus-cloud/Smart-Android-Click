@@ -22,6 +22,19 @@ building the debug APK.
 - [ ] **simulation progress** — running the active scenario shows steps/percent and a dry-run log.
 - [ ] **corrupted storage safe** — a corrupted `scenarios.json` falls back to default without crash.
 
+## Step 54 — Multi-step Scenarios + Audit Log
+
+- [ ] **create multi-step scenario** — new scenario opens its detail editor.
+- [ ] **add tap / wait / note actions** — each type can be added via its form.
+- [ ] **edit action** — an existing action can be edited and saved.
+- [ ] **move action up/down** — reordering persists.
+- [ ] **delete action** — removing works; scenario never becomes empty.
+- [ ] **persistence after restart** — multi-step scenarios survive an app restart.
+- [ ] **v1 migration** — a Step 53 scenario loads as a v2 single `SIMULATED_TAP` action.
+- [ ] **run shows progress** — current repeat / current action / percent update during a run.
+- [ ] **audit log** — events appear; Clear empties the log.
+- [ ] **emergency stop** — cancels immediately and logs a SAFETY audit event.
+
 ## Build environment note
 
 Building requires JDK 17 and the Android SDK (`compileSdk 34`, `build-tools`, `platform-34`). On a

@@ -41,8 +41,23 @@ Manual smoke test to confirm the foundation works end-to-end.
 8. **Open Diagnostics** — tap **Diagnostics**. Verify `simulationOnly=true`,
    `realTapsEnabled=false`, version `1.0.0-alpha.1`.
 
+## Step 54 — multi-step + audit checks
+
+9. **Open a scenario** — Scenarios → **Open** → Scenario Detail shows the action list.
+10. **Add actions** — add a tap (X/Y), a wait (duration), and a note (message); each validates.
+11. **Reorder / edit / delete** — Up/Down reorders; Edit changes an action; Delete removes one.
+12. **Run multi-step** — **Run simulation**; Home shows current repeat / current action / percent.
+13. **Audit Log** — open from Home; verify `scenario.started`, `action.*`, `scenario.completed`.
+14. **Emergency Stop mid-run** — start a long run, hit Emergency Stop; status `emergency_stopped`
+    and a `scenario.emergencyStopped` SAFETY event appears.
+15. **Clear audit log** — Clear empties the list.
+16. **Migration** — install over a Step 53 build (or seed a v1 `scenarios.json`); the old tap loads
+    as a single `SIMULATED_TAP` action and Diagnostics shows `storageMigrated=true`.
+
 ## Pass criteria
 - App builds, installs, launches.
 - Start / Stop / Emergency Stop transition status correctly.
+- Multi-step scenarios: actions add/edit/delete/move/run with progress.
+- Audit log records events and clears.
 - Safety Center and Diagnostics open and report simulation-only / real taps disabled.
 - No real taps occur anywhere.
