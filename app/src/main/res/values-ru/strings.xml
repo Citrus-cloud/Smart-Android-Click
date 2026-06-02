@@ -161,4 +161,13 @@
 <string name="real_tap_audit_consent_confirmed">Подтверждение реального тапа получено</string>
 <string name="real_tap_audit_consent_expired">Подтверждение реального тапа истекло</string>
 <string name="real_tap_audit_dispatch_blocked">Реальный тап заблокирован SafetyGate</string>
+
+<!-- Step 63: dispatch-result chip + why-blocked list -->
+<string name="real_tap_why_blocked">Почему заблокировано</string>
+<string name="real_tap_result_dispatched">Реальный тап отправлен</string>
+<string name="real_tap_result_blocked_by_gate">Заблокировано SafetyGate</string>
+<string name="real_tap_result_blocked_no_service">Заблокировано: служба специальных возможностей не подключена</string>
+<string name="real_tap_result_blocked_invalid_consent">Заблокировано: подтверждение отсутствует или истекло</string>
+<string name="real_tap_result_dispatch_cancelled">Отправка отменена</string>
+<string name="real_tap_result_dispatch_failed">Сбой отправки</string>
 </resources>
