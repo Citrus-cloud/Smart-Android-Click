@@ -40,6 +40,13 @@ data class SafetyState(
 * flags through [updateReviewPassed], [updateAccessibility], [updateSession],
 * and [updateConsentFresh]. The classic [canRunRealTap] (bulk) stays false
 * forever.
+*
+* Step 64 introduces [canRunControlledRealTapSession] as the controlled
+* session's bespoke gate. It does NOT relax any rule — it is identical to
+* [canRunRealTapSingleProto] in its base preconditions and additionally
+* accepts a `sessionId` so audit reasoning can correlate a denial to a
+* specific session. The bulk gate [canRunRealTap] still returns false
+* unconditionally — DO NOT change that.
 */
 class SafetyGate(initial: SafetyState = SafetyState.STEP_62_DEFAULT) {
 
@@ -69,6 +76,34 @@ class SafetyGate(initial: SafetyState = SafetyState.STEP_62_DEFAULT) {
            state.realTapConsentFresh
 
    /**
+    * Step 64 — controlled real-tap session gate. Same hard preconditions as
+    * the single-tap prototype: review passed, accessibility bound, session
+    * active, and per-tap consent fresh. The `sessionId` parameter is opaque
+    * to the gate but threaded into [getControlledSessionBlockedReasons] so
+    * the diagnostic list can reflect WHICH session was denied.
+    *
+    * This is NOT a relaxation of any prior rule. Bulk taps remain blocked
+    * via [canRunRealTap] returning false. The controlled session is a
+    * UI-level construct that issues one consented single-tap at a time —
+    * each dispatch still passes through [canRunRealTapSingleProto] freshness
+    * checks. This method exists so the controlled-session controller has a
+    * single API surface to query, instead of duplicating the four-flag
+    * boolean expression at every call site.
+    *
+    * Returns true only when ALL of:
+    *  - [SafetyState.realTapSafetyReviewPassed]
+    *  - [SafetyState.accessibilityServiceEnabled]
+    *  - [SafetyState.realTapSessionActive]
+    *  - [SafetyState.realTapConsentFresh]
+    *
+    * @param sessionId opaque identifier for the controlled session — not
+    *   validated here, used only as a debugging affordance.
+    */
+   @Suppress("UNUSED_PARAMETER")
+   fun canRunControlledRealTapSession(sessionId: String): Boolean =
+       canRunRealTapSingleProto()
+
+   /**
     * Single defensive chokepoint for any hypothetical bulk real-tap attempt. Always denies.
     * Callers should record a `safety.realTapBlocked` audit event.
     */
@@ -89,6 +124,28 @@ class SafetyGate(initial: SafetyState = SafetyState.STEP_62_DEFAULT) {
        if (!state.accessibilityServiceEnabled) reasons += "Accessibility service not enabled."
        if (!state.realTapSessionActive) reasons += "Real-tap session not started."
        if (!state.realTapConsentFresh) reasons += "Per-tap consent not confirmed."
+       return reasons
+   }
+
+   /**
+    * Step 64 — diagnostic list of which controlled-session gating flags are
+    * currently missing for the given session id. Returns an empty list when
+    * the session is allowed to proceed.
+    */
+   fun getControlledSessionBlockedReasons(sessionId: String): List<String> {
+       val reasons = mutableListOf<String>()
+       if (!state.realTapSafetyReviewPassed) {
+           reasons += "Safety review not completed (sessionId=$sessionId)."
+       }
+       if (!state.accessibilityServiceEnabled) {
+           reasons += "Accessibility service not enabled (sessionId=$sessionId)."
+       }
+       if (!state.realTapSessionActive) {
+           reasons += "Controlled session not started (sessionId=$sessionId)."
+       }
+       if (!state.realTapConsentFresh) {
+           reasons += "Per-tap consent not confirmed (sessionId=$sessionId)."
+       }
        return reasons
    }
 
