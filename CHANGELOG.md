@@ -31,19 +31,41 @@ total = 33;
 - `diagnostics/DiagnosticsState.kt` + `DiagnosticsManager.kt`: +6 mirror fields
 (`realTapSessionActive`, `realTapSafetyReviewPassed`, `realTapConsentFresh`,
 `realTapDispatchedCount`, `realTapLastOutcome`, `realTapLastEventAtMs`);
-- `res/values/strings.xml` + `res/values-ru/strings.xml`: ~24 new keys each (EN + RU) for the
-prototype UX — review, session, consent dialog, blocked reasons, emergency-stop note;
+- `res/values/strings.xml` + `res/values-ru/strings.xml`: 22 new keys each (EN + RU) for the
+prototype UX — review, session, consent dialog, blocked reasons, emergency-stop note, plus
+5 audit-mirror message keys (`real_tap_audit_session_started`, `real_tap_audit_session_ended`,
+`real_tap_audit_consent_requested`, `real_tap_audit_consent_expired`,
+`real_tap_audit_dispatch_blocked`);
+- **UI wiring landed:** `ClickFlowViewModel` adds `Screen.REAL_TAP_PROTOTYPE`,
+`SafetyReviewState` (10-item checklist + `itemsLocalized` + `allPassed` + `toggle`),
+`RealTapSessionState`, `RealTapConsent` (10s expiry), six new `StateFlow`s
+(`safetyReview`, `realTapSession`, `realTapConsent`, plus three one-shot audit-mirror
+message flows), and six prototype APIs (`startRealTapSession`, `endRealTapSession`,
+`requestRealTap`, `confirmRealTap`, `cancelRealTap`, `toggleSafetyReviewItem`); all
+transitions audit-logged; `emergencyStop()` tears down the active session and invalidates
+any pending consent;
+- `ui/RealTapPrototypeScreen.kt`: self-contained composable (own `RealTapScaffold` +
+`RealTapMessageLine` helpers, no dependency on `Screens.kt` private helpers) — header,
+status badge, scrollable 10-item review block, session controls, "Request single real tap"
+button, consent dialog with countdown, blocked-reason list driven by
+`SafetyGate.getSingleProtoBlockedReasons`, and the permanent "Bulk and looped real taps
+remain blocked by SafetyGate" footer;
+- `ui/Screens.kt`: `Screen.REAL_TAP_PROTOTYPE` routed in the navigation `when`;
+`AdvancedScreen` gains a `NavButton(stringResource(R.string.btn_real_tap_prototype))`
+entry; `MessageLine` extended with the five audit-mirror keys;
 - new docs: `docs/REAL_TAP_PROTOTYPE.md` (architecture, file map, invariants, out-of-scope),
 `docs/SAFETY_REVIEW_CHECKLIST.md` (the 10 items verbatim, EN + RU, UX rules),
 `docs/CONSENT_FLOW.md` (per-tap consent lifecycle, TTL/nonce contract, audit events,
 defence-in-depth);
-- pending in Step 62 (not yet committed): ViewModel safety/session APIs,
-`RealTapPrototypeScreen` composable, `Screens.kt` routing + Advanced entry, SafetyCenter
-prototype item, `AppInfo.STEP` bump to "Step 62 — Real tap prototype";
+- pending in Step 62 (not yet committed): SafetyCenter prototype item bump,
+`AppInfo.STEP` bump to "Step 62 — Real tap prototype", smoke + CI verification, APK
+refresh on the pre-release;
 - invariants: scenario runner untouched; `canRunRealTap()` still `false`;
 `performSingleTap` is the sole `dispatchGesture` call site; `RealTapController` is the sole
 caller of `performSingleTap`; review + session + consent state never persisted, never
-exported, never backed up; Emergency Stop ends the session and invalidates any pending consent.
+exported, never backed up; Emergency Stop ends the session and invalidates any pending consent;
+the prototype UI is reachable only from `AdvancedScreen` — no shortcut from Home / Simple
+Clicker / Scenario Runner.
 
 ### Step 61 — Permissions skeleton (overlay + accessibility service, no automation)
 
@@ -68,8 +90,9 @@ accessibility status; real-tap row still reads `disabled (canRunRealTap=false)`;
 (default `false`); `permissionsRequired` stays `false` because permissions remain opt-in;
 - new EN + RU strings for permissions, accessibility service label / summary / description, and
 floating-marker UX;
-- pending: ViewModel + `PermissionsScreen` composable + `Screen.PERMISSIONS` routing + Advanced
-entry button (UI wiring landed alongside Step 62);
+- UI wiring landed alongside Step 62: `ClickFlowViewModel` exposes `PermissionStatus` state,
+`refreshPermissions()`, `Screen.PERMISSIONS`; `PermissionsScreen` composable + Advanced entry
+button + navigation routing;
 - safety invariants: `SafetyGate.canRunRealTap()` = `false` (hard-coded); SafetyCenter exposes
 zero controls to enable real input; accessibility service is a no-op even when enabled in
 system settings; overlay permission unlocks only an in-app visual marker, never a tap.
