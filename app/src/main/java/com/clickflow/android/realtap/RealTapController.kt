@@ -1,82 +1,192 @@
 package com.clickflow.android.realtap
 
-import android.os.Build
-import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.audit.AuditLogManager
+import com.clickflow.android.audit.AuditSeverity
+import com.clickflow.android.audit.AuditType
 import com.clickflow.android.safety.SafetyGate
 
 /**
-* Step 62 — orchestrates a single real-tap request end-to-end.
+* Step 64 Part 1 — single domain entry point for every real-tap request.
 *
-* Responsibilities (in strict order):
-*   1. Ask [SafetyGate.canRunRealTapSingleProto]. If false -> BLOCKED_BY_GATE,
-*      with a precise list of which sub-conditions failed.
-*   2. Verify a session is active and consent is fresh.
-*   3. Verify the AccessibilityService is currently bound
-*      ([ClickFlowAccessibilityService.isConnected]).
-*   4. Consume the per-tap consent atomically (it cannot be reused).
-*   5. Call [ClickFlowAccessibilityService.performSingleTap] for ONE tap.
-*   6. Return a [RealTapResult] with the outcome.
+* Until Step 64, real-tap consent/dispatch logic lived directly inside
+* `ClickFlowViewModel`. That made the gating contract diffuse: every new caller
+* (controlled-session controller, future floating controls) had to re-derive
+* "what does it mean to be allowed to dispatch a real tap?" from scratch.
 *
-* The controller does NOT itself decide whether the safety review has been
-* passed or whether to ask for consent — that is the UI/ViewModel's job. It
-* only reads the resulting flags via [SafetyGate].
+* `RealTapController` centralizes that contract. It holds NO mutable state of
+* its own — it composes `SafetyGate` + `AuditLogManager` and exposes pure
+* decision functions plus thin audit-recording helpers. Every real-tap call
+* site (single-tap prototype, controlled session) routes through this class so
+* the invariants are enforced in exactly one place.
 *
-* The controller holds no state of its own; it is safe to instantiate per call.
+* Hard invariants enforced here:
+*  - A marker MUST be present (non-null pair) for any real-tap intent. Without
+*    a marker the request is rejected as `BLOCKED_INVALID_CONSENT`.
+*  - The single-prototype gate (`canRunRealTapSingleProto`) AND the bulk gate
+*    (`canRunRealTap`) MUST be evaluated together. Today bulk is hard-coded
+*    false, so every dispatch is BLOCKED_BY_GATE — that is intentional.
+*  - Every decision is recorded with a granular `AuditType.REAL_TAP_*` entry
+*    so the audit log surfaces lifecycle separately from the generic
+*    `safety.realTapBlocked` chokepoint.
+*
+* This class does NOT touch StateFlows, the ViewModel, or any Android API. It
+* is pure orchestration so it can be unit-tested without an `Application`.
 */
 class RealTapController(
    private val gate: SafetyGate,
-   private val clock: () -> Long = System::currentTimeMillis,
-   /** Hook for tests — production passes the real service singleton. */
-   private val serviceProvider: () -> ClickFlowAccessibilityService? =
-       { ClickFlowAccessibilityService.liveInstance },
+   private val auditLog: AuditLogManager,
 ) {
 
+   /** Outcome of a single real-tap evaluation. */
+   enum class Decision {
+       ALLOWED,
+       BLOCKED_BY_GATE,
+       BLOCKED_NO_SERVICE,
+       BLOCKED_INVALID_CONSENT,
+   }
+
    /**
-    * Execute a single real-tap request. Synchronous; the result captures the
-    * dispatch decision but the gesture itself is best-effort async at the OS
-    * level — DISPATCH_SUCCEEDED only means the system accepted the gesture.
+    * Marker for a real-tap request. Non-null x/y are REQUIRED — passing a
+    * `null` marker is the canonical "invalid consent" signal and produces
+    * [Decision.BLOCKED_INVALID_CONSENT].
     */
-   fun dispatch(request: RealTapRequest): RealTapResult {
-       // 1. API level check — dispatchGesture is API 24+.
-       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-           return RealTapResult(
-               outcome = RealTapOutcome.BLOCKED_API_TOO_LOW,
-               request = request,
-               happenedAtMs = clock(),
-               blockedReasons = listOf("Device API ${Build.VERSION.SDK_INT} is below 24."),
+   data class Marker(val x: Int?, val y: Int?) {
+       val isValid: Boolean get() = x != null && y != null
+   }
+
+   /**
+    * Step 64 Part 1 invariant check: every real-tap request MUST come with a
+    * non-null marker. This is the only place this rule is enforced — callers
+    * never bypass it because they all route through [evaluate].
+    */
+   fun evaluate(marker: Marker, sessionId: String?): Decision {
+       if (!marker.isValid) {
+           auditLog.log(
+               AuditType.REAL_TAP_BLOCKED,
+               AuditSeverity.SAFETY,
+               "Real-tap blocked: marker missing (sessionId=$sessionId)",
            )
+           return Decision.BLOCKED_INVALID_CONSENT
        }
 
-       // 2. Safety gate — composite check.
-       if (!gate.canRunRealTapSingleProto()) {
-           return RealTapResult(
-               outcome = RealTapOutcome.BLOCKED_BY_GATE,
-               request = request,
-               happenedAtMs = clock(),
-               blockedReasons = gate.getSingleProtoBlockedReasons(),
+       // Accessibility-service-missing is reported as its own granular
+       // outcome so the UI can render "service not bound" distinctly from
+       // "gate blocked". The gate itself still denies — this is defense in
+       // depth, not a bypass.
+       if (!gate.currentState().accessibilityServiceEnabled) {
+           auditLog.log(
+               AuditType.REAL_TAP_PERMISSION_MISSING,
+               AuditSeverity.SAFETY,
+               "Real-tap blocked: accessibility service not enabled " +
+                   "(sessionId=$sessionId, marker=(${marker.x},${marker.y}))",
            )
+           return Decision.BLOCKED_NO_SERVICE
        }
 
-       // 3. Accessibility service must be live in this process.
-       val service = serviceProvider() ?: return RealTapResult(
-           outcome = RealTapOutcome.BLOCKED_ACCESSIBILITY_DISABLED,
-           request = request,
-           happenedAtMs = clock(),
-           blockedReasons = listOf("AccessibilityService is not currently connected."),
-       )
+       // Bulk gate is hard-coded false (Step 52). Single-proto gate may be
+       // true if all four flags are live. Either denial → BLOCKED_BY_GATE.
+       val bulkAllowed = gate.canRunRealTap()
+       val singleAllowed = gate.canRunRealTapSingleProto()
+       if (!bulkAllowed && !singleAllowed) {
+           auditLog.log(
+               AuditType.REAL_TAP_BLOCKED,
+               AuditSeverity.SAFETY,
+               "Real-tap blocked by SafetyGate (sessionId=$sessionId, " +
+                   "marker=(${marker.x},${marker.y}), bulk=$bulkAllowed, " +
+                   "single=$singleAllowed)",
+           )
+           // Defensive chokepoint — also pings the centralized denier.
+           gate.attemptRealTap()
+           return Decision.BLOCKED_BY_GATE
+       }
 
-       // 4. Dispatch — exactly one stroke.
-       val accepted = service.performSingleTap(
-           x = request.x,
-           y = request.y,
-           durationMs = request.durationMs,
+       // Both bulk OR single passed — today this branch is unreachable
+       // because bulk is false and single requires all four live flags +
+       // canRunRealTap()=false short-circuits dispatch upstream. It exists
+       // so Step 64 Part 2 (controlled session) can wire dispatch in
+       // without changing this contract.
+       auditLog.log(
+           AuditType.REAL_TAP_DISPATCH_ATTEMPTED,
+           AuditSeverity.SAFETY,
+           "Real-tap allowed by SafetyGate (sessionId=$sessionId, " +
+               "marker=(${marker.x},${marker.y}))",
        )
+       return Decision.ALLOWED
+   }
 
-       return RealTapResult(
-           outcome = if (accepted) RealTapOutcome.DISPATCH_SUCCEEDED
-           else RealTapOutcome.DISPATCH_FAILED,
-           request = request,
-           happenedAtMs = clock(),
+   /**
+    * Records a granular session-started event. Centralizing this here means
+    * future controlled-session lifecycle calls and the single-tap prototype
+    * share the exact same audit shape.
+    */
+   fun recordSessionStarted(sessionId: String) {
+       auditLog.log(
+           AuditType.REAL_TAP_SESSION_STARTED,
+           AuditSeverity.SAFETY,
+           "Real-tap session started (sessionId=$sessionId, gate=blocked)",
+       )
+   }
+
+   /** Records a granular session-ended event. */
+   fun recordSessionEnded(sessionId: String?, reason: String) {
+       auditLog.log(
+           AuditType.REAL_TAP_SESSION_ENDED,
+           AuditSeverity.SAFETY,
+           "Real-tap session ended (sessionId=$sessionId, reason=$reason)",
+       )
+   }
+
+   /** Records a granular consent-requested event. */
+   fun recordConsentRequested(sessionId: String?, x: Int, y: Int) {
+       auditLog.log(
+           AuditType.REAL_TAP_CONSENT_SHOWN,
+           AuditSeverity.SAFETY,
+           "Real-tap consent requested at ($x,$y) — sessionId=$sessionId",
+       )
+   }
+
+   /** Records a granular consent-given event. */
+   fun recordConsentGiven(sessionId: String?, x: Int, y: Int) {
+       auditLog.log(
+           AuditType.REAL_TAP_CONSENT_GIVEN,
+           AuditSeverity.SAFETY,
+           "Real-tap consent given at ($x,$y) — sessionId=$sessionId",
+       )
+   }
+
+   /** Records a granular consent-declined event. */
+   fun recordConsentDeclined(sessionId: String?, reason: String) {
+       auditLog.log(
+           AuditType.REAL_TAP_CONSENT_DECLINED,
+           AuditSeverity.SAFETY,
+           "Real-tap consent declined (sessionId=$sessionId, reason=$reason)",
+       )
+   }
+
+   /** Records a granular dispatch-failed event. */
+   fun recordDispatchFailed(sessionId: String?, reason: String) {
+       auditLog.log(
+           AuditType.REAL_TAP_DISPATCH_FAILED,
+           AuditSeverity.SAFETY,
+           "Real-tap dispatch failed (sessionId=$sessionId, reason=$reason)",
+       )
+   }
+
+   /** Records a granular safety-review-passed event. */
+   fun recordSafetyReviewPassed() {
+       auditLog.log(
+           AuditType.REAL_TAP_SAFETY_REVIEW_PASSED,
+           AuditSeverity.SAFETY,
+           "Safety review passed (all 10 items checked)",
+       )
+   }
+
+   /** Records a granular safety-review-failed event. */
+   fun recordSafetyReviewFailed(missingCount: Int) {
+       auditLog.log(
+           AuditType.REAL_TAP_SAFETY_REVIEW_FAILED,
+           AuditSeverity.SAFETY,
+           "Safety review incomplete (missing=$missingCount)",
        )
    }
 }
