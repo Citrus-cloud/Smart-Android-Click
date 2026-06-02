@@ -4,12 +4,19 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 59 — Simple Clicker UX + draggable marker + clean minimal UI. Simulation-only. No real taps.**
+> **Status: Step 62 — Single real-tap prototype (gated, audited, per-tap consent). In progress.**
 >
-> Home is now a simple clicker (drag a marker, press Start). All power-user features moved into
-> **Advanced**. Build verified (debug APK). The pre-alpha release
+> The domain layer (controller, gate extension, session/review/consent models, audit constants,
+> diagnostics mirror, EN+RU strings) and the design docs are committed.
+> ViewModel APIs, the `RealTapPrototypeScreen` composable, navigation routing, and the SafetyCenter
+> prototype item are still pending. Bulk, looped, and scenario-driven real taps remain hard-disabled
+> by `SafetyGate.canRunRealTap() == false`. The single-tap path is gated behind a per-session
+> Safety Review, a per-tap consent (10s TTL, single-use nonce), API ≥ 24, and a bound
+> Accessibility Service.
+>
+> The latest published APK is still the Step 60 build at the pre-release
 > [`android-v0.1.0-prealpha`](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha)
-> asset was refreshed (Step 60) to include this Simple Clicker UX.
+> (Simple Clicker UX, simulation-only).
 
 ## Relation to desktop ClickFlow
 
@@ -22,25 +29,36 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 59)
+## Current status (Step 62 in progress; Steps 52–61 intact)
 
-Redesigned UX — the app now feels like a simple mobile clicker:
+**Step 62 — Single real-tap prototype (in progress):**
 
-- **Simple Clicker home**: large rounded tap-target with a **draggable circular marker** (in-app only,
-not a system overlay), prominent **Start**, plus Stop / Emergency Stop.
-- **Quick settings**: Interval + Count steppers update a "Quick clicker" scenario directly.
-- **Clean minimal UI**: calm Material 3 palette, soft corners, light cards, short text.
-- **Advanced menu** hides Scenarios / Profiles / Audit Log / Backup / Safety Center / Diagnostics /
-About — all still fully available.
-- Marker position + quick settings **persist** via existing scenario storage.
-- Re-confirmed: **0 permissions, 0 providers, no real taps, simulation-only.** Build verified.
+- introduces a **narrow, audited path** for *exactly one real tap per explicit consent* via
+the Step 61 `ClickFlowAccessibilityService`;
+- bulk / looped / scenario-driven real taps remain blocked (`SafetyGate.canRunRealTap()` still
+returns `false`); the scenario runner is untouched;
+- four independent gates required for a single tap: Safety Review passed (per session, in-memory
+only) + session active + consent fresh (10s TTL, single-use nonce) + API ≥ 24 with bound service;
+- every state transition emits a `realtap.*` audit event; review/session/consent state is never
+persisted, never exported, never backed up;
+- Emergency Stop ends the session and invalidates any pending consent.
 
-See [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md) and
-[docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md).
+See [docs/REAL_TAP_PROTOTYPE.md](docs/REAL_TAP_PROTOTYPE.md),
+[docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md), and
+[docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md).
 
-Earlier work — Steps 52–58 (foundation; scenario CRUD + storage; multi-step + audit; profiles +
-persistent/exportable audit; backup import/export; pre-alpha build + published release) — remains
-intact.
+**Step 61 — Permissions skeleton (overlay + accessibility service, no automation):**
+
+- read-only `PermissionsManager` (overlay via `Settings.canDrawOverlays()`, accessibility via
+`Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES`);
+- declared `ClickFlowAccessibilityService` as a **no-op** (no event subscriptions, no
+`dispatchGesture` until Step 62, no window content reads);
+- declared `SYSTEM_ALERT_WINDOW` in the manifest (opt-in via system settings); no autostart, no
+`<receiver>`, no scheduling.
+
+**Earlier steps (52–60) remain intact:** project foundation, scenario CRUD + storage,
+multi-step + audit log, profiles + persistent/exportable audit, backup import/export,
+pre-alpha build + published release, Simple Clicker UX with draggable marker.
 
 ## Build
 
@@ -52,9 +70,9 @@ intact.
 Requires JDK 17 + Android SDK (`platforms;android-34`, `build-tools;34.0.0`). See
 [docs/ANDROID_BUILD_TROUBLESHOOTING.md](docs/ANDROID_BUILD_TROUBLESHOOTING.md).
 
-**Still not implemented (deferred to future safety-reviewed steps):** real taps, Accessibility
-Service automation, `dispatchGesture`, MediaProjection capture, overlay logic, runtime permission
-requests.
+**Still not implemented (deferred to future safety-reviewed steps):** real input via the
+scenario runner (bulk / loop / scheduled), MediaProjection capture, system overlay rendering,
+release signing.
 
 ## Build the debug APK
 
@@ -104,6 +122,9 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/REAL_TAP_PROTOTYPE.md](docs/REAL_TAP_PROTOTYPE.md) — Step 62 architecture + invariants
+- [docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md) — the 10-item review (EN + RU)
+- [docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md) — per-tap consent lifecycle, TTL/nonce contract
 - [docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md](docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md) — Step 60 release-asset refresh guide
 - [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md)
 - [docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md)
@@ -133,11 +154,17 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 ## Safety model (summary)
 
-- **No real taps yet** — `realTapsEnabled = false`, `simulationOnly = true`, hard-coded.
+- **Bulk real taps remain disabled** — `SafetyGate.canRunRealTap()` returns `false` (hard-coded).
+The scenario runner has no access to any real-input path.
+- **The single-tap prototype** (Step 62) is gated behind four independent checks: per-session
+Safety Review, active session, fresh single-use consent (10s TTL), and a bound accessibility
+service on API ≥ 24. Every transition is audited.
 - No hidden/background automation; no captcha/anti-bot bypass; no ad-click, banking, or payment
 automation; no spyware/keyloggers/input hooks; no root-only features.
-- Future real taps will require Accessibility Service **plus** explicit user consent **plus** safety
-gates **plus** an emergency stop. See [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md).
+- See [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md),
+[docs/REAL_TAP_PROTOTYPE.md](docs/REAL_TAP_PROTOTYPE.md),
+[docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md),
+[docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md).
 
 ## License
 
