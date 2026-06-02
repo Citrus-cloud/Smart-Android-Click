@@ -1,198 +1,224 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ClickFlow Android</string>
-    <string name="status_badge">Только симуляция (основа)</string>
-    <string name="current_status">Статус: %1$s</string>
+<string name="app_name">ClickFlow Android</string>
+<string name="status_badge">Только симуляция (основа)</string>
+<string name="current_status">Статус: %1$s</string>
 
-    <!-- Home / common buttons -->
-    <string name="btn_start_simulation">Запустить симуляцию</string>
-    <string name="btn_stop">Стоп</string>
-    <string name="btn_emergency_stop">Аварийная остановка</string>
-    <string name="btn_safety_center">Центр безопасности</string>
-    <string name="btn_diagnostics">Диагностика</string>
-    <string name="btn_back">Назад</string>
-    <string name="real_taps_disclaimer">Реальные нажатия пока не реализованы.</string>
-    <string name="blocked_reasons_title">Почему реальная автоматизация заблокирована</string>
+<!-- Home / common buttons -->
+<string name="btn_start_simulation">Запустить симуляцию</string>
+<string name="btn_stop">Стоп</string>
+<string name="btn_emergency_stop">Аварийная остановка</string>
+<string name="btn_safety_center">Центр безопасности</string>
+<string name="btn_diagnostics">Диагностика</string>
+<string name="btn_back">Назад</string>
+<string name="real_taps_disclaimer">Реальные нажатия пока не реализованы.</string>
+<string name="blocked_reasons_title">Почему реальная автоматизация заблокирована</string>
 
-    <!-- Scenarios -->
-    <string name="scenarios">Сценарии</string>
-    <string name="multi_step_scenarios">Мульти-шаговые сценарии (симуляция)</string>
-    <string name="create_scenario">Создать сценарий</string>
-    <string name="edit_scenario">Редактировать сценарий</string>
-    <string name="delete_scenario">Удалить</string>
-    <string name="select_scenario">Выбрать</string>
-    <string name="open_scenario">Открыть</string>
-    <string name="active_scenario">Активный сценарий</string>
-    <string name="active_scenario_none">Нет активного сценария. Создайте или выберите.</string>
-    <string name="active_badge">АКТИВЕН</string>
-    <string name="no_scenarios">Сценариев пока нет.</string>
-    <string name="create_default_scenario">Создать сценарий по умолчанию</string>
-    <string name="reset_scenarios">Сбросить к умолчанию</string>
-    <string name="run_simulation">Запустить симуляцию</string>
-    <string name="scenario_meta_summary">действий=%1$d, повторов=%2$d, интервал=%3$d мс</string>
+<!-- Scenarios -->
+<string name="scenarios">Сценарии</string>
+<string name="multi_step_scenarios">Мульти-шаговые сценарии (симуляция)</string>
+<string name="create_scenario">Создать сценарий</string>
+<string name="edit_scenario">Редактировать сценарий</string>
+<string name="delete_scenario">Удалить</string>
+<string name="select_scenario">Выбрать</string>
+<string name="open_scenario">Открыть</string>
+<string name="active_scenario">Активный сценарий</string>
+<string name="active_scenario_none">Нет активного сценария. Создайте или выберите.</string>
+<string name="active_badge">АКТИВЕН</string>
+<string name="no_scenarios">Сценариев пока нет.</string>
+<string name="create_default_scenario">Создать сценарий по умолчанию</string>
+<string name="reset_scenarios">Сбросить к умолчанию</string>
+<string name="run_simulation">Запустить симуляцию</string>
+<string name="scenario_meta_summary">действий=%1$d, повторов=%2$d, интервал=%3$d мс</string>
 
-    <!-- Scenario metadata form -->
-    <string name="scenario_name">Название сценария</string>
-    <string name="repeat_count">Кол-во повторов (1–1000)</string>
-    <string name="interval_ms">Интервал (мс, ≥ 100)</string>
-    <string name="save">Сохранить</string>
-    <string name="cancel">Отмена</string>
-    <string name="simulation_only_scenario">Только симуляция — без реальных нажатий.</string>
+<!-- Scenario metadata form -->
+<string name="scenario_name">Название сценария</string>
+<string name="repeat_count">Кол-во повторов (1–1000)</string>
+<string name="interval_ms">Интервал (мс, ≥ 100)</string>
+<string name="save">Сохранить</string>
+<string name="cancel">Отмена</string>
+<string name="simulation_only_scenario">Только симуляция — без реальных нажатий.</string>
 
-    <!-- Actions -->
-    <string name="actions">Действия</string>
-    <string name="add_action">Добавить действие</string>
-    <string name="edit_action">Изменить</string>
-    <string name="delete_action">Удалить</string>
-    <string name="move_up">Вверх</string>
-    <string name="move_down">Вниз</string>
-    <string name="add_tap_action">Добавить tap-действие</string>
-    <string name="add_wait_action">Добавить wait-действие</string>
-    <string name="add_note_action">Добавить note-действие</string>
-    <string name="simulated_tap_action">Симулированный tap</string>
-    <string name="wait_action">Ожидание</string>
-    <string name="note_action">Заметка</string>
-    <string name="action_type">Тип действия</string>
-    <string name="action_label">Метка (необязательно)</string>
-    <string name="duration_ms">Длительность (мс, ≥ 100)</string>
-    <string name="note_message">Текст заметки</string>
-    <string name="simulation_only_actions">Все действия — только симуляция, без реальных нажатий.</string>
-    <string name="real_tap_still_disabled">Реальные нажатия по-прежнему отключены.</string>
+<!-- Actions -->
+<string name="actions">Действия</string>
+<string name="add_action">Добавить действие</string>
+<string name="edit_action">Изменить</string>
+<string name="delete_action">Удалить</string>
+<string name="move_up">Вверх</string>
+<string name="move_down">Вниз</string>
+<string name="add_tap_action">Добавить tap-действие</string>
+<string name="add_wait_action">Добавить wait-действие</string>
+<string name="add_note_action">Добавить note-действие</string>
+<string name="simulated_tap_action">Симулированный tap</string>
+<string name="wait_action">Ожидание</string>
+<string name="note_action">Заметка</string>
+<string name="action_type">Тип действия</string>
+<string name="action_label">Метка (необязательно)</string>
+<string name="duration_ms">Длительность (мс, ≥ 100)</string>
+<string name="note_message">Текст заметки</string>
+<string name="simulation_only_actions">Все действия — только симуляция, без реальных нажатий.</string>
+<string name="real_tap_still_disabled">Реальные нажатия по-прежнему отключены.</string>
 
-    <!-- Progress -->
-    <string name="current_action">Действие %1$d/%2$d</string>
-    <string name="current_repeat">Повтор %1$d/%2$d</string>
+<!-- Progress -->
+<string name="current_action">Действие %1$d/%2$d</string>
+<string name="current_repeat">Повтор %1$d/%2$d</string>
 
-    <!-- Audit log -->
-    <string name="audit_log">Журнал аудита</string>
-    <string name="clear_audit_log">Очистить журнал</string>
-    <string name="audit_events">Событий: %1$d</string>
+<!-- Audit log -->
+<string name="audit_log">Журнал аудита</string>
+<string name="clear_audit_log">Очистить журнал</string>
+<string name="audit_events">Событий: %1$d</string>
 
-    <!-- Simulation messages -->
-    <string name="scenario_started">Сценарий запущен: %1$s</string>
-    <string name="scenario_completed">Сценарий завершён: %1$s</string>
-    <string name="scenario_stopped">Симуляция остановлена пользователем</string>
-    <string name="scenario_emergency_stopped">Аварийная остановка — симуляция немедленно отменена</string>
-    <string name="simulated_tap_at">Симуляция нажатия в %1$d,%2$d</string>
-    <string name="waited_ms">Ожидание %1$d мс</string>
+<!-- Simulation messages -->
+<string name="scenario_started">Сценарий запущен: %1$s</string>
+<string name="scenario_completed">Сценарий завершён: %1$s</string>
+<string name="scenario_stopped">Симуляция остановлена пользователем</string>
+<string name="scenario_emergency_stopped">Аварийная остановка — симуляция немедленно отменена</string>
+<string name="simulated_tap_at">Симуляция нажатия в %1$d,%2$d</string>
+<string name="waited_ms">Ожидание %1$d мс</string>
 
-    <!-- Validation -->
-    <string name="validation_name_required">Укажите название.</string>
-    <string name="validation_repeat_invalid">Кол-во повторов должно быть от 1 до 1000.</string>
-    <string name="validation_interval_invalid">Интервал должен быть не меньше 100 мс.</string>
-    <string name="validation_actions_required">В сценарии нужно хотя бы одно действие.</string>
-    <string name="validation_action_required">Требуется хотя бы одно действие.</string>
-    <string name="validation_coordinate_invalid">X и Y должны быть не меньше 0.</string>
-    <string name="validation_duration_invalid">Длительность должна быть не меньше 100 мс.</string>
-    <string name="validation_message_required">Текст заметки обязателен (макс. 300 символов).</string>
+<!-- Validation -->
+<string name="validation_name_required">Укажите название.</string>
+<string name="validation_repeat_invalid">Кол-во повторов должно быть от 1 до 1000.</string>
+<string name="validation_interval_invalid">Интервал должен быть не меньше 100 мс.</string>
+<string name="validation_actions_required">В сценарии нужно хотя бы одно действие.</string>
+<string name="validation_action_required">Требуется хотя бы одно действие.</string>
+<string name="validation_coordinate_invalid">X и Y должны быть не меньше 0.</string>
+<string name="validation_duration_invalid">Длительность должна быть не меньше 100 мс.</string>
+<string name="validation_message_required">Текст заметки обязателен (макс. 300 символов).</string>
 
-    <!-- Safety / storage -->
-    <string name="real_taps_disabled">Реальные нажатия отключены.</string>
-    <string name="storage_ready">storageReady</string>
-    <string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
-    <string name="storage_migrated">storageMigrated</string>
+<!-- Safety / storage -->
+<string name="real_taps_disabled">Реальные нажатия отключены.</string>
+<string name="storage_ready">storageReady</string>
+<string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
+<string name="storage_migrated">storageMigrated</string>
 
-    <!-- Messages -->
-    <string name="scenario_saved">Сохранено.</string>
-    <string name="scenario_deleted">Удалено.</string>
+<!-- Messages -->
+<string name="scenario_saved">Сохранено.</string>
+<string name="scenario_deleted">Удалено.</string>
 
-    <!-- Profiles (Step 55) -->
-    <string name="profiles">Профили</string>
-    <string name="profile">Профиль</string>
-    <string name="active_profile">Активный профиль</string>
-    <string name="create_profile">Создать профиль</string>
-    <string name="edit_profile">Изменить</string>
-    <string name="delete_profile">Удалить</string>
-    <string name="select_profile">Выбрать</string>
-    <string name="profile_name">Название профиля</string>
-    <string name="profile_description">Описание</string>
-    <string name="no_profiles">Профилей пока нет.</string>
-    <string name="default_profile">Создать профиль по умолчанию</string>
-    <string name="reset_profiles">Сбросить профили</string>
-    <string name="profiles_are_local">Профили только локальные — без разрешений.</string>
-    <string name="scenarios_for_profile">Профиль</string>
-    <string name="switch_profile">Сменить профиль</string>
-    <string name="profile_saved">Профиль сохранён.</string>
-    <string name="profile_deleted">Профиль удалён.</string>
-    <string name="profile_cannot_delete_active">Нельзя удалить активный профиль.</string>
-    <string name="profile_cannot_delete_last">Нельзя удалить последний профиль.</string>
-    <string name="profile_cannot_delete_with_scenarios">Нельзя удалить профиль, в котором есть сценарии.</string>
-    <string name="profile_name_required">Укажите название профиля.</string>
-    <string name="profile_name_too_long">Слишком длинное название (макс. 80).</string>
-    <string name="profile_description_too_long">Слишком длинное описание (макс. 300).</string>
-    <string name="profile_storage_ready">profileStorageReady</string>
-    <string name="corrupted_profile_storage_recovered">corruptedProfileStorageRecovered</string>
+<!-- Profiles (Step 55) -->
+<string name="profiles">Профили</string>
+<string name="profile">Профиль</string>
+<string name="active_profile">Активный профиль</string>
+<string name="create_profile">Создать профиль</string>
+<string name="edit_profile">Изменить</string>
+<string name="delete_profile">Удалить</string>
+<string name="select_profile">Выбрать</string>
+<string name="profile_name">Название профиля</string>
+<string name="profile_description">Описание</string>
+<string name="no_profiles">Профилей пока нет.</string>
+<string name="default_profile">Создать профиль по умолчанию</string>
+<string name="reset_profiles">Сбросить профили</string>
+<string name="profiles_are_local">Профили только локальные — без разрешений.</string>
+<string name="scenarios_for_profile">Профиль</string>
+<string name="switch_profile">Сменить профиль</string>
+<string name="profile_saved">Профиль сохранён.</string>
+<string name="profile_deleted">Профиль удалён.</string>
+<string name="profile_cannot_delete_active">Нельзя удалить активный профиль.</string>
+<string name="profile_cannot_delete_last">Нельзя удалить последний профиль.</string>
+<string name="profile_cannot_delete_with_scenarios">Нельзя удалить профиль, в котором есть сценарии.</string>
+<string name="profile_name_required">Укажите название профиля.</string>
+<string name="profile_name_too_long">Слишком длинное название (макс. 80).</string>
+<string name="profile_description_too_long">Слишком длинное описание (макс. 300).</string>
+<string name="profile_storage_ready">profileStorageReady</string>
+<string name="corrupted_profile_storage_recovered">corruptedProfileStorageRecovered</string>
 
-    <!-- Audit persistence / export (Step 55) -->
-    <string name="audit_summary">Сводка аудита</string>
-    <string name="audit_storage_ready">auditStorageReady</string>
-    <string name="corrupted_audit_recovered">corruptedAuditRecovered</string>
-    <string name="export_audit_log">Экспорт журнала</string>
-    <string name="share_audit_log">Поделиться журналом</string>
-    <string name="audit_log_exported">Журнал отправлен.</string>
-    <string name="audit_log_export_failed">Не удалось отправить журнал.</string>
-    <string name="audit_log_persisted">Журнал сохраняется локально.</string>
-    <string name="storage_recovered">Хранилище восстановлено.</string>
+<!-- Audit persistence / export (Step 55) -->
+<string name="audit_summary">Сводка аудита</string>
+<string name="audit_storage_ready">auditStorageReady</string>
+<string name="corrupted_audit_recovered">corruptedAuditRecovered</string>
+<string name="export_audit_log">Экспорт журнала</string>
+<string name="share_audit_log">Поделиться журналом</string>
+<string name="audit_log_exported">Журнал отправлен.</string>
+<string name="audit_log_export_failed">Не удалось отправить журнал.</string>
+<string name="audit_log_persisted">Журнал сохраняется локально.</string>
+<string name="storage_recovered">Хранилище восстановлено.</string>
 
-    <!-- Backup import/export (Step 56) -->
-    <string name="backup">Резервная копия</string>
-    <string name="export_backup">Экспорт backup</string>
-    <string name="import_backup">Импорт backup</string>
-    <string name="share_backup">Поделиться backup</string>
-    <string name="backup_json">JSON backup</string>
-    <string name="paste_backup_json">Вставьте JSON backup сюда</string>
-    <string name="validate_backup">Проверить</string>
-    <string name="backup_preview">Предпросмотр backup</string>
-    <string name="backup_valid">Backup корректен.</string>
-    <string name="backup_invalid">Backup некорректен.</string>
-    <string name="backup_profiles_count">Профили</string>
-    <string name="backup_scenarios_count">Сценарии</string>
-    <string name="invalid_items_count">Некорректных элементов</string>
-    <string name="import_strategy">Стратегия импорта</string>
-    <string name="merge_rename_conflicts">Объединить и переименовать конфликты</string>
-    <string name="replace_all_requires_confirmation">Заменить всё (нужно подтверждение)</string>
-    <string name="import_result">Результат импорта</string>
-    <string name="imported_profiles">Импортировано профилей</string>
-    <string name="imported_scenarios">Импортировано сценариев</string>
-    <string name="skipped_items">Пропущено элементов</string>
-    <string name="backup_warnings">Предупреждения</string>
-    <string name="clear_import">Очистить</string>
-    <string name="imported_suffix">(Импортировано)</string>
-    <string name="backup_exported">Backup отправлен.</string>
-    <string name="backup_export_failed">Не удалось отправить backup.</string>
-    <string name="backup_import_completed">Backup импортирован.</string>
-    <string name="backup_import_failed">Импорт backup не удался.</string>
-    <string name="backup_does_not_include_audit_log">Backup не включает журнал аудита.</string>
-    <string name="backup_simulation_only">Backup содержит только данные симуляции.</string>
-    <string name="no_external_storage_used">Внешнее хранилище не используется.</string>
-    <string name="no_permissions_required">Разрешения не требуются.</string>
+<!-- Backup import/export (Step 56) -->
+<string name="backup">Резервная копия</string>
+<string name="export_backup">Экспорт backup</string>
+<string name="import_backup">Импорт backup</string>
+<string name="share_backup">Поделиться backup</string>
+<string name="backup_json">JSON backup</string>
+<string name="paste_backup_json">Вставьте JSON backup сюда</string>
+<string name="validate_backup">Проверить</string>
+<string name="backup_preview">Предпросмотр backup</string>
+<string name="backup_valid">Backup корректен.</string>
+<string name="backup_invalid">Backup некорректен.</string>
+<string name="backup_profiles_count">Профили</string>
+<string name="backup_scenarios_count">Сценарии</string>
+<string name="invalid_items_count">Некорректных элементов</string>
+<string name="import_strategy">Стратегия импорта</string>
+<string name="merge_rename_conflicts">Объединить и переименовать конфликты</string>
+<string name="replace_all_requires_confirmation">Заменить всё (нужно подтверждение)</string>
+<string name="import_result">Результат импорта</string>
+<string name="imported_profiles">Импортировано профилей</string>
+<string name="imported_scenarios">Импортировано сценариев</string>
+<string name="skipped_items">Пропущено элементов</string>
+<string name="backup_warnings">Предупреждения</string>
+<string name="clear_import">Очистить</string>
+<string name="imported_suffix">(Импортировано)</string>
+<string name="backup_exported">Backup отправлен.</string>
+<string name="backup_export_failed">Не удалось отправить backup.</string>
+<string name="backup_import_completed">Backup импортирован.</string>
+<string name="backup_import_failed">Импорт backup не удался.</string>
+<string name="backup_does_not_include_audit_log">Backup не включает журнал аудита.</string>
+<string name="backup_simulation_only">Backup содержит только данные симуляции.</string>
+<string name="no_external_storage_used">Внешнее хранилище не используется.</string>
+<string name="no_permissions_required">Разрешения не требуются.</string>
 
-    <!-- Simple Clicker UX (Step 59) -->
-    <string name="simple_clicker">Простой кликер</string>
-    <string name="simple_mode">Простой режим</string>
-    <string name="simple_home_screen">Главная</string>
-    <string name="drag_marker">Перетащите метку</string>
-    <string name="drag_to_choose_click_point">Перетащите метку и нажмите Старт</string>
-    <string name="tap_target">Точка клика</string>
-    <string name="target_marker">Метка цели</string>
-    <string name="marker_position">Метка</string>
-    <string name="interval">Интервал</string>
-    <string name="count">Количество</string>
-    <string name="quick_clicker">Быстрый кликер</string>
-    <string name="quick_settings">Быстрые настройки</string>
-    <string name="start_clicker">Старт</string>
-    <string name="stop_clicker">Стоп</string>
-    <string name="current_tap">Клик</string>
-    <string name="simulated_tap_at_marker">Симуляция нажатия по метке</string>
-    <string name="reset_marker">Сбросить метку</string>
-    <string name="center_marker">По центру</string>
-    <string name="advanced">Дополнительно</string>
-    <string name="advanced_menu">Дополнительно</string>
-    <string name="open_advanced">Дополнительно</string>
-    <string name="about">О приложении</string>
-    <string name="clean_minimal_ui">Чистый минималистичный интерфейс</string>
-    <string name="simulation_only_marker">Метка только внутри приложения — Старт запускает симуляцию, а не реальные нажатия.</string>
-    <string name="marker_is_in_app_only">Метка только внутри приложения (не системный оверлей).</string>
-    <string name="no_system_overlay_yet">Системного оверлея пока нет.</string>
-    <string name="no_real_taps_yet">Реальных нажатий пока нет.</string>
+<!-- Simple Clicker UX (Step 59) -->
+<string name="simple_clicker">Простой кликер</string>
+<string name="simple_mode">Простой режим</string>
+<string name="simple_home_screen">Главная</string>
+<string name="drag_marker">Перетащите метку</string>
+<string name="drag_to_choose_click_point">Перетащите метку и нажмите Старт</string>
+<string name="tap_target">Точка клика</string>
+<string name="target_marker">Метка цели</string>
+<string name="marker_position">Метка</string>
+<string name="interval">Интервал</string>
+<string name="count">Количество</string>
+<string name="quick_clicker">Быстрый кликер</string>
+<string name="quick_settings">Быстрые настройки</string>
+<string name="start_clicker">Старт</string>
+<string name="stop_clicker">Стоп</string>
+<string name="current_tap">Клик</string>
+<string name="simulated_tap_at_marker">Симуляция нажатия по метке</string>
+<string name="reset_marker">Сбросить метку</string>
+<string name="center_marker">По центру</string>
+<string name="advanced">Дополнительно</string>
+<string name="advanced_menu">Дополнительно</string>
+<string name="open_advanced">Дополнительно</string>
+<string name="about">О приложении</string>
+<string name="clean_minimal_ui">Чистый минималистичный интерфейс</string>
+<string name="simulation_only_marker">Метка только внутри приложения — Старт запускает симуляцию, а не реальные нажатия.</string>
+<string name="marker_is_in_app_only">Метка только внутри приложения (не системный оверлей).</string>
+<string name="no_system_overlay_yet">Системного оверлея пока нет.</string>
+<string name="no_real_taps_yet">Реальных нажатий пока нет.</string>
+
+<!-- Permissions / accessibility (Step 61) -->
+<string name="permissions">Разрешения</string>
+<string name="btn_permissions">Разрешения</string>
+<string name="permissions_intro">Реальный ввод по-прежнему отключён. Эти переключатели лишь позволяют приложению *показывать* системную метку поверх других окон и *видеть*, включена ли служба специальных возможностей. Реальные нажатия они НЕ включают — SafetyGate продолжает блокировать настоящий ввод.</string>
+<string name="permission_overlay">Поверх других окон (системный оверлей)</string>
+<string name="permission_overlay_description">Позволяет показать перетаскиваемую метку поверх других приложений. На этом шаге — только превью.</string>
+<string name="permission_accessibility">Служба специальных возможностей</string>
+<string name="permission_accessibility_description">Позволяет системе подключить (пока пустую) службу ClickFlow. События не обрабатываются, нажатия не выполняются.</string>
+<string name="permission_granted">Выдано</string>
+<string name="permission_not_granted">Не выдано</string>
+<string name="permission_status_unknown">Неизвестно</string>
+<string name="open_overlay_settings">Открыть настройки оверлея</string>
+<string name="open_accessibility_settings">Открыть спец. возможности</string>
+<string name="refresh_permissions">Обновить статус</string>
+<string name="permissions_safety_note">Выдача разрешений НЕ включает реальные нажатия. canRunRealTap() остаётся false.</string>
+<string name="accessibility_service_label">ClickFlow (без автоматизации)</string>
+<string name="accessibility_service_summary">Объявлена только для отработки выдачи разрешения. Автоматизация не выполняется.</string>
+<string name="accessibility_service_description">ClickFlow объявляет службу специальных возможностей, чтобы вы могли потренироваться её включать и выключать. Служба пустая: не подписана на события, не читает содержимое окон, не выполняет нажатий. Реальный ввод по-прежнему жёстко отключён через SafetyGate.</string>
+<string name="floating_marker">Плавающая метка</string>
+<string name="floating_marker_preview">Плавающая метка (только превью)</string>
+<string name="floating_marker_description">Когда разрешение на оверлей выдано, ClickFlow может показывать перетаскиваемую круглую метку поверх других приложений. Это чисто визуальный элемент — он ничего не нажимает.</string>
+<string name="floating_marker_show">Показать плавающую метку</string>
+<string name="floating_marker_hide">Скрыть плавающую метку</string>
+<string name="floating_marker_not_available">Выдайте разрешение на оверлей, чтобы включить превью метки.</string>
+<string name="floating_marker_simulation_only">Плавающая метка — только визуальное превью. Реальные нажатия не выполняются.</string>
 </resources>
