@@ -5,6 +5,49 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 63 — Real-tap prototype hardening (in progress)
+
+- **AppInfo bump**: `core/AppInfo.kt` `STEP` updated to
+`Step 63 — Real-tap prototype hardening (controller wiring, granular audit, marker invariant, live SafetyGate state)`
+(commit `7b251157`).
+- **QA scenarios doc landed**: new `docs/REAL_TAP_QA_SCENARIOS.md` — 17 scenarios across 6 groups
+covering happy path, gate failures (review/session/consent/service/API), consent edge cases
+(TTL expiry, single-use nonce, double-confirm, cancel mid-countdown), session lifecycle
+(cold start, Emergency Stop, end-session-with-pending-consent), marker invariant
+(only-marker-target, off-screen rejection, multi-marker disambiguation), dispatch failure
+modes (service unbound mid-flight, gesture rejection, dispatch race), and audit completeness
+(every transition emits exactly one `realtap.*` event) (commit `b300df2a`).
+- **Fixes log landed**: new `docs/REAL_TAP_FIXES_LOG.md` — template-driven log for each
+scenario fix (symptom, root cause, file(s) changed, commit, verification, audit-event
+coverage) plus a baseline entry documenting the Step 62 → 63 starting state
+(commit `49574d31`).
+- **SafetyGate live state landed**: `safety/SafetyGate.kt` extended with four narrow per-flag
+mutators (`updateReviewPassed`, `updateAccessibility`, `updateSession`, `updateConsentFresh`)
+and a `resetPrototypeFlags()` chokepoint wired for Emergency Stop / session end. State is
+process-local, never persisted, never exported. `canRunRealTap()` still returns `false`
+unconditionally; the bulk contract is untouched. The mutators are `@Synchronized` and only
+flip one flag per call — no bulk "set everything" entry point — so audit reasoning stays
+one-call-per-transition (commit `bdc84bd4`).
+
+**Pending for Step 63 (next phase):**
+
+- `core/ClickFlowViewModel.kt` rewrite: wire `RealTapController` end-to-end into the existing
+six prototype APIs (`startRealTapSession` / `endRealTapSession` / `requestRealTap` /
+`confirmRealTap` / `cancelRealTap` / `toggleSafetyReviewItem`); drive the new SafetyGate
+mutators on every transition; emit granular `realtap.*` audit events for every state change
+including the dispatch attempt/block/success/failure quadrant; enforce the marker-only
+invariant inside `confirmRealTap` (reject any (x, y) that does not match the current marker
+position within the live composition bounds).
+- `ui/RealTapPrototypeScreen.kt`: add the result chip (DISPATCHED / BLOCKED_BY_GATE /
+BLOCKED_NO_SERVICE / BLOCKED_INVALID_CONSENT / DISPATCH_CANCELLED / DISPATCH_FAILED) and a
+human-readable blocked-reasons list driven by `SafetyGate.getSingleProtoBlockedReasons()`.
+- `PROJECT_CONTEXT.md`: add the `## Step 63` section finalizing the above once landed.
+
+Safety invariants preserved: `SafetyGate.canRunRealTap()` returns `false`; bulk / looped /
+scenario-driven paths untouched; review + session + consent state remain process-local and
+never persisted / exported / backed up; SafetyGate state is mutable in-process only and
+resets to a known-safe baseline on Emergency Stop and process death.
+
 ### Step 62 — Single real-tap prototype (gated, audited, per-tap consent)
 
 - introduced a narrow, fully-audited path for **exactly one real tap per explicit consent** through
