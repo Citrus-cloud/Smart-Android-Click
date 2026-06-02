@@ -113,6 +113,23 @@ data class RealTapConsent(
 )
 
 /**
+* Step 63: outcome of the most recent real-tap dispatch attempt.
+*
+* Today every confirmation produces [BLOCKED_BY_GATE] because the bulk
+* `SafetyGate.canRunRealTap()` is still hard-coded false at the dispatch
+* layer. The enum exists so the UI can show the actual reason and so the
+* Step 64 wiring can return the other values without a state model change.
+*/
+enum class RealTapDispatchResult {
+   DISPATCHED,
+   BLOCKED_BY_GATE,
+   BLOCKED_NO_SERVICE,
+   BLOCKED_INVALID_CONSENT,
+   DISPATCH_CANCELLED,
+   DISPATCH_FAILED,
+}
+
+/**
 * 10-item safety review checklist. The user must tick every item before a session can start.
 * Items are referenced by index (0..9). [itemsLocalized] returns ready-to-render labels.
 */
@@ -159,6 +176,12 @@ data class SafetyReviewState(
 * Step 62 (UI prototype): adds an explicit "real tap prototype" screen flow — safety review
 * checklist, session start/end, and single-tap consent. SafetyGate still blocks every dispatch.
 * Bulk real taps remain forbidden.
+*
+* Step 63: makes the four SafetyGate prototype flags LIVE. Every transition on the six prototype
+* APIs drives the matching SafetyGate mutator; `refreshPermissions` pushes the accessibility flag
+* into the gate; `emergencyStop` calls `resetPrototypeFlags`; a new [safetyGateReasons] StateFlow
+* surfaces `gate.getSingleProtoBlockedReasons()` to the UI; a new [lastDispatchResult] StateFlow
+* exposes the most recent [RealTapDispatchResult]. Bulk `canRunRealTap()` still returns false.
 */
 class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -269,6 +292,12 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    val realTapConsent: StateFlow<RealTapConsent?> = _realTapConsent.asStateFlow()
    private var currentRealTapSessionId: String? = null
 
+   // Step 63: live SafetyGate state mirrored into StateFlows for the UI.
+   private val _safetyGateReasons = MutableStateFlow<List<String>>(emptyList())
+   val safetyGateReasons: StateFlow<List<String>> = _safetyGateReasons.asStateFlow()
+   private val _lastDispatchResult = MutableStateFlow<RealTapDispatchResult?>(null)
+   val lastDispatchResult: StateFlow<RealTapDispatchResult?> = _lastDispatchResult.asStateFlow()
+
    val scenarioStorageReady: Boolean get() = scenarioManager.storageReady
    val corruptedScenarioRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
    val storageMigrated: Boolean get() = scenarioManager.storageMigrated
@@ -289,13 +318,21 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            auditLog.log(AuditType.STORAGE_RECOVERED, AuditSeverity.WARNING, "Corrupted profile storage recovered")
        ensureQuickClicker()
        refreshPermissions()
+       refreshSafetyGateReasons()
    }
 
    // ---- Permissions (Step 61) --------------------------------------------
 
-   /** Re-reads overlay + accessibility status from the system. Pure detection — does NOT grant anything. */
+   /**
+    * Re-reads overlay + accessibility status from the system. Pure detection — does NOT grant
+    * anything. Step 63: also pushes the accessibility flag into [gate] so the live prototype
+    * truth follows system settings without the user having to leave and re-enter the screen.
+    */
    fun refreshPermissions() {
-       _permissionStatus.value = permissionsManager.refresh()
+       val status = permissionsManager.refresh()
+       _permissionStatus.value = status
+       gate.updateAccessibility(status.accessibilityEnabled)
+       refreshSafetyGateReasons()
    }
 
    /** Launches the system overlay-permission settings screen for ClickFlow. */
@@ -394,6 +431,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _screen.value = screen
        // Step 61: when entering the Permissions screen, refresh live status so the UI is current.
        if (screen == Screen.PERMISSIONS) refreshPermissions()
+       // Step 63: when entering the Real Tap Prototype screen, refresh the gate reasons display.
+       if (screen == Screen.REAL_TAP_PROTOTYPE) refreshSafetyGateReasons()
    }
    fun consumeMessage() { _message.value = null }
 
@@ -583,7 +622,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    fun stopSimulation() { engine.stopSimulation() }
 
-   /** Emergency stop. Also tears down any active real-tap session + pending consent. */
+   /**
+    * Emergency stop. Tears down any active real-tap session + pending consent AND resets every
+    * SafetyGate prototype flag to its safe baseline (Step 63).
+    */
    fun emergencyStop() {
        engine.emergencyStop()
        if (_realTapSession.value == RealTapSessionState.ACTIVE) {
@@ -595,6 +637,9 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            currentRealTapSessionId = null
            _realTapConsent.value = null
        }
+       // Step 63: single chokepoint that clears every prototype flag.
+       gate.resetPrototypeFlags()
+       refreshSafetyGateReasons()
    }
 
    // ---- Audit -------------------------------------------------------------
@@ -629,15 +674,22 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        return gate.attemptRealTap()
    }
 
-   // ---- Step 62: Real Tap Prototype API ----------------------------------
+   // ---- Step 62/63: Real Tap Prototype API -------------------------------
 
-   /** Toggles a single safety-review checkbox by index. Out-of-range index is a no-op. */
+   /**
+    * Toggles a single safety-review checkbox by index. Out-of-range index is a no-op.
+    * Step 63: also pushes the resulting `allPassed` into the live SafetyGate flag.
+    */
    fun toggleSafetyReviewItem(index: Int) {
-       _safetyReview.value = _safetyReview.value.toggled(index)
+       val next = _safetyReview.value.toggled(index)
+       _safetyReview.value = next
+       gate.updateReviewPassed(next.allPassed)
+       refreshSafetyGateReasons()
    }
 
    /**
     * Starts a real-tap session. Requires all 10 safety-review items to be checked.
+    * Step 63: drives `SafetyGate.updateSession(true)` on success.
     * SafetyGate still blocks dispatch — the session itself only enables the consent flow.
     */
    fun startRealTapSession() {
@@ -654,6 +706,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        currentRealTapSessionId = sid
        _realTapSession.value = RealTapSessionState.ACTIVE
        _realTapConsent.value = null
+       gate.updateSession(true)
+       refreshSafetyGateReasons()
        auditLog.log(
            AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
            "Real-tap session started (sessionId=$sid, gate=blocked)",
@@ -661,7 +715,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _message.value = UiMessage("real_tap_audit_session_started")
    }
 
-   /** Ends the current real-tap session. Idempotent. */
+   /**
+    * Ends the current real-tap session. Idempotent.
+    * Step 63: drives `SafetyGate.updateSession(false)` + `updateConsentFresh(false)`.
+    */
    fun endRealTapSession() {
        if (_realTapSession.value == RealTapSessionState.INACTIVE) return
        auditLog.log(
@@ -671,12 +728,16 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _realTapSession.value = RealTapSessionState.INACTIVE
        currentRealTapSessionId = null
        _realTapConsent.value = null
+       gate.updateSession(false)
+       gate.updateConsentFresh(false)
+       refreshSafetyGateReasons()
        _message.value = UiMessage("real_tap_audit_session_ended")
    }
 
    /**
     * Requests consent for a single real tap at the current marker position. Creates a 10-second
     * window during which [confirmRealTap] is accepted. SafetyGate still blocks the dispatch.
+    * Step 63: drives `SafetyGate.updateConsentFresh(true)`.
     */
    fun requestRealTap() {
        if (_realTapSession.value != RealTapSessionState.ACTIVE) return
@@ -690,6 +751,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            requestedAtMs = now,
            expiresAtMs = now + CONSENT_WINDOW_MS,
        )
+       gate.updateConsentFresh(true)
+       refreshSafetyGateReasons()
        auditLog.log(
            AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
            "Real-tap consent requested at ($x,$y) — sessionId=${currentRealTapSessionId}",
@@ -698,11 +761,19 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    }
 
    /**
-    * Confirms the pending consent. SafetyGate still rejects the dispatch — this always logs
-    * dispatch_blocked. The consent is cleared in both success and failure cases.
+    * Confirms the pending consent. Consults [SafetyGate.canRunRealTapSingleProto] and the bulk
+    * [SafetyGate.canRunRealTap]. Today the bulk gate always returns false, so this always
+    * surfaces [RealTapDispatchResult.BLOCKED_BY_GATE]. The consent is cleared in both success
+    * and failure cases.
+    *
+    * Step 63: also drives `SafetyGate.updateConsentFresh(false)` and publishes the outcome to
+    * [lastDispatchResult] so the UI chip can render it.
     */
    fun confirmRealTap() {
-       val consent = _realTapConsent.value ?: return
+       val consent = _realTapConsent.value ?: run {
+           _lastDispatchResult.value = RealTapDispatchResult.BLOCKED_INVALID_CONSENT
+           return
+       }
        val now = System.currentTimeMillis()
        if (now > consent.expiresAtMs) {
            auditLog.log(
@@ -710,20 +781,46 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
                "Real-tap consent expired before confirmation",
            )
            _realTapConsent.value = null
+           gate.updateConsentFresh(false)
+           refreshSafetyGateReasons()
+           _lastDispatchResult.value = RealTapDispatchResult.BLOCKED_INVALID_CONSENT
            _message.value = UiMessage("real_tap_audit_consent_expired")
            return
        }
+
+       // Bulk gate still hard-coded false → always BLOCKED_BY_GATE today.
+       val result: RealTapDispatchResult = if (!gate.canRunRealTap()) {
+           RealTapDispatchResult.BLOCKED_BY_GATE
+       } else if (!gate.canRunRealTapSingleProto()) {
+           RealTapDispatchResult.BLOCKED_BY_GATE
+       } else {
+           // Step 64 wiring will replace this branch with the real dispatch call.
+           RealTapDispatchResult.DISPATCHED
+       }
+
        auditLog.log(
            AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap consent confirmed at (${consent.x},${consent.y}) — dispatch blocked by SafetyGate",
+           "Real-tap consent confirmed at (${consent.x},${consent.y}) — result=$result",
        )
-       // Gate still says false — record the block.
-       gate.attemptRealTap()
+       // Defensive: also record the block via the centralized chokepoint when blocked.
+       if (result != RealTapDispatchResult.DISPATCHED) {
+           gate.attemptRealTap()
+       }
        _realTapConsent.value = null
-       _message.value = UiMessage("real_tap_audit_dispatch_blocked")
+       gate.updateConsentFresh(false)
+       refreshSafetyGateReasons()
+       _lastDispatchResult.value = result
+       _message.value = UiMessage(
+           if (result == RealTapDispatchResult.DISPATCHED) "real_tap_audit_consent_confirmed"
+           else "real_tap_audit_dispatch_blocked"
+       )
    }
 
-   /** Cancels the pending consent without dispatching. */
+   /**
+    * Cancels the pending consent without dispatching.
+    * Step 63: drives `SafetyGate.updateConsentFresh(false)` + sets `lastDispatchResult` to
+    * [RealTapDispatchResult.DISPATCH_CANCELLED].
+    */
    fun cancelRealTap() {
        if (_realTapConsent.value == null) return
        auditLog.log(
@@ -731,7 +828,18 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            "Real-tap consent cancelled by user",
        )
        _realTapConsent.value = null
+       gate.updateConsentFresh(false)
+       refreshSafetyGateReasons()
+       _lastDispatchResult.value = RealTapDispatchResult.DISPATCH_CANCELLED
    }
+
+   /** Step 63: re-reads `gate.getSingleProtoBlockedReasons()` into the StateFlow. */
+   private fun refreshSafetyGateReasons() {
+       _safetyGateReasons.value = gate.getSingleProtoBlockedReasons()
+   }
+
+   /** Step 63: lets the UI clear the chip after the user has acknowledged the last result. */
+   fun consumeLastDispatchResult() { _lastDispatchResult.value = null }
 
    private companion object {
        const val CONSENT_WINDOW_MS = 10_000L
