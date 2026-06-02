@@ -221,4 +221,31 @@
 <string name="floating_marker_hide">Скрыть плавающую метку</string>
 <string name="floating_marker_not_available">Выдайте разрешение на оверлей, чтобы включить превью метки.</string>
 <string name="floating_marker_simulation_only">Плавающая метка — только визуальное превью. Реальные нажатия не выполняются.</string>
+
+<!-- Single Real Tap prototype (Step 62) -->
+<string name="real_tap_prototype">Один реальный тап (прототип)</string>
+<string name="real_tap_prototype_title">Один реальный тап — прототип</string>
+<string name="real_tap_prototype_subtitle">Экспериментально: один реальный тап с проверкой безопасности и подтверждением на каждый тап.</string>
+<string name="real_tap_prototype_explainer">Этот прототип позволяет выполнить ровно один реальный тап через службу специальных возможностей. Массовые, циклические и сценарные реальные тапы остаются жёстко отключёнными. Каждый тап требует отдельного подтверждения.</string>
+<string name="real_tap_safety_review_title">Проверка безопасности</string>
+<string name="real_tap_safety_review_intro">Прочитайте и подтвердите каждый пункт перед продолжением. Проверка повторяется каждую сессию.</string>
+<string name="real_tap_safety_review_pass">Я прочитал(а) и понял(а) каждый пункт</string>
+<string name="real_tap_safety_review_passed_badge">Проверка пройдена (эта сессия)</string>
+<string name="real_tap_safety_review_not_passed_badge">Проверка безопасности: требуется</string>
+<string name="real_tap_start_session">Начать сессию реального тапа</string>
+<string name="real_tap_end_session">Завершить сессию реального тапа</string>
+<string name="real_tap_session_active">Сессия реального тапа активна.</string>
+<string name="real_tap_session_inactive">Сессия реального тапа не активна.</string>
+<string name="real_tap_request_tap">Запросить один реальный тап в метке</string>
+<string name="real_tap_consent_title">Подтвердите этот реальный тап</string>
+<string name="real_tap_consent_body">Сейчас будет выполнен ОДИН реальный тап в точке (%1$d, %2$d). Подтверждение действует 10 секунд и не может быть использовано повторно.</string>
+<string name="real_tap_consent_confirm">Подтвердить тап</string>
+<string name="real_tap_consent_cancel">Отмена</string>
+<string name="real_tap_blocked_by_gate">Заблокировано SafetyGate: %1$s</string>
+<string name="real_tap_dispatch_succeeded">Реальный тап отправлен.</string>
+<string name="real_tap_dispatch_failed">Не удалось отправить реальный тап.</string>
+<string name="real_tap_accessibility_required">Нужно включить службу специальных возможностей.</string>
+<string name="real_tap_api_too_low">Версия Android ниже 7.0 — реальный тап недоступен.</string>
+<string name="real_tap_bulk_still_blocked">Массовые и циклические реальные тапы по-прежнему заблокированы SafetyGate.</string>
+<string name="real_tap_emergency_stop_note">Аварийная остановка также немедленно завершает сессию реального тапа.</string>
 </resources>
