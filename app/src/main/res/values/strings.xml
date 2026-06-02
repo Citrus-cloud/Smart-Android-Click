@@ -262,7 +262,7 @@
 <string name="real_tap_review_item_no_third_party_apps">I am not tapping inside someone else\'s app account, profile, or session without explicit permission</string>
 <string name="real_tap_review_item_accept_risk">I accept full responsibility for any consequence of any tap dispatched from this prototype</string>
 
-<!-- Step 63: missing keys referenced by RealTapPrototypeScreen — added to unbreak build. Russian translations already present in values-ru/strings.xml. -->
+<!-- Step 63: missing keys referenced by RealTapPrototypeScreen -->
 <string name="btn_real_tap_prototype">Real tap prototype</string>
 <string name="real_tap_prototype_intro">This screen is a single real-tap prototype. SafetyGate still blocks dispatch in this build.</string>
 <string name="real_tap_safety_review">Safety checklist</string>
@@ -279,4 +279,13 @@
 <string name="real_tap_audit_consent_confirmed">Real-tap consent confirmed</string>
 <string name="real_tap_audit_consent_expired">Real-tap consent expired</string>
 <string name="real_tap_audit_dispatch_blocked">Real tap blocked by SafetyGate</string>
+
+<!-- Step 63: dispatch-result chip + why-blocked list -->
+<string name="real_tap_why_blocked">Why blocked</string>
+<string name="real_tap_result_dispatched">Real tap dispatched</string>
+<string name="real_tap_result_blocked_by_gate">Blocked by SafetyGate</string>
+<string name="real_tap_result_blocked_no_service">Blocked: Accessibility service not bound</string>
+<string name="real_tap_result_blocked_invalid_consent">Blocked: consent missing or expired</string>
+<string name="real_tap_result_dispatch_cancelled">Dispatch cancelled</string>
+<string name="real_tap_result_dispatch_failed">Dispatch failed</string>
 </resources>
