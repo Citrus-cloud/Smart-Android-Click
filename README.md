@@ -4,20 +4,29 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
 port and **not** a runtime copy of the desktop code.
 
-> **Status: Step 62 — Single real-tap prototype (gated, audited, per-tap consent). Code phase complete.**
+> **Status: Step 63 — Real-tap prototype hardening (in progress).**
 >
-> The full Step 62 code is committed: domain layer (controller, gate extension, session/review/consent
-> models, audit constants, diagnostics mirror, EN+RU strings), UI wiring (`ClickFlowViewModel` exposes
-> the session / review / consent / message StateFlows and the six prototype APIs; `RealTapPrototypeScreen`
-> renders the gated UX — Safety Review checklist, session controls, request + consent dialog with
-> countdown, blocked-reason list; `Screens.kt` routes `Screen.REAL_TAP_PROTOTYPE` and adds an
-> `AdvancedScreen` entry button), `SafetyCenter` now reports the three prototype items (review pass,
-> session active, consent fresh) plus a "bulk / looped / scenario real taps remain blocked by
-> SafetyGate" reminder, and `AppInfo.STEP` is bumped to Step 62. Bulk, looped, and scenario-driven
-> real taps remain hard-disabled by `SafetyGate.canRunRealTap() == false`. The single-tap path is
-> gated behind a per-session Safety Review, a per-tap consent (10s TTL, single-use nonce), API ≥ 24,
-> and a bound Accessibility Service. Remaining for Step 62 release: smoke verification, CI green,
-> release-guide refresh, APK refresh on the pre-release.
+> Step 62 (Single real-tap prototype) shipped as code-complete and is intact. Step 63 adds the
+> **hardening pass** on top of it: granular `realtap.*` audit coverage, end-to-end
+> `RealTapController` wiring through the ViewModel, a live (in-process, never persisted)
+> `SafetyGate` state surface, and a marker-only invariant inside `confirmRealTap` so the
+> single-tap path can only ever target the on-screen marker.
+>
+> **Landed so far in Step 63:** `AppInfo.STEP` bumped to Step 63 (commit `7b251157`); new
+> `docs/REAL_TAP_QA_SCENARIOS.md` covering 17 scenarios across 6 groups (commit `b300df2a`);
+> new `docs/REAL_TAP_FIXES_LOG.md` template + baseline (commit `49574d31`); `safety/SafetyGate.kt`
+> extended with four narrow per-flag mutators (`updateReviewPassed`, `updateAccessibility`,
+> `updateSession`, `updateConsentFresh`) and a `resetPrototypeFlags()` chokepoint wired for
+> Emergency Stop / session end — `canRunRealTap()` still returns `false` (commit `bdc84bd4`).
+>
+> **Pending for Step 63:** `ClickFlowViewModel.kt` rewrite (RealTapController wiring + granular
+> audit + marker invariant), `RealTapPrototypeScreen.kt` result chip + blocked-reason list, and
+> the `PROJECT_CONTEXT.md` Step 63 section.
+>
+> Bulk, looped, and scenario-driven real taps remain hard-disabled by
+> `SafetyGate.canRunRealTap() == false`. The single-tap path stays gated behind a per-session
+> Safety Review, a per-tap consent (10s TTL, single-use nonce), API ≥ 24, and a bound
+> Accessibility Service.
 >
 > The latest published APK is still the Step 60 build at the pre-release
 > [`android-v0.1.0-prealpha`](https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha)
@@ -34,7 +43,26 @@ automation.
 ClickFlow Android reuses the **product concepts and safety philosophy** of the desktop app, but is
 an independent native codebase. Desktop code is **not** bundled or executed on Android.
 
-## Current status (Step 62 code complete; Steps 52–61 intact)
+## Current status (Step 63 in progress; Steps 52–62 intact)
+
+**Step 63 — Real-tap prototype hardening (in progress):**
+
+- `core/AppInfo.kt` `STEP` bumped to `Step 63 — Real-tap prototype hardening (controller wiring, granular audit, marker invariant, live SafetyGate state)` (commit `7b251157`);
+- new `docs/REAL_TAP_QA_SCENARIOS.md` — 17 scenarios in 6 groups (happy path, gate failures, consent
+edge cases, session lifecycle, marker invariant, dispatch failure modes, audit completeness)
+(commit `b300df2a`);
+- new `docs/REAL_TAP_FIXES_LOG.md` — per-scenario fix log (symptom / root cause / files / commit /
+verification / audit-event coverage) + baseline Step 62 → 63 entry (commit `49574d31`);
+- `safety/SafetyGate.kt` — added four narrow per-flag mutators (`updateReviewPassed`,
+`updateAccessibility`, `updateSession`, `updateConsentFresh`) and a `resetPrototypeFlags()`
+chokepoint for Emergency Stop / session end; state is process-local, never persisted, never
+exported; `canRunRealTap()` still returns `false` unconditionally (commit `bdc84bd4`).
+
+**Pending (Step 63, next phase):** `ClickFlowViewModel.kt` rewrite (RealTapController end-to-end
+wiring + granular `realtap.*` audit emission + marker-only invariant inside `confirmRealTap`);
+`ui/RealTapPrototypeScreen.kt` result chip (one of the six `RealTapOutcome`s) and human-readable
+blocked-reasons list driven by `SafetyGate.getSingleProtoBlockedReasons()`; `PROJECT_CONTEXT.md`
+finalized `## Step 63` section.
 
 **Step 62 — Single real-tap prototype (code complete):**
 
@@ -52,12 +80,13 @@ persisted, never exported, never backed up;
 (`startRealTapSession`, `endRealTapSession`, `requestRealTap`, `confirmRealTap`, `cancelRealTap`,
 `toggleSafetyReviewItem`) and surfaces five audit-mirror message keys;
 - `SafetyCenter` reports the prototype state (`Safety Review`, `session`, `consent`) and a
-permanent reminder that bulk/looped/scenario real taps remain blocked by `SafetyGate`;
-- `AppInfo.STEP` bumped to `Step 62 — Single real-tap prototype (UI wiring landed; gated by SafetyGate + per-tap consent)`.
+permanent reminder that bulk/looped/scenario real taps remain blocked by `SafetyGate`.
 
 See [docs/REAL_TAP_PROTOTYPE.md](docs/REAL_TAP_PROTOTYPE.md),
-[docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md), and
-[docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md).
+[docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md),
+[docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md),
+[docs/REAL_TAP_QA_SCENARIOS.md](docs/REAL_TAP_QA_SCENARIOS.md), and
+[docs/REAL_TAP_FIXES_LOG.md](docs/REAL_TAP_FIXES_LOG.md).
 
 **Step 61 — Permissions skeleton (overlay + accessibility service, no automation):**
 
@@ -137,6 +166,8 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 - [docs/REAL_TAP_PROTOTYPE.md](docs/REAL_TAP_PROTOTYPE.md) — Step 62 architecture + invariants
 - [docs/SAFETY_REVIEW_CHECKLIST.md](docs/SAFETY_REVIEW_CHECKLIST.md) — the 10-item review (EN + RU)
 - [docs/CONSENT_FLOW.md](docs/CONSENT_FLOW.md) — per-tap consent lifecycle, TTL/nonce contract
+- [docs/REAL_TAP_QA_SCENARIOS.md](docs/REAL_TAP_QA_SCENARIOS.md) — Step 63 QA scenarios (17 scenarios, 6 groups)
+- [docs/REAL_TAP_FIXES_LOG.md](docs/REAL_TAP_FIXES_LOG.md) — Step 63 per-scenario fix log
 - [docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md](docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md) — Step 60 release-asset refresh guide
 - [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md)
 - [docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md)
@@ -171,6 +202,10 @@ The scenario runner has no access to any real-input path.
 - **The single-tap prototype** (Step 62) is gated behind four independent checks: per-session
 Safety Review, active session, fresh single-use consent (10s TTL), and a bound accessibility
 service on API ≥ 24. Every transition is audited.
+- **Step 63 hardening** adds live, in-process `SafetyGate` state (never persisted), narrow per-flag
+mutators, a `resetPrototypeFlags()` chokepoint wired for Emergency Stop, and an upcoming
+marker-only invariant inside `confirmRealTap` so the single-tap path can only target the
+on-screen marker. `canRunRealTap()` remains `false`.
 - No hidden/background automation; no captcha/anti-bot bypass; no ad-click, banking, or payment
 automation; no spyware/keyloggers/input hooks; no root-only features.
 - See [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md),
