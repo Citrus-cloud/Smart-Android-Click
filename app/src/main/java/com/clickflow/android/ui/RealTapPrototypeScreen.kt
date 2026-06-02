@@ -24,25 +24,31 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.clickflow.android.R
 import com.clickflow.android.core.ClickFlowViewModel
+import com.clickflow.android.core.RealTapDispatchResult
 import com.clickflow.android.core.RealTapSessionState
 import com.clickflow.android.core.Screen
 
 /**
 * Step 62: Real Tap Prototype screen.
+* Step 63: adds a result chip + a "why blocked" reasons list driven by the live SafetyGate.
 *
 * UI skeleton ONLY. SafetyGate.canRunRealTap() still returns false,
 * so the actual tap dispatch is blocked. This screen exists to:
 *  1. Walk the user through a 10-item safety review checklist
 *  2. Start / end an explicit "real tap session" (audited)
 *  3. Request a single-tap consent (10-second window, audited)
-*  4. Attempt dispatch (always returns dispatch_failed in this build)
+*  4. Attempt dispatch (always returns BLOCKED_BY_GATE in this build)
+*  5. (Step 63) Show the most recent dispatch result + the live list of
+*     missing prototype gate flags.
 *
-* Bulk real taps remain forbidden. Emergency stop terminates the session.
+* Bulk real taps remain forbidden. Emergency stop terminates the session
+* and resets every prototype flag.
 *
 * This file is intentionally self-contained: it does not depend on any
 * private helper in Screens.kt. The small Scaffold/Message helpers below
@@ -53,6 +59,8 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
    val review by vm.safetyReview.collectAsState()
    val session by vm.realTapSession.collectAsState()
    val consent by vm.realTapConsent.collectAsState()
+   val gateReasons by vm.safetyGateReasons.collectAsState()
+   val lastResult by vm.lastDispatchResult.collectAsState()
 
    RealTapScaffold {
        Text(
@@ -159,6 +167,32 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
            }
        }
 
+       // --- Step 63: dispatch-result chip ---
+       DispatchResultChip(result = lastResult, onClear = { vm.consumeLastDispatchResult() })
+
+       // --- Step 63: why-blocked reasons list (collapses when empty) ---
+       if (gateReasons.isNotEmpty()) {
+           Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+               Column(
+                   Modifier.padding(16.dp),
+                   verticalArrangement = Arrangement.spacedBy(4.dp),
+               ) {
+                   Text(
+                       stringResource(R.string.real_tap_why_blocked),
+                       fontWeight = FontWeight.SemiBold,
+                       color = MaterialTheme.colorScheme.error,
+                   )
+                   gateReasons.forEach { reason ->
+                       Text(
+                           "• $reason",
+                           style = MaterialTheme.typography.bodySmall,
+                           color = MaterialTheme.colorScheme.onSurfaceVariant,
+                       )
+                   }
+               }
+           }
+       }
+
        Spacer(Modifier.height(8.dp))
 
        // --- Blocking notices ---
@@ -183,6 +217,40 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
            onClick = { vm.navigateTo(Screen.ADVANCED) },
            modifier = Modifier.fillMaxWidth(),
        ) { Text(stringResource(R.string.btn_back)) }
+   }
+}
+
+// --- Step 63: result chip composable ---
+
+@Composable
+private fun DispatchResultChip(result: RealTapDispatchResult?, onClear: () -> Unit) {
+   if (result == null) return
+   val labelRes = when (result) {
+       RealTapDispatchResult.DISPATCHED -> R.string.real_tap_result_dispatched
+       RealTapDispatchResult.BLOCKED_BY_GATE -> R.string.real_tap_result_blocked_by_gate
+       RealTapDispatchResult.BLOCKED_NO_SERVICE -> R.string.real_tap_result_blocked_no_service
+       RealTapDispatchResult.BLOCKED_INVALID_CONSENT -> R.string.real_tap_result_blocked_invalid_consent
+       RealTapDispatchResult.DISPATCH_CANCELLED -> R.string.real_tap_result_dispatch_cancelled
+       RealTapDispatchResult.DISPATCH_FAILED -> R.string.real_tap_result_dispatch_failed
+   }
+   val accent: Color = when (result) {
+       RealTapDispatchResult.DISPATCHED -> MaterialTheme.colorScheme.primary
+       RealTapDispatchResult.DISPATCH_CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
+       else -> MaterialTheme.colorScheme.error
+   }
+   Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+       Row(
+           Modifier.fillMaxWidth().padding(12.dp),
+           horizontalArrangement = Arrangement.SpaceBetween,
+           verticalAlignment = Alignment.CenterVertically,
+       ) {
+           Text(
+               stringResource(labelRes),
+               fontWeight = FontWeight.Bold,
+               color = accent,
+           )
+           TextButton(onClick = onClear) { Text("✕") }
+       }
    }
 }
 
