@@ -43,12 +43,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import java.util.UUID
 import kotlin.math.roundToInt
 
 /** Screens reachable in the app. */
 enum class Screen {
    HOME, ADVANCED, ABOUT, SCENARIOS, SCENARIO_DETAIL, SCENARIO_FORM, ACTION_FORM,
    PROFILES, PROFILE_FORM, BACKUP, SAFETY, DIAGNOSTICS, AUDIT_LOG, PERMISSIONS,
+   REAL_TAP_PROTOTYPE,
 }
 
 data class ScenarioFormState(
@@ -95,6 +97,55 @@ data class ProfileFormState(
 
 data class UiMessage(val key: String)
 
+// ---------------------------------------------------------------------------
+// Step 62: Real Tap Prototype — types
+// ---------------------------------------------------------------------------
+
+/** Session state of the real-tap prototype. INACTIVE by default. */
+enum class RealTapSessionState { INACTIVE, ACTIVE }
+
+/** A pending single-tap consent. Expires after 10 seconds. */
+data class RealTapConsent(
+   val x: Int,
+   val y: Int,
+   val requestedAtMs: Long,
+   val expiresAtMs: Long,
+)
+
+/**
+* 10-item safety review checklist. The user must tick every item before a session can start.
+* Items are referenced by index (0..9). [itemsLocalized] returns ready-to-render labels.
+*/
+data class SafetyReviewState(
+   val checked: List<Boolean> = List(10) { false },
+) {
+   val allPassed: Boolean get() = checked.all { it }
+   fun toggled(index: Int): SafetyReviewState {
+       if (index !in checked.indices) return this
+       val next = checked.toMutableList().also { it[index] = !it[index] }
+       return copy(checked = next)
+   }
+   fun itemsLocalized(): List<ReviewLine> = LABELS.mapIndexed { i, label ->
+       ReviewLine(label = label, checked = checked.getOrElse(i) { false })
+   }
+   data class ReviewLine(val label: String, val checked: Boolean)
+   private companion object {
+       // Static labels (intentionally not translated yet — Step 62 is a prototype).
+       val LABELS = listOf(
+           "Я понимаю, что это прототип и реальный dispatch отключён",
+           "Я не запускаю это на критичном устройстве",
+           "У меня есть физический доступ к устройству",
+           "Я готов нажать аварийную остановку в любой момент",
+           "Я не использую сторонние оверлеи / accessibility services",
+           "Я понимаю риск ложных тапов",
+           "Я не оставлю сессию работать без присмотра",
+           "Я согласен с тем, что каждый тап аудируется",
+           "Я не использую это для обхода защит сторонних приложений",
+           "Я принимаю всю ответственность за последствия",
+       )
+   }
+}
+
 /**
 * Single app-wide state holder for ClickFlow Android (Step 55).
 *
@@ -104,6 +155,10 @@ data class UiMessage(val key: String)
 * Step 61: adds a read-only PermissionsManager + PermissionStatus state. Granting overlay or
 * accessibility permissions does NOT enable real input — SafetyGate.canRunRealTap() is still
 * hard-coded to false. Permissions are opt-in plumbing only.
+*
+* Step 62 (UI prototype): adds an explicit "real tap prototype" screen flow — safety review
+* checklist, session start/end, and single-tap consent. SafetyGate still blocks every dispatch.
+* Bulk real taps remain forbidden.
 */
 class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -204,6 +259,15 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    private val _quickRepeatCount = MutableStateFlow(10)
    val quickRepeatCount: StateFlow<Int> = _quickRepeatCount.asStateFlow()
    private var quickScenarioId: String? = null
+
+   // Step 62: Real Tap Prototype state.
+   private val _safetyReview = MutableStateFlow(SafetyReviewState())
+   val safetyReview: StateFlow<SafetyReviewState> = _safetyReview.asStateFlow()
+   private val _realTapSession = MutableStateFlow(RealTapSessionState.INACTIVE)
+   val realTapSession: StateFlow<RealTapSessionState> = _realTapSession.asStateFlow()
+   private val _realTapConsent = MutableStateFlow<RealTapConsent?>(null)
+   val realTapConsent: StateFlow<RealTapConsent?> = _realTapConsent.asStateFlow()
+   private var currentRealTapSessionId: String? = null
 
    val scenarioStorageReady: Boolean get() = scenarioManager.storageReady
    val corruptedScenarioRecovered: Boolean get() = scenarioManager.corruptedStorageRecovered
@@ -518,7 +582,20 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    }
 
    fun stopSimulation() { engine.stopSimulation() }
-   fun emergencyStop() { engine.emergencyStop() }
+
+   /** Emergency stop. Also tears down any active real-tap session + pending consent. */
+   fun emergencyStop() {
+       engine.emergencyStop()
+       if (_realTapSession.value == RealTapSessionState.ACTIVE) {
+           auditLog.log(
+               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+               "Real-tap session terminated by emergency stop (sessionId=${currentRealTapSessionId})",
+           )
+           _realTapSession.value = RealTapSessionState.INACTIVE
+           currentRealTapSessionId = null
+           _realTapConsent.value = null
+       }
+   }
 
    // ---- Audit -------------------------------------------------------------
 
@@ -550,6 +627,114 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    fun attemptRealTapBlocked(): Boolean {
        auditLog.log(AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY, "Real tap attempt blocked — not implemented")
        return gate.attemptRealTap()
+   }
+
+   // ---- Step 62: Real Tap Prototype API ----------------------------------
+
+   /** Toggles a single safety-review checkbox by index. Out-of-range index is a no-op. */
+   fun toggleSafetyReviewItem(index: Int) {
+       _safetyReview.value = _safetyReview.value.toggled(index)
+   }
+
+   /**
+    * Starts a real-tap session. Requires all 10 safety-review items to be checked.
+    * SafetyGate still blocks dispatch — the session itself only enables the consent flow.
+    */
+   fun startRealTapSession() {
+       if (_realTapSession.value == RealTapSessionState.ACTIVE) return
+       if (!_safetyReview.value.allPassed) {
+           auditLog.log(
+               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+               "Real-tap session start refused: safety review incomplete",
+           )
+           _message.value = UiMessage("real_tap_audit_dispatch_blocked")
+           return
+       }
+       val sid = UUID.randomUUID().toString()
+       currentRealTapSessionId = sid
+       _realTapSession.value = RealTapSessionState.ACTIVE
+       _realTapConsent.value = null
+       auditLog.log(
+           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+           "Real-tap session started (sessionId=$sid, gate=blocked)",
+       )
+       _message.value = UiMessage("real_tap_audit_session_started")
+   }
+
+   /** Ends the current real-tap session. Idempotent. */
+   fun endRealTapSession() {
+       if (_realTapSession.value == RealTapSessionState.INACTIVE) return
+       auditLog.log(
+           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+           "Real-tap session ended (sessionId=${currentRealTapSessionId})",
+       )
+       _realTapSession.value = RealTapSessionState.INACTIVE
+       currentRealTapSessionId = null
+       _realTapConsent.value = null
+       _message.value = UiMessage("real_tap_audit_session_ended")
+   }
+
+   /**
+    * Requests consent for a single real tap at the current marker position. Creates a 10-second
+    * window during which [confirmRealTap] is accepted. SafetyGate still blocks the dispatch.
+    */
+   fun requestRealTap() {
+       if (_realTapSession.value != RealTapSessionState.ACTIVE) return
+       if (_realTapConsent.value != null) return
+       val now = System.currentTimeMillis()
+       val x = (_markerX.value * 1000).roundToInt()
+       val y = (_markerY.value * 1000).roundToInt()
+       _realTapConsent.value = RealTapConsent(
+           x = x,
+           y = y,
+           requestedAtMs = now,
+           expiresAtMs = now + CONSENT_WINDOW_MS,
+       )
+       auditLog.log(
+           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+           "Real-tap consent requested at ($x,$y) — sessionId=${currentRealTapSessionId}",
+       )
+       _message.value = UiMessage("real_tap_audit_consent_requested")
+   }
+
+   /**
+    * Confirms the pending consent. SafetyGate still rejects the dispatch — this always logs
+    * dispatch_blocked. The consent is cleared in both success and failure cases.
+    */
+   fun confirmRealTap() {
+       val consent = _realTapConsent.value ?: return
+       val now = System.currentTimeMillis()
+       if (now > consent.expiresAtMs) {
+           auditLog.log(
+               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+               "Real-tap consent expired before confirmation",
+           )
+           _realTapConsent.value = null
+           _message.value = UiMessage("real_tap_audit_consent_expired")
+           return
+       }
+       auditLog.log(
+           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+           "Real-tap consent confirmed at (${consent.x},${consent.y}) — dispatch blocked by SafetyGate",
+       )
+       // Gate still says false — record the block.
+       gate.attemptRealTap()
+       _realTapConsent.value = null
+       _message.value = UiMessage("real_tap_audit_dispatch_blocked")
+   }
+
+   /** Cancels the pending consent without dispatching. */
+   fun cancelRealTap() {
+       if (_realTapConsent.value == null) return
+       auditLog.log(
+           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
+           "Real-tap consent cancelled by user",
+       )
+       _realTapConsent.value = null
+   }
+
+   private companion object {
+       const val CONSENT_WINDOW_MS = 10_000L
    }
 
    // ---- Backup (export / import) -----------------------------------------
