@@ -1,12 +1,17 @@
 package com.clickflow.android.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -38,6 +43,10 @@ import com.clickflow.android.core.Screen
 *  4. Attempt dispatch (always returns dispatch_failed in this build)
 *
 * Bulk real taps remain forbidden. Emergency stop terminates the session.
+*
+* This file is intentionally self-contained: it does not depend on any
+* private helper in Screens.kt. The small Scaffold/Message helpers below
+* are local duplicates to keep this screen isolated and reviewable.
 */
 @Composable
 internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
@@ -45,7 +54,7 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
    val session by vm.realTapSession.collectAsState()
    val consent by vm.realTapConsent.collectAsState()
 
-   ScreenScaffoldPublic {
+   RealTapScaffold {
        Text(
            stringResource(R.string.real_tap_prototype_title),
            style = MaterialTheme.typography.headlineSmall,
@@ -56,11 +65,11 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
            style = MaterialTheme.typography.bodyMedium,
            color = MaterialTheme.colorScheme.onSurfaceVariant,
        )
-       MessageLinePublic(vm)
+       RealTapMessageLine(vm)
 
        // --- Safety review checklist ---
        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-           androidx.compose.foundation.layout.Column(
+           Column(
                Modifier.padding(16.dp),
                verticalArrangement = Arrangement.spacedBy(6.dp),
            ) {
@@ -105,7 +114,7 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
            }
            RealTapSessionState.ACTIVE -> {
                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                   androidx.compose.foundation.layout.Column(
+                   Column(
                        Modifier.padding(16.dp),
                        verticalArrangement = Arrangement.spacedBy(8.dp),
                    ) {
@@ -174,5 +183,55 @@ internal fun RealTapPrototypeScreen(vm: ClickFlowViewModel) {
            onClick = { vm.navigateTo(Screen.ADVANCED) },
            modifier = Modifier.fillMaxWidth(),
        ) { Text(stringResource(R.string.btn_back)) }
+   }
+}
+
+// --- Local helpers (intentional duplicates of private helpers in Screens.kt) ---
+
+@Composable
+private fun RealTapScaffold(content: @Composable ColumnScope.() -> Unit) {
+   Column(
+       modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+       verticalArrangement = Arrangement.spacedBy(12.dp),
+       content = content,
+   )
+}
+
+/** Mirrors MessageLine from Screens.kt — duplicated to keep this screen self-contained. */
+@Composable
+private fun RealTapMessageLine(vm: ClickFlowViewModel) {
+   val msg by vm.message.collectAsState()
+   val key = msg?.key ?: return
+   val resId = when (key) {
+       "profile_saved" -> R.string.profile_saved
+       "profile_deleted" -> R.string.profile_deleted
+       "cannot_delete_active" -> R.string.profile_cannot_delete_active
+       "cannot_delete_last" -> R.string.profile_cannot_delete_last
+       "cannot_delete_with_scenarios" -> R.string.profile_cannot_delete_with_scenarios
+       "scenario_saved" -> R.string.scenario_saved
+       "scenario_deleted" -> R.string.scenario_deleted
+       "no_active_scenario" -> R.string.active_scenario_none
+       "audit_log_exported" -> R.string.audit_log_exported
+       "audit_log_export_failed" -> R.string.audit_log_export_failed
+       "active_profile" -> R.string.active_profile
+       "active_scenario" -> R.string.active_scenario
+       "backup_exported" -> R.string.backup_exported
+       "backup_export_failed" -> R.string.backup_export_failed
+       "backup_import_completed" -> R.string.backup_import_completed
+       "backup_import_failed" -> R.string.backup_import_failed
+       "replace_all_requires_confirmation" -> R.string.replace_all_requires_confirmation
+       "real_tap_audit_session_started" -> R.string.real_tap_audit_session_started
+       "real_tap_audit_session_ended" -> R.string.real_tap_audit_session_ended
+       "real_tap_audit_consent_requested" -> R.string.real_tap_audit_consent_requested
+       "real_tap_audit_consent_confirmed" -> R.string.real_tap_audit_consent_confirmed
+       "real_tap_audit_consent_expired" -> R.string.real_tap_audit_consent_expired
+       "real_tap_audit_dispatch_blocked" -> R.string.real_tap_audit_dispatch_blocked
+       else -> null
+   } ?: return
+   Card(Modifier.fillMaxWidth()) {
+       Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+           Text(stringResource(resId), fontWeight = FontWeight.SemiBold)
+           TextButton(onClick = { vm.consumeMessage() }) { Text("✕") }
+       }
    }
 }
