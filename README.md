@@ -27,11 +27,11 @@ an independent native codebase. Desktop code is **not** bundled or executed on A
 Redesigned UX — the app now feels like a simple mobile clicker:
 
 - **Simple Clicker home**: large rounded tap-target with a **draggable circular marker** (in-app only,
-  not a system overlay), prominent **Start**, plus Stop / Emergency Stop.
+not a system overlay), prominent **Start**, plus Stop / Emergency Stop.
 - **Quick settings**: Interval + Count steppers update a "Quick clicker" scenario directly.
 - **Clean minimal UI**: calm Material 3 palette, soft corners, light cards, short text.
 - **Advanced menu** hides Scenarios / Profiles / Audit Log / Backup / Safety Center / Diagnostics /
-  About — all still fully available.
+About — all still fully available.
 - Marker position + quick settings **persist** via existing scenario storage.
 - Re-confirmed: **0 permissions, 0 providers, no real taps, simulation-only.** Build verified.
 
@@ -96,13 +96,15 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 | Package | `com.clickflow.android` |
 | minSdk | 26 |
 | targetSdk / compileSdk | 34 |
-| versionName | 1.0.0-alpha.1 |
+| versionName | 0.1.0-prealpha |
+| versionCode | 1 |
 | Stack | Kotlin, Gradle (Kotlin DSL), Jetpack Compose, Material 3 |
 
 ## Documentation
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md](docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md) — Step 60 release-asset refresh guide
 - [docs/ANDROID_SIMPLE_CLICKER_UX.md](docs/ANDROID_SIMPLE_CLICKER_UX.md)
 - [docs/ANDROID_MARKER_MODEL.md](docs/ANDROID_MARKER_MODEL.md)
 - [docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md](docs/ANDROID_PRE_ALPHA_RELEASE_NOTES.md)
@@ -133,9 +135,9 @@ Then: launch → **Start simulation** → **Stop** → **Emergency Stop** → op
 
 - **No real taps yet** — `realTapsEnabled = false`, `simulationOnly = true`, hard-coded.
 - No hidden/background automation; no captcha/anti-bot bypass; no ad-click, banking, or payment
-  automation; no spyware/keyloggers/input hooks; no root-only features.
+automation; no spyware/keyloggers/input hooks; no root-only features.
 - Future real taps will require Accessibility Service **plus** explicit user consent **plus** safety
-  gates **plus** an emergency stop. See [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md).
+gates **plus** an emergency stop. See [docs/ANDROID_SAFETY_MODEL.md](docs/ANDROID_SAFETY_MODEL.md).
 
 ## License
 
