@@ -1,14 +1,264 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="open_real_tap_prototype">Open single real tap prototype</string>
-    <string name="real_tap_review_item_test_device">I am running this on a TEST device, not my primary phone</string>
-    <string name="real_tap_review_item_no_banking">No banking, payments, or financial apps are open or in the background</string>
-    <string name="real_tap_review_item_no_personal_data">No personal data, photos, or sensitive content is visible on screen</string>
-    <string name="real_tap_review_item_responsible_use">I understand a real tap will physically interact with whatever is under the marker, exactly once</string>
-    <string name="real_tap_review_item_no_automation_loop">I will not use this to bypass app ToS, anti-cheat, captcha, or any automation policy</string>
-    <string name="real_tap_review_item_session_aware">I understand each session must be started explicitly and ends on Emergency Stop or screen lock</string>
-    <string name="real_tap_review_item_consent_per_tap">I understand every single real tap requires a fresh 10-second confirmation, no batching</string>
-    <string name="real_tap_review_item_can_stop">I know how to use Emergency Stop and that it overrides everything</string>
-    <string name="real_tap_review_item_no_third_party_apps">I am not tapping inside someone else\'s app account, profile, or session without explicit permission</string>
-    <string name="real_tap_review_item_accept_risk">I accept full responsibility for any consequence of any tap dispatched from this prototype</string>
+<string name="app_name">ClickFlow Android</string>
+<string name="status_badge">Simulation-only foundation</string>
+<string name="current_status">Status: %1$s</string>
+
+<!-- Home / common buttons -->
+<string name="btn_start_simulation">Start simulation</string>
+<string name="btn_stop">Stop</string>
+<string name="btn_emergency_stop">Emergency Stop</string>
+<string name="btn_safety_center">Safety Center</string>
+<string name="btn_diagnostics">Diagnostics</string>
+<string name="btn_back">Back</string>
+<string name="real_taps_disclaimer">Real taps are not implemented yet.</string>
+<string name="blocked_reasons_title">Why real automation is blocked</string>
+
+<!-- Scenarios -->
+<string name="scenarios">Scenarios</string>
+<string name="multi_step_scenarios">Multi-step simulation scenarios</string>
+<string name="create_scenario">Create scenario</string>
+<string name="edit_scenario">Edit scenario</string>
+<string name="delete_scenario">Delete</string>
+<string name="select_scenario">Select</string>
+<string name="open_scenario">Open</string>
+<string name="active_scenario">Active scenario</string>
+<string name="active_scenario_none">No active scenario. Create or select one.</string>
+<string name="active_badge">ACTIVE</string>
+<string name="no_scenarios">No scenarios yet.</string>
+<string name="create_default_scenario">Create default scenario</string>
+<string name="reset_scenarios">Reset to defaults</string>
+<string name="run_simulation">Run simulation</string>
+<string name="scenario_meta_summary">actions=%1$d, repeat=%2$d, interval=%3$d ms</string>
+
+<!-- Scenario metadata form -->
+<string name="scenario_name">Scenario name</string>
+<string name="repeat_count">Repeat count (1–1000)</string>
+<string name="interval_ms">Interval (ms, ≥ 100)</string>
+<string name="save">Save</string>
+<string name="cancel">Cancel</string>
+<string name="simulation_only_scenario">Simulation only — no real taps.</string>
+
+<!-- Actions -->
+<string name="actions">Actions</string>
+<string name="add_action">Add action</string>
+<string name="edit_action">Edit</string>
+<string name="delete_action">Delete</string>
+<string name="move_up">Up</string>
+<string name="move_down">Down</string>
+<string name="add_tap_action">Add tap action</string>
+<string name="add_wait_action">Add wait action</string>
+<string name="add_note_action">Add note action</string>
+<string name="simulated_tap_action">Simulated tap</string>
+<string name="wait_action">Wait</string>
+<string name="note_action">Note</string>
+<string name="action_type">Action type</string>
+<string name="action_label">Label (optional)</string>
+<string name="duration_ms">Duration (ms, ≥ 100)</string>
+<string name="note_message">Note message</string>
+<string name="simulation_only_actions">All actions are simulation only — no real taps.</string>
+<string name="real_tap_still_disabled">Real taps remain disabled.</string>
+
+<!-- Progress -->
+<string name="current_action">Action %1$d/%2$d</string>
+<string name="current_repeat">Repeat %1$d/%2$d</string>
+
+<!-- Audit log -->
+<string name="audit_log">Audit Log</string>
+<string name="clear_audit_log">Clear audit log</string>
+<string name="audit_events">Events: %1$d</string>
+
+<!-- Simulation messages -->
+<string name="scenario_started">Scenario started: %1$s</string>
+<string name="scenario_completed">Scenario completed: %1$s</string>
+<string name="scenario_stopped">Simulation stopped by user</string>
+<string name="scenario_emergency_stopped">Emergency stop — simulation cancelled immediately</string>
+<string name="simulated_tap_at">Simulated tap at %1$d,%2$d</string>
+<string name="waited_ms">Waited %1$d ms</string>
+
+<!-- Validation -->
+<string name="validation_name_required">Name is required.</string>
+<string name="validation_repeat_invalid">Repeat count must be between 1 and 1000.</string>
+<string name="validation_interval_invalid">Interval must be at least 100 ms.</string>
+<string name="validation_actions_required">A scenario needs at least one action.</string>
+<string name="validation_action_required">At least one action is required.</string>
+<string name="validation_coordinate_invalid">X and Y must be 0 or greater.</string>
+<string name="validation_duration_invalid">Duration must be at least 100 ms.</string>
+<string name="validation_message_required">Note message is required (max 300 chars).</string>
+
+<!-- Safety / storage -->
+<string name="real_taps_disabled">Real taps are disabled.</string>
+<string name="storage_ready">storageReady</string>
+<string name="corrupted_storage_recovered">corruptedStorageRecovered</string>
+<string name="storage_migrated">storageMigrated</string>
+
+<!-- Messages -->
+<string name="scenario_saved">Saved.</string>
+<string name="scenario_deleted">Deleted.</string>
+
+<!-- Profiles (Step 55) -->
+<string name="profiles">Profiles</string>
+<string name="profile">Profile</string>
+<string name="active_profile">Active profile</string>
+<string name="create_profile">Create profile</string>
+<string name="edit_profile">Edit</string>
+<string name="delete_profile">Delete</string>
+<string name="select_profile">Select</string>
+<string name="profile_name">Profile name</string>
+<string name="profile_description">Description</string>
+<string name="no_profiles">No profiles yet.</string>
+<string name="default_profile">Create default profile</string>
+<string name="reset_profiles">Reset profiles</string>
+<string name="profiles_are_local">Profiles are local only — no permissions.</string>
+<string name="scenarios_for_profile">Profile</string>
+<string name="switch_profile">Switch profile</string>
+<string name="profile_saved">Profile saved.</string>
+<string name="profile_deleted">Profile deleted.</string>
+<string name="profile_cannot_delete_active">Cannot delete the active profile.</string>
+<string name="profile_cannot_delete_last">Cannot delete the last profile.</string>
+<string name="profile_cannot_delete_with_scenarios">Cannot delete a profile that still has scenarios.</string>
+<string name="profile_name_required">Profile name is required.</string>
+<string name="profile_name_too_long">Profile name is too long (max 80).</string>
+<string name="profile_description_too_long">Description is too long (max 300).</string>
+<string name="profile_storage_ready">profileStorageReady</string>
+<string name="corrupted_profile_storage_recovered">corruptedProfileStorageRecovered</string>
+
+<!-- Audit persistence / export (Step 55) -->
+<string name="audit_summary">Audit summary</string>
+<string name="audit_storage_ready">auditStorageReady</string>
+<string name="corrupted_audit_recovered">corruptedAuditRecovered</string>
+<string name="export_audit_log">Export audit log</string>
+<string name="share_audit_log">Share audit log</string>
+<string name="audit_log_exported">Audit log shared.</string>
+<string name="audit_log_export_failed">Could not share the audit log.</string>
+<string name="audit_log_persisted">Audit log is saved locally.</string>
+<string name="storage_recovered">Storage recovered.</string>
+
+<!-- Backup import/export (Step 56) -->
+<string name="backup">Backup</string>
+<string name="export_backup">Export backup</string>
+<string name="import_backup">Import backup</string>
+<string name="share_backup">Share backup</string>
+<string name="backup_json">Backup JSON</string>
+<string name="paste_backup_json">Paste backup JSON here</string>
+<string name="validate_backup">Validate</string>
+<string name="backup_preview">Backup preview</string>
+<string name="backup_valid">Backup is valid.</string>
+<string name="backup_invalid">Backup is invalid.</string>
+<string name="backup_profiles_count">Profiles</string>
+<string name="backup_scenarios_count">Scenarios</string>
+<string name="invalid_items_count">Invalid items</string>
+<string name="import_strategy">Import strategy</string>
+<string name="merge_rename_conflicts">Merge and rename conflicts</string>
+<string name="replace_all_requires_confirmation">Replace all (requires confirmation)</string>
+<string name="import_result">Import result</string>
+<string name="imported_profiles">Imported profiles</string>
+<string name="imported_scenarios">Imported scenarios</string>
+<string name="skipped_items">Skipped items</string>
+<string name="backup_warnings">Warnings</string>
+<string name="clear_import">Clear</string>
+<string name="imported_suffix">(Imported)</string>
+<string name="backup_exported">Backup shared.</string>
+<string name="backup_export_failed">Could not share the backup.</string>
+<string name="backup_import_completed">Backup imported.</string>
+<string name="backup_import_failed">Backup import failed.</string>
+<string name="backup_does_not_include_audit_log">Backup does not include the audit log.</string>
+<string name="backup_simulation_only">Backup is simulation-only data.</string>
+<string name="no_external_storage_used">No external storage used.</string>
+<string name="no_permissions_required">No permissions required.</string>
+
+<!-- Simple Clicker UX (Step 59) -->
+<string name="simple_clicker">Simple Clicker</string>
+<string name="simple_mode">Simple mode</string>
+<string name="simple_home_screen">Home</string>
+<string name="drag_marker">Drag the marker</string>
+<string name="drag_to_choose_click_point">Drag the marker and press Start</string>
+<string name="tap_target">Tap target</string>
+<string name="target_marker">Target marker</string>
+<string name="marker_position">Marker</string>
+<string name="interval">Interval</string>
+<string name="count">Count</string>
+<string name="quick_clicker">Quick clicker</string>
+<string name="quick_settings">Quick settings</string>
+<string name="start_clicker">Start</string>
+<string name="stop_clicker">Stop</string>
+<string name="current_tap">Tap</string>
+<string name="simulated_tap_at_marker">Simulated tap at marker</string>
+<string name="reset_marker">Reset marker</string>
+<string name="center_marker">Center</string>
+<string name="advanced">Advanced</string>
+<string name="advanced_menu">Advanced</string>
+<string name="open_advanced">Advanced</string>
+<string name="about">About</string>
+<string name="clean_minimal_ui">Clean, minimal interface</string>
+<string name="simulation_only_marker">The marker is in-app only — Start runs a simulation, not real taps.</string>
+<string name="marker_is_in_app_only">Marker is in-app only (not a system overlay).</string>
+<string name="no_system_overlay_yet">No system overlay yet.</string>
+<string name="no_real_taps_yet">No real taps yet.</string>
+
+<!-- Permissions / accessibility (Step 61) -->
+<string name="permissions">Permissions</string>
+<string name="btn_permissions">Permissions</string>
+<string name="permissions_intro">Real input is still disabled. These switches only let the app *display* a system overlay marker and *see* whether the Accessibility service is enabled. They do not enable real taps — SafetyGate keeps real input blocked.</string>
+<string name="permission_overlay">Display over other apps (system overlay)</string>
+<string name="permission_overlay_description">Lets the app show a draggable marker on top of other apps. Used for preview only in this step.</string>
+<string name="permission_accessibility">Accessibility service</string>
+<string name="permission_accessibility_description">Lets the system bind the (currently empty) ClickFlow accessibility service. No events are processed; no taps are dispatched.</string>
+<string name="permission_granted">Granted</string>
+<string name="permission_not_granted">Not granted</string>
+<string name="permission_status_unknown">Unknown</string>
+<string name="open_overlay_settings">Open overlay settings</string>
+<string name="open_accessibility_settings">Open accessibility settings</string>
+<string name="refresh_permissions">Refresh status</string>
+<string name="permissions_safety_note">Granting these permissions does NOT enable real taps. canRunRealTap() stays false.</string>
+<string name="accessibility_service_label">ClickFlow (no automation)</string>
+<string name="accessibility_service_summary">Declared for permission flow only. Performs no automation.</string>
+<string name="accessibility_service_description">ClickFlow declares an accessibility service so you can practice enabling and disabling it. The service is empty: it subscribes to no events, reads no window content, and dispatches no taps. Real input remains hard-disabled by SafetyGate.</string>
+<string name="floating_marker">Floating marker</string>
+<string name="floating_marker_preview">Floating marker (preview only)</string>
+<string name="floating_marker_description">When overlay permission is granted, ClickFlow can show a draggable circular marker on top of other apps. It is purely visual — it never taps anything.</string>
+<string name="floating_marker_show">Show floating marker</string>
+<string name="floating_marker_hide">Hide floating marker</string>
+<string name="floating_marker_not_available">Grant overlay permission to enable the floating marker preview.</string>
+<string name="floating_marker_simulation_only">Floating marker is a visual preview only. It does not perform real taps.</string>
+
+<!-- Single Real Tap prototype (Step 62) -->
+<string name="real_tap_prototype">Single Real Tap (Prototype)</string>
+<string name="real_tap_prototype_title">Single real tap — prototype</string>
+<string name="real_tap_prototype_subtitle">Experimental: one real tap, gated by safety review and per-tap consent.</string>
+<string name="real_tap_prototype_explainer">This prototype lets you dispatch exactly one real tap through the Accessibility service. Bulk, looped, and scenario-driven real taps remain hard-disabled. Every tap requires a fresh confirmation.</string>
+<string name="real_tap_safety_review_title">Safety review</string>
+<string name="real_tap_safety_review_intro">Please read and acknowledge every item before continuing. The review must be repeated each session.</string>
+<string name="real_tap_safety_review_pass">I have read and understood every item</string>
+<string name="real_tap_safety_review_passed_badge">Safety review: PASSED (this session)</string>
+<string name="real_tap_safety_review_not_passed_badge">Safety review: required</string>
+<string name="real_tap_start_session">Start real-tap session</string>
+<string name="real_tap_end_session">End real-tap session</string>
+<string name="real_tap_session_active">Real-tap session is active.</string>
+<string name="real_tap_session_inactive">Real-tap session is not active.</string>
+<string name="real_tap_request_tap">Request single real tap at marker</string>
+<string name="real_tap_consent_title">Confirm this real tap</string>
+<string name="real_tap_consent_body">You are about to perform ONE real tap at (%1$d, %2$d). Consent expires in 10 seconds and cannot be reused.</string>
+<string name="real_tap_consent_confirm">Confirm tap</string>
+<string name="real_tap_consent_cancel">Cancel</string>
+<string name="real_tap_blocked_by_gate">Blocked by SafetyGate: %1$s</string>
+<string name="real_tap_dispatch_succeeded">Real tap dispatched.</string>
+<string name="real_tap_dispatch_failed">Real tap dispatch failed.</string>
+<string name="real_tap_accessibility_required">The Accessibility service must be enabled.</string>
+<string name="real_tap_api_too_low">This device is below Android 7.0 — real tap is unavailable.</string>
+<string name="real_tap_bulk_still_blocked">Bulk and looped real taps remain blocked by SafetyGate.</string>
+<string name="real_tap_emergency_stop_note">Emergency Stop also ends the real-tap session immediately.</string>
+
+<!-- Single Real Tap prototype — UI nav + review checklist (Step 62 UI) -->
+<string name="open_real_tap_prototype">Open single real tap prototype</string>
+<string name="real_tap_review_item_test_device">I am running this on a TEST device, not my primary phone</string>
+<string name="real_tap_review_item_no_banking">No banking, payments, or financial apps are open or in the background</string>
+<string name="real_tap_review_item_no_personal_data">No personal data, photos, or sensitive content is visible on screen</string>
+<string name="real_tap_review_item_responsible_use">I understand a real tap will physically interact with whatever is under the marker, exactly once</string>
+<string name="real_tap_review_item_no_automation_loop">I will not use this to bypass app ToS, anti-cheat, captcha, or any automation policy</string>
+<string name="real_tap_review_item_session_aware">I understand each session must be started explicitly and ends on Emergency Stop or screen lock</string>
+<string name="real_tap_review_item_consent_per_tap">I understand every single real tap requires a fresh 10-second confirmation, no batching</string>
+<string name="real_tap_review_item_can_stop">I know how to use Emergency Stop and that it overrides everything</string>
+<string name="real_tap_review_item_no_third_party_apps">I am not tapping inside someone else\'s app account, profile, or session without explicit permission</string>
+<string name="real_tap_review_item_accept_risk">I accept full responsibility for any consequence of any tap dispatched from this prototype</string>
 </resources>
