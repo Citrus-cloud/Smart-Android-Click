@@ -261,4 +261,22 @@
 <string name="real_tap_review_item_can_stop">I know how to use Emergency Stop and that it overrides everything</string>
 <string name="real_tap_review_item_no_third_party_apps">I am not tapping inside someone else\'s app account, profile, or session without explicit permission</string>
 <string name="real_tap_review_item_accept_risk">I accept full responsibility for any consequence of any tap dispatched from this prototype</string>
+
+<!-- Step 63: missing keys referenced by RealTapPrototypeScreen — added to unbreak build. Russian translations already present in values-ru/strings.xml. -->
+<string name="btn_real_tap_prototype">Real tap prototype</string>
+<string name="real_tap_prototype_intro">This screen is a single real-tap prototype. SafetyGate still blocks dispatch in this build.</string>
+<string name="real_tap_safety_review">Safety checklist</string>
+<string name="real_tap_safety_review_passed">All safety checks passed</string>
+<string name="real_tap_session_start">Start session</string>
+<string name="real_tap_session_end">End session</string>
+<string name="real_tap_request_consent">Request tap confirmation</string>
+<string name="real_tap_consent_pending">Confirm the tap within 10 seconds</string>
+<string name="real_tap_confirm">Confirm tap</string>
+<string name="real_tap_cancel">Cancel</string>
+<string name="real_tap_audit_session_started">Real-tap session started</string>
+<string name="real_tap_audit_session_ended">Real-tap session ended</string>
+<string name="real_tap_audit_consent_requested">Real-tap consent requested</string>
+<string name="real_tap_audit_consent_confirmed">Real-tap consent confirmed</string>
+<string name="real_tap_audit_consent_expired">Real-tap consent expired</string>
+<string name="real_tap_audit_dispatch_blocked">Real tap blocked by SafetyGate</string>
 </resources>
