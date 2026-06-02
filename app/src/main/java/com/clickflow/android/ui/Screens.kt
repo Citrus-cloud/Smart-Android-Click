@@ -727,7 +727,7 @@ private fun PermissionsScreen(vm: ClickFlowViewModel) {
 val status by vm.permissionStatus.collectAsState()
 ScreenScaffold {
     Text(stringResource(R.string.btn_permissions), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text(stringResource(R.string.permissions_explainer), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.permissions_intro), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
     // Overlay (SYSTEM_ALERT_WINDOW)
     Card(Modifier.fillMaxWidth()) {
@@ -735,14 +735,14 @@ ScreenScaffold {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stringResource(R.string.permission_overlay), fontWeight = FontWeight.SemiBold)
                 Text(
-                    stringResource(if (status.overlayGranted) R.string.permission_status_granted else R.string.permission_status_not_granted),
+                    stringResource(if (status.overlayGranted) R.string.permission_granted else R.string.permission_not_granted),
                     color = if (status.overlayGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Text(stringResource(R.string.permission_overlay_explainer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.permission_overlay_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = { vm.openOverlaySettings() }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.permission_open_settings))
+                Text(stringResource(R.string.open_overlay_settings))
             }
         }
     }
@@ -753,24 +753,24 @@ ScreenScaffold {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stringResource(R.string.permission_accessibility), fontWeight = FontWeight.SemiBold)
                 Text(
-                    stringResource(if (status.accessibilityEnabled) R.string.permission_status_granted else R.string.permission_status_not_granted),
+                    stringResource(if (status.accessibilityEnabled) R.string.permission_granted else R.string.permission_not_granted),
                     color = if (status.accessibilityEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Text(stringResource(R.string.permission_accessibility_explainer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.permission_accessibility_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = { vm.openAccessibilitySettings() }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.permission_open_settings))
+                Text(stringResource(R.string.open_accessibility_settings))
             }
         }
     }
 
     Spacer(Modifier.height(8.dp))
     OutlinedButton(onClick = { vm.refreshPermissions() }, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.permission_refresh))
+        Text(stringResource(R.string.refresh_permissions))
     }
     Spacer(Modifier.height(8.dp))
-    Text(stringResource(R.string.permissions_real_input_disclaimer), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+    Text(stringResource(R.string.permissions_safety_note), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
     Text(stringResource(R.string.real_taps_disabled), fontWeight = FontWeight.SemiBold)
     NavButton(stringResource(R.string.btn_back)) { vm.navigateTo(Screen.ADVANCED) }
 }
