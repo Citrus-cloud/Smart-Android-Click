@@ -1,1 +1,1 @@
-{{CONTEXT_BUCKET:Code.code-wpxsh}}
+STOP_RESTORATION_FAILED: Unable to fetch base64 content from commit 3c97d773c7d1577ae7ecf1fd4f88b284add0c57d via the GitHub API. Per guidelines, refusing to write partial or placeholder content. No commit should be made.
