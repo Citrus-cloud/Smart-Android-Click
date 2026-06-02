@@ -33,6 +33,13 @@ fun build(
     quickRepeatCount: Int,
     overlayEnabled: Boolean = false,
     accessibilityEnabled: Boolean = false,
+    // ---- Step 62 — single-real-tap prototype ----
+    realTapPrototypeAvailable: Boolean = false,
+    realTapSafetyReviewPassed: Boolean = false,
+    realTapSessionActive: Boolean = false,
+    realTapDispatchedCount: Int = 0,
+    realTapBlockedCount: Int = 0,
+    lastRealTapOutcome: String? = null,
 ): DiagnosticsState = DiagnosticsState(
     appVersion = AppInfo.VERSION_NAME,
     scenariosCount = scenariosCount,
@@ -59,18 +66,21 @@ fun build(
     invalidImportItemsLast = invalidImportItemsLast,
     backupContainsAuditLog = false,
     externalStorageUsed = false,
-    // Step 61: permissions remain OPT-IN, never required. The app still works fully
-    // without overlay or accessibility permissions; granting them only unlocks the
-    // preview marker and the (no-op) accessibility service.
+    // Step 61: permissions remain OPT-IN, never required.
     permissionsRequired = false,
     simpleClickerReady = true,
     markerX = markerX,
     markerY = markerY,
     quickIntervalMs = quickIntervalMs,
     quickRepeatCount = quickRepeatCount,
-    // Step 61: live values now sourced from PermissionsManager via the caller.
-    // Previously hard-coded to false.
     overlayEnabled = overlayEnabled,
     accessibilityEnabled = accessibilityEnabled,
+    // Step 62 — mirrors of in-memory real-tap state.
+    realTapPrototypeAvailable = realTapPrototypeAvailable,
+    realTapSafetyReviewPassed = realTapSafetyReviewPassed,
+    realTapSessionActive = realTapSessionActive,
+    realTapDispatchedCount = realTapDispatchedCount,
+    realTapBlockedCount = realTapBlockedCount,
+    lastRealTapOutcome = lastRealTapOutcome,
 )
 }
