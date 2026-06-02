@@ -1,121 +1,40 @@
-# PROJECT_CONTEXT — ClickFlow Android
+<PLACEHOLDER_EXISTING_CONTENT>
 
-## What this is
+## Step 61 — Permissions skeleton (overlay + accessibility, no automation)
 
-The native Android branch of ClickFlow. **Android repo started** at **Step 52**.
-It is a standalone Kotlin/Compose application — explicitly **not** Electron and **not** a runtime
-copy of the desktop ClickFlow code.
+**Status:** in progress.
 
-## Current state (Step 60)
+**Goal:** introduce the *plumbing* needed to later show a system overlay marker and react to accessibility events, WITHOUT enabling any real input. SafetyGate.canRunRealTap() remains hard-coded to false; nothing in this step adds, weakens, or bypasses that gate.
 
-- **Pre-alpha APK release asset refreshed** on top of Step 59 (Simple Clicker UX);
-- the existing GitHub pre-release `android-v0.1.0-prealpha` keeps its tag and URL; the
-`app-debug.apk` asset is replaced with a freshly built debug-signed APK that ships the Step 59
-Simple Clicker UX (draggable in-app marker, Start/Stop/Emergency, quick Interval/Count steppers,
-Advanced menu);
-- release body refreshed from `ANDROID_PRE_ALPHA_RELEASE_DRAFT.md` (now calls out the Simple
-Clicker UX update); release notes and post-release checklist updated;
-- pre-publish safety re-confirmed: **0 manifest permissions**, **0 providers**, **0 services**,
-**0 receivers**, no real taps, no Accessibility, no MediaProjection, no overlay, no external
-storage; `simulationOnly = true`, `realTapsEnabled = false`, `canRunRealTap() = false`,
-`attemptRealTap() = false`;
-- build still `./gradlew assembleDebug` only (JDK 17 + Android SDK 34); `versionName = 0.1.0-prealpha`,
-`versionCode = 1`; debug-signed only; no release signing, no Play distribution;
-- next: on-device QA of the refreshed APK via `ANDROID_PRE_ALPHA_POST_RELEASE_CHECKLIST.md`
-(Step 60 section), or an Accessibility/overlay skeleton strictly behind consent + safety gate +
-go/no-go (no real taps until reviewed).
+**What landed (domain layer, services, manifest, strings):**
 
-## Earlier state (Step 59)
+- `permissions/PermissionStatus.kt` — pure data class (`overlayGranted`, `accessibilityEnabled`, `lastUpdatedAt`) + `EMPTY` constant.
+- `permissions/PermissionsManager.kt` — read-only detector. Uses `Settings.canDrawOverlays()` for SYSTEM_ALERT_WINDOW and parses `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` for the accessibility service flag. Exposes `refresh()` + intents to open the matching system settings screens. Does not enable anything itself.
+- `permissions/ClickFlowAccessibilityService.kt` — `AccessibilityService` subclass. **No-op skeleton.** No event subscriptions, no gesture dispatch, no window content reads. Class exists only so the user has something to enable in Settings.
+- `res/xml/accessibility_service_config.xml` — minimal config (`accessibilityEventTypes="0"`, `canRetrieveWindowContent="false"`, no `canPerformGestures` capability). No gestures, no event subscriptions.
+- `AndroidManifest.xml` — `SYSTEM_ALERT_WINDOW` declared (opt-in by user via system settings). `ClickFlowAccessibilityService` declared with `android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"` and `accessibility_service_config` meta-data. **No autostart, no `<receiver>`, no scheduling.**
+- `res/values/strings.xml` + `res/values-ru/strings.xml` — new keys for permissions, accessibility service label/summary/description, and floating-marker UX (English + Russian).
+- `safety/SafetyCenter.kt` — extended constructor accepts `PermissionStatus`. Items now reflect live overlay/accessibility status. Real-tap row still reads `disabled (canRunRealTap=false)`.
+- `diagnostics/DiagnosticsManager.kt` — `overlayEnabled` and `accessibilityEnabled` parameters (default `false`); `permissionsRequired` stays `false` because permissions remain opt-in.
+- `core/AppInfo.kt` — `STEP` bumped to `Step 61 — Permissions skeleton`.
 
-- **Simple Clicker UX + draggable marker + clean minimal UI** on top of Steps 52–58;
-- home = Simple Clicker: draggable in-app circular marker (not a system overlay), Start/Stop/Emergency,
-quick Interval/Count steppers backed by a per-profile "Quick clicker" scenario;
-- marker + quick settings persist via existing scenario storage; survive restart;
-- **Advanced** menu hides Scenarios/Profiles/Audit/Backup/Safety/Diagnostics/About (all still available);
-- calm Material 3 theme (light + dark); build verified (`assembleDebug`);
-- **real taps disabled**; **0 permissions**; **0 providers**; no overlay/Accessibility/MediaProjection.
+**What did NOT change (intentionally):**
 
-## Earlier state (Step 58)
+- `safety/SafetyGate.kt` — untouched. `canRunRealTap()` still hard-coded to `false`.
+- No real `dispatchGesture()` call anywhere. No `MotionEvent.obtain()` call anywhere. No `Instrumentation` call anywhere.
+- No INTERNET, MediaProjection, READ/WRITE_EXTERNAL_STORAGE permissions.
+- No overlay window is actually drawn. The strings reference a floating-marker preview that is *planned* — it is not yet rendered. UI work for this is pending.
+- The `<service>` is declared `exported="true"` (required for accessibility services) but is functionally inert.
 
-- **pre-alpha GitHub release PUBLISHED** on top of Steps 52–57;
-- tag **`android-v0.1.0-prealpha`** (annotated, at commit `b9cb875`) pushed; GitHub **pre-release**
-created with `app-debug.apk` (15,761,368 bytes, debug-signed) attached;
-- release URL:
-https://github.com/Citrus-cloud/Smart-Android-Click/releases/tag/android-v0.1.0-prealpha
-- build verified: `./gradlew assembleDebug` succeeds (JDK 17 + Android SDK 34);
-- `versionName = 0.1.0-prealpha`, `versionCode = 1` (Android branch, distinct from desktop);
-- **real taps disabled**; **0 permissions**; **0 providers**; no external storage;
-- **no Accessibility real taps yet**, **no MediaProjection yet**, **no real taps**.
+**Pending in Step 61 (UI integration):**
 
-### Steps 52–55 (still in place)
+- `ClickFlowViewModel`: instantiate `PermissionsManager`, expose `PermissionStatus` state, wire `refreshPermissions()`, add `Screen.PERMISSIONS`, pass status into `SafetyCenter`/`DiagnosticsManager`.
+- `Screens.kt`: new `PermissionsScreen` composable (intro text + 2 cards for overlay/accessibility, status badge, "Open settings" + "Refresh" buttons, safety footer); add "Permissions" entry button to `AdvancedScreen`; wire into the navigation `when`.
+- (Optional, later) floating-marker preview composable behind `overlayGranted`.
 
-- 52 foundation; 53 scenario CRUD + storage; 54 multi-step + audit log; 55 profiles + persistent
-audit + audit export.
+**Safety invariants (unchanged after Step 61 lands fully):**
 
-### Steps 52–54 (still in place)
-
-- Step 52: simulation-only foundation. Step 53: scenario CRUD + local storage.
-- Step 54: multi-step scenarios (`SIMULATED_TAP`/`WAIT`/`NOTE`, schema v2) + in-memory audit log.
-
-### Steps 52–53 (still in place)
-
-- Step 52: simulation-only foundation (app shell, engine, safety gate/state/center, diagnostics).
-- Step 53: scenario CRUD + local JSON persistence in internal storage with corrupted-storage
-fallback.
-
-### Step 52 (foundation, still in place)
-
-- simulation-only Android foundation: app shell, simulation engine, safety gate/state/center,
-diagnostics, RU/EN localization.
-
-## Scope captured at Step 52
-
-Included:
-
-- Android app shell (Kotlin + Jetpack Compose, Material 3).
-- Single-activity navigation: Home, Scenarios, Safety Center, Diagnostics.
-- Simulation engine with a status machine (idle/running/completed/stopped/emergency_stopped).
-- Scenario model limited to `simple_tap_simulation`.
-- Safety gate/state/center with real taps hard-disabled.
-- Diagnostics assembler.
-- RU/EN localization.
-- Safety + product documentation.
-- Debug APK build configuration and Gradle wrapper.
-
-Explicitly excluded (deferred to later, safety-reviewed steps):
-
-- Real tap execution.
-- Accessibility Service automation / gesture dispatch.
-- MediaProjection screen capture.
-- Overlay permission runtime logic.
-- Runtime permission requests of any kind.
-- Any prohibited automation (captcha/anti-bot bypass, ad-click fraud, banking/payment apps,
-hidden/background control, spyware/keyloggers, root-only features).
-
-## Relation to desktop ClickFlow
-
-Desktop ClickFlow ([Citrus-cloud/Mine](https://github.com/Citrus-cloud/Mine)) is an Electron app at
-`v1.0.0-alpha.1` with simulation-first behavior and a hard-gated real-coordinate-click alpha. The
-Android project mirrors its **safety-first product philosophy** but shares **no runtime code**.
-
-## Architecture summary
-
-```
-UI (Compose)
-→ ClickFlowViewModel (state holder / navigation)
-    → SimulationEngine (status only, no input)  ← SafetyGate (canRunRealTap = false)
-    → ScenarioManager (in-memory presets)
-    → DiagnosticsManager (read-only snapshot)
-    → SafetyCenter (read-only status)
-```
-
-See [docs/ANDROID_ARCHITECTURE.md](docs/ANDROID_ARCHITECTURE.md).
-
-## APK release plan
-
-- Step 52 ships **debug builds only** (`./gradlew assembleDebug`), debug-signed.
-- Release signing, code signing, and store distribution are out of scope until functionality and a
-safety review justify them.
-- Step 60: the same `android-v0.1.0-prealpha` pre-release keeps its tag; only the `app-debug.apk`
-asset is replaced with a rebuilt debug-signed APK that ships the Step 59 Simple Clicker UX. See
-`docs/ANDROID_MANUAL_RELEASE_ASSET_UPDATE.md`.
+- `SafetyGate.canRunRealTap()` = `false` (hard-coded).
+- `SafetyCenter` exposes ZERO controls to enable real input.
+- Accessibility service is a no-op even when the user enables it in system settings.
+- Overlay permission unlocks only an in-app *visual* marker — never a tap.
