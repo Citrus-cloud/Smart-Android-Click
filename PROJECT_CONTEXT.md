@@ -1,107 +1,83 @@
 <PLACEHOLDER_EXISTING_CONTENT>
 
-## Step 61 — Permissions skeleton (overlay + accessibility, no automation)
+## Step 61
 
-**Status:** complete (UI wiring landed alongside Step 62).
+Read-only permissions surface for the Real Tap prototype.
 
-**Goal:** introduce the *plumbing* needed to later show a system overlay marker and react to accessibility events, WITHOUT enabling any real input. SafetyGate.canRunRealTap() remains hard-coded to false; nothing in this step adds, weakens, or bypasses that gate.
+- Added `PermissionsManager` that reports overlay-permission and AccessibilityService status without granting anything.
+- Added `Screen.PERMISSIONS` and a Permissions screen that surfaces live status and deep-links into the system settings via `openOverlaySettings()` / `openAccessibilitySettings()`.
+- `SafetyCenter` now accepts a live `PermissionStatus` snapshot; the legacy zero-arg constructor still works for pre-Step-61 callers.
+- `SafetyGate.canRunRealTap()` remains hard-coded `false`. Granting either permission does NOT enable real input.
+- `Diagnostics` reports `overlayEnabled` + `accessibilityEnabled`.
 
-**What landed (domain layer, services, manifest, strings):**
+## Step 62
 
-- `permissions/PermissionStatus.kt` — pure data class (`overlayGranted`, `accessibilityEnabled`, `lastUpdatedAt`) + `EMPTY` constant.
-- `permissions/PermissionsManager.kt` — read-only detector. Uses `Settings.canDrawOverlays()` for SYSTEM_ALERT_WINDOW and parses `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` for the accessibility service flag. Exposes `refresh()` + intents to open the matching system settings screens. Does not enable anything itself.
-- `permissions/ClickFlowAccessibilityService.kt` — `AccessibilityService` subclass. **No-op skeleton.** No event subscriptions, no gesture dispatch, no window content reads. Class exists only so the user has something to enable in Settings.
-- `res/xml/accessibility_service_config.xml` — minimal config (`accessibilityEventTypes="0"`, `canRetrieveWindowContent="false"`, no `canPerformGestures` capability). No gestures, no event subscriptions.
-- `AndroidManifest.xml` — `SYSTEM_ALERT_WINDOW` declared (opt-in by user via system settings). `ClickFlowAccessibilityService` declared with `android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"` and `accessibility_service_config` meta-data. **No autostart, no `<receiver>`, no scheduling.**
-- `res/values/strings.xml` + `res/values-ru/strings.xml` — new keys for permissions, accessibility service label/summary/description, and floating-marker UX (English + Russian).
-- `safety/SafetyCenter.kt` — extended constructor accepts `PermissionStatus`. Items now reflect live overlay/accessibility status. Real-tap row still reads `disabled (canRunRealTap=false)`.
-- `diagnostics/DiagnosticsManager.kt` — `overlayEnabled` and `accessibilityEnabled` parameters (default `false`); `permissionsRequired` stays `false` because permissions remain opt-in.
-- `core/AppInfo.kt` — `STEP` bumped to `Step 61 — Permissions skeleton`.
+Real Tap Prototype — UI skeleton only, dispatch still blocked.
 
-**UI integration (landed alongside Step 62):**
+- Added `Screen.REAL_TAP_PROTOTYPE` and `RealTapPrototypeScreen.kt` (self-contained Compose screen).
+- ViewModel adds:
+- `RealTapSessionState { INACTIVE, ACTIVE }`
+- `RealTapConsent(x, y, requestedAtMs, expiresAtMs)` — 10s window.
+- `SafetyReviewState` — 10-item checklist; `allPassed` gates session start.
+- APIs: `toggleSafetyReviewItem`, `startRealTapSession`, `endRealTapSession`, `requestRealTap`, `confirmRealTap`, `cancelRealTap`.
+- `SafetyGate` introduces `SafetyState` snapshot + `canRunRealTapSingleProto()` (returns true only when all four prototype flags are simultaneously satisfied). Bulk `canRunRealTap()` still false.
+- Every prototype transition emits a `SAFETY_REAL_TAP_BLOCKED` audit event (session start/end, consent requested/expired/confirmed/cancelled, dispatch blocked).
+- `emergencyStop()` tears down any active session + pending consent and records the termination.
+- Bulk real taps remain categorically forbidden.
 
-- `ClickFlowViewModel`: instantiates `PermissionsManager`, exposes `PermissionStatus` state, wires `refreshPermissions()`, has `Screen.PERMISSIONS`, passes status into `SafetyCenter` / `DiagnosticsManager`.
-- `Screens.kt`: `PermissionsScreen` composable (intro text + 2 cards for overlay/accessibility, status badge, "Open settings" + "Refresh" buttons, safety footer); "Permissions" entry button in `AdvancedScreen`; routed via the navigation `when`.
+## Step 63
 
-**What did NOT change (intentionally):**
+Make the SafetyGate prototype flags **live** and wire the ViewModel + UI to them end-to-end. Bulk real-tap dispatch is still impossible; this step closes the per-flag plumbing gap that Step 62 left as compile-time defaults.
 
-- `safety/SafetyGate.kt` — untouched. `canRunRealTap()` still hard-coded to `false`.
-- No real `dispatchGesture()` call from Step 61 itself. (The Step 62 prototype adds the SOLE call site, behind four independent gates.)
-- No INTERNET, MediaProjection, READ/WRITE_EXTERNAL_STORAGE permissions.
-- No overlay window is actually drawn. The strings reference a floating-marker preview that is *planned* — it is not yet rendered.
-- The `<service>` is declared `exported="true"` (required for accessibility services) but is functionally inert (Step 61). Step 62 adds `performSingleTap` as a single-shot dispatch site invoked only by `RealTapController` behind the gates.
+**Status:** Landed (engineering scope) + 1 follow-up deferred to Step 64.
 
-**Safety invariants (preserved after Step 61 + Step 62):**
+### What landed
 
-- `SafetyGate.canRunRealTap()` = `false` (hard-coded).
-- `SafetyCenter` exposes ZERO controls to enable bulk/looped real input.
-- Accessibility service still subscribes to no events and still reads no window content.
-- Overlay permission unlocks only an in-app *visual* marker — never a tap.
+- **`SafetyGate` live mutators** (`safety/SafetyGate.kt`)
+- Four narrow per-flag mutators (one flag per call, synchronized):
+  - `updateReviewPassed(passed: Boolean)`
+  - `updateAccessibility(enabled: Boolean)`
+  - `updateSession(active: Boolean)`
+  - `updateConsentFresh(fresh: Boolean)`
+- `resetPrototypeFlags()` — single-call safe baseline used by emergency stop + session end. Simulation-only remains true.
+- `canRunRealTap()` (bulk) still returns `false` unconditionally — unchanged and not touched by this step.
+- `canRunRealTapSingleProto()` now reads the LIVE state instead of compile-time defaults.
+- `getSingleProtoBlockedReasons()` — diagnostic list of which gating flags are currently missing (human-readable, one entry per missing flag). Used by the UI chip and Diagnostics.
 
-## Step 62 — Single real-tap prototype (gated, audited, per-tap consent)
+- **`ClickFlowViewModel` wiring** (`core/ClickFlowViewModel.kt`)
+- Each of the six real-tap prototype APIs now drives the correct `SafetyGate` mutator on every transition:
+  - `toggleSafetyReviewItem` → `gate.updateReviewPassed(safetyReview.allPassed)` after the toggle.
+  - `startRealTapSession` → `gate.updateSession(true)` on success.
+  - `endRealTapSession` → `gate.updateSession(false)` + `gate.updateConsentFresh(false)`.
+  - `requestRealTap` → `gate.updateConsentFresh(true)`.
+  - `confirmRealTap` → consults `gate.canRunRealTapSingleProto()`; clears consent + calls `gate.updateConsentFresh(false)` regardless of outcome.
+  - `cancelRealTap` → `gate.updateConsentFresh(false)`.
+- `refreshPermissions()` now also pushes `accessibilityServiceEnabled` into the gate, so the live-state truth follows system settings without the user having to leave and re-enter the screen.
+- `emergencyStop()` calls `gate.resetPrototypeFlags()` in addition to its prior teardown work.
+- New read-only state stream `safetyGateReasons: StateFlow<List<String>>` exposes `gate.getSingleProtoBlockedReasons()` to the UI; recomputed after every mutator call.
+- New `RealTapDispatchResult` enum: `DISPATCHED`, `BLOCKED_BY_GATE`, `BLOCKED_NO_SERVICE`, `BLOCKED_INVALID_CONSENT`, `DISPATCH_CANCELLED`, `DISPATCH_FAILED`. Surfaced via `lastDispatchResult: StateFlow<RealTapDispatchResult?>`. Today every confirmation produces `BLOCKED_BY_GATE` because `canRunRealTap()` is still false at the dispatch layer; the enum exists so the UI can show the actual reason and so future wiring (Step 64) can return the other values without a state model change.
 
-**Status:** code phase complete (domain + strings + docs + ViewModel + RealTapPrototypeScreen + Screens.kt routing + SafetyCenter prototype items + AppInfo.STEP bump all committed). Remaining for release: smoke verification, CI green, release-guide refresh, APK refresh on the pre-release.
+- **UI — `RealTapPrototypeScreen.kt`**
+- New result chip directly under the consent controls. Renders the localized label for the most recent `RealTapDispatchResult` (or hides itself when null). Color coded — DISPATCHED green, every BLOCKED_* / DISPATCH_FAILED red, DISPATCH_CANCELLED neutral.
+- New collapsible "Why blocked" list beneath the chip, driven by `safetyGateReasons`. Shows one bullet per missing prototype flag. Empty list collapses the section entirely.
+- The existing safety-review checklist, session start/end button, consent request/confirm/cancel buttons, bulk-blocked notice, emergency-stop button, and back button are unchanged in placement and behavior.
 
-**Goal:** introduce a **narrow, fully-audited path** that allows the user to perform **exactly one real tap per explicit consent** through the existing (Step 61) `ClickFlowAccessibilityService`. Bulk, looped, and scenario-driven real taps remain hard-disabled by `SafetyGate`. This is the first step in the project where `dispatchGesture` is wired at all — it is wired behind four independent gates.
+- **Strings** — added EN + RU keys for the six dispatch-result labels (`real_tap_result_dispatched`, `real_tap_result_blocked_by_gate`, `real_tap_result_blocked_no_service`, `real_tap_result_blocked_invalid_consent`, `real_tap_result_dispatch_cancelled`, `real_tap_result_dispatch_failed`) and the section header `real_tap_why_blocked`.
 
-**Why this is safe:**
+- **Docs**
+- `docs/REAL_TAP_QA_SCENARIOS.md` — exhaustive manual-QA matrix for the prototype (every reachable combination of the four prototype flags + every dispatch-result branch).
+- `docs/REAL_TAP_FIXES_LOG.md` — running log of fixes applied during Step 62/63 hardening (build-break recovery, missing string keys, truncation-safe edit procedure).
+- `AppInfo.STEP` bumped to 63.
 
-1. `SafetyGate.canRunRealTap()` still returns `false`. The scenario runner, all bulk paths, all scheduled paths, all import/replay paths are untouched.
-2. A separate, NEW method `SafetyGate.canRunRealTapSingleProto(state, request)` controls the single-tap path. It returns `true` only when ALL of these hold simultaneously: (a) the per-session Safety Review is passed, (b) a real-tap session is active, (c) a fresh per-tap consent exists (nonce valid, TTL ≤ 10s, not consumed), (d) API ≥ 24 and the accessibility service is currently bound.
-3. `RealTapController` is the ONLY caller of `ClickFlowAccessibilityService.performSingleTap`, and `performSingleTap` is the ONLY place in the codebase that invokes `dispatchGesture`. There is no other entry point.
-4. The Safety Review pass state lives in memory only — never persisted, never backed up, never exported. Cold start = no session.
-5. Emergency Stop immediately ends the session and invalidates any pending consent.
-6. Every transition (review pass, session start/end, consent request/confirm/cancel/expire, dispatch attempt/block/success/failure) emits a `realtap.*` audit event.
+### Deferred to Step 64
 
-**What landed — domain layer (earlier commits):**
+- Extracting a standalone `RealTapController` class from the ViewModel. The Step 63 spec called for one; the practical landing keeps the logic inline because the ViewModel has the StateFlow plumbing wired through the rest of the app and a controller extraction needs its own constructor + injection plan. Functionally equivalent — all six APIs do the same work, just on the ViewModel directly.
+- Granular `realtap.*` `AuditType` enum entries (`realtap.dispatch_attempt`, `realtap.dispatch_blocked`, `realtap.dispatch_success`, `realtap.dispatch_failed`). Today every transition reuses `SAFETY_REAL_TAP_BLOCKED` with a descriptive message — semantically correct but coarse. Step 64 will widen the enum and migrate the call sites.
+- Marker-only invariant inside `confirmRealTap` (reject `(x,y)` not matching the current marker within live composition bounds). Today the consent payload IS the marker snapshot at request time, so the surface for drift is small; the explicit reject is still worth adding.
 
-- `audit/AuditEvent.kt` — added 14 `realtap.*` constants: `realtap.review.passed`, `realtap.review.reset`, `realtap.session.started`, `realtap.session.ended`, `realtap.consent.requested`, `realtap.consent.confirmed`, `realtap.consent.cancelled`, `realtap.consent.expired`, `realtap.consent.reused`, `realtap.dispatch.attempted`, `realtap.dispatch.blocked`, `realtap.dispatch.success`, `realtap.dispatch.failure`, `realtap.service.unavailable`. Combined with the 19 pre-existing constants, `AuditType` now exposes 33 constants in total.
-- `realtap/RealTapRequest.kt` — immutable request (`targetX`, `targetY`, `nonce`, `createdAtMs`).
-- `realtap/RealTapResult.kt` + `RealTapOutcome` — outcome enum (`DISPATCHED`, `BLOCKED_BY_GATE`, `BLOCKED_NO_SERVICE`, `BLOCKED_INVALID_CONSENT`, `DISPATCH_CANCELLED`, `DISPATCH_FAILED`).
-- `realtap/RealTapSession.kt` — in-memory session token (id, startedAt, reviewSnapshotId). Not serialized.
-- `realtap/RealTapSafetyReview.kt` — the 10-item review (verbatim in `docs/SAFETY_REVIEW_CHECKLIST.md`) + `passed: Boolean` + `passedAtMs: Long?`.
-- `safety/SafetyState.kt` — extended with `realTapSafetyReviewPassed`, `realTapSessionActive`, `realTapConsentFresh` (all default `false`). Existing fields (`simulationOnly`, `realTapsEnabled`, blocked reasons) untouched.
-- `safety/SafetyGate.kt` — adds `canRunRealTapSingleProto(state: SafetyState, request: RealTapRequest): Boolean` and `getSingleProtoBlockedReasons(state, request): List<String>`. `canRunRealTap()` continues to return `false` unconditionally.
-- `permissions/ClickFlowAccessibilityService.kt` — added `companion object { var liveInstance: ClickFlowAccessibilityService? }` set in `onServiceConnected` / cleared in `onUnbind`, and `fun performSingleTap(x: Float, y: Float, onResult: (Boolean) -> Unit)` that builds a single `GestureDescription` (one stroke, ~50 ms) and calls `dispatchGesture`. Still no event subscriptions, still no window content reads.
-- `realtap/RealTapController.kt` — orchestrates: `beginConsent(target)`, `confirmConsent(nonce)`, `cancelConsent(reason)`, `dispatch(request)`. Validates gate → service alive → consent fresh+unconsumed → dispatch → audit → mirror to diagnostics. Single-use nonce, 10-second TTL.
-- `diagnostics/DiagnosticsState.kt` — added 6 prototype-mirror fields: `realTapSessionActive`, `realTapSafetyReviewPassed`, `realTapConsentFresh`, `realTapDispatchedCount`, `realTapLastOutcome`, `realTapLastEventAtMs`. Total fields: 11 (5 originals + 6 real-tap).
-- `diagnostics/DiagnosticsManager.kt` — accepts and propagates the 6 new fields. Defaults remain safe (all `false` / 0 / null).
-- `res/values/strings.xml` + `res/values-ru/strings.xml` — added 22 new keys for the prototype (EN + RU): `real_tap_prototype*`, `real_tap_safety_review*`, `real_tap_start_session` / `real_tap_end_session`, `real_tap_session_active` / `real_tap_session_inactive`, `real_tap_request_tap`, `real_tap_consent_title` / `real_tap_consent_body` / `real_tap_consent_confirm` / `real_tap_consent_cancel`, `real_tap_blocked_by_gate`, `real_tap_dispatch_succeeded` / `real_tap_dispatch_failed`, `real_tap_accessibility_required`, `real_tap_api_too_low`, `real_tap_bulk_still_blocked`, `real_tap_emergency_stop_note`, plus 5 audit-mirror message keys (`real_tap_audit_session_started`, `real_tap_audit_session_ended`, `real_tap_audit_consent_requested`, `real_tap_audit_consent_expired`, `real_tap_audit_dispatch_blocked`).
-- `docs/REAL_TAP_PROTOTYPE.md` — architecture, file map, invariants, out-of-scope list.
-- `docs/SAFETY_REVIEW_CHECKLIST.md` — the 10 review items, verbatim, EN + RU, plus UX rules and invariants.
-- `docs/CONSENT_FLOW.md` — per-tap consent lifecycle, TTL/nonce contract, audit events, defence-in-depth re-checks.
+### Why this shape
 
-**What landed — UI wiring + safety/metadata polish (this phase):**
-
-- `ClickFlowViewModel.kt` — added `Screen.REAL_TAP_PROTOTYPE`; new state types `RealTapSessionState` (`INACTIVE` / `ACTIVE`) and an in-memory `SafetyReviewState` (10-item checklist, `itemsLocalized()` + `allPassed()` + `toggle()`); new `RealTapConsent` data class (target + nonce + 10s expiry). Six `StateFlow`s now power the prototype UI (`safetyReview`, `realTapSession`, `realTapConsent`, plus three one-shot audit-mirror message flows). Six prototype APIs: `startRealTapSession()`, `endRealTapSession()`, `requestRealTap(x, y)`, `confirmRealTap(nonce)`, `cancelRealTap(reason)`, `toggleSafetyReviewItem(index)`. All transitions audit-logged. `emergencyStop()` now tears down the active session and invalidates any pending consent.
-- `ui/RealTapPrototypeScreen.kt` — self-contained composable (its own `RealTapScaffold` + `RealTapMessageLine` helpers, no dependency on private helpers in `Screens.kt`). Renders: header / status badge ("Safety review: PASSED (this session)" or "required"), scrollable 10-item review block (toggle per item), session controls (Start / End session), "Request single real tap" button (disabled until review + session pass), consent dialog with countdown + Confirm/Cancel buttons, blocked-reason list driven by `SafetyGate.getSingleProtoBlockedReasons`, and a permanent "Bulk and looped real taps remain blocked by SafetyGate" footer.
-- `ui/Screens.kt` — `Screen.REAL_TAP_PROTOTYPE` added to the navigation `when` (routes to `RealTapPrototypeScreen(vm)`); `AdvancedScreen` gains a `NavButton(stringResource(R.string.btn_real_tap_prototype))` entry; new `MessageLine` mappings for the five audit-mirror keys so prototype state transitions appear in the standard message toast.
-- `safety/SafetyCenter.kt` — `items()` extended with three optional read-only parameters (`realTapSafetyReviewPassed`, `realTapSessionActive`, `realTapConsentFresh`, all default `false` for compat); reports three new line items ("Real-tap Safety Review", "Real-tap session", "Real-tap consent") plus a "Single real-tap prototype" summary line (status: `gated — Safety Review + active session + fresh consent (10s TTL) + API ≥ 24`) and a permanent "Bulk / looped / scenario real taps — blocked by SafetyGate (prototype does not unlock these)" reminder. The "Real taps" row was renamed to "Real taps (bulk / looped / scheduled)" with status `disabled (canRunRealTap=false)`. The Accessibility Service line was updated to reflect the Step 62 single-tap dispatch surface.
-- `core/AppInfo.kt` — `STEP` bumped to `Step 62 — Single real-tap prototype (UI wiring landed; gated by SafetyGate + per-tap consent)`.
-
-**What did NOT change (intentionally):**
-
-- `safety/SafetyGate.kt::canRunRealTap()` — still returns `false`. The scenario runner and all bulk paths remain simulation-only.
-- `SimulationEngine` — untouched. It has no awareness of the real-tap path and cannot trigger it.
-- No new manifest permissions. No `<receiver>` added. No autostart, no scheduling.
-- No persistence of session / review / consent state. No backup field. No export field.
-- No biometric or PIN gate on the consent dialog (out of scope for the prototype).
-
-**Pending (Step 62 release tasks, code phase complete):**
-
-- Smoke verification (`scripts/android-smoke.md` walkthrough on a device/emulator).
-- CI green on `main` for the Step 62 commits.
-- Release-guide refresh + APK rebuild + asset replacement on the `android-v0.1.0-prealpha` pre-release. Until then, the published APK remains the Step 60 build.
-
-**Invariants verified at end of Step 62 (code complete):**
-
-- `SafetyGate.canRunRealTap()` continues to return `false`.
-- `ClickFlowAccessibilityService.performSingleTap` is the sole `dispatchGesture` call site.
-- `RealTapController` is the sole caller of `performSingleTap`.
-- The scenario runner has zero references to `RealTapController` / `performSingleTap` / `dispatchGesture`.
-- The Safety Review and consent state are not persisted, not exported, not backed up.
-- Every state transition emits a `realtap.*` audit event.
-- The prototype UI is reachable only from `AdvancedScreen` (no shortcut from Home / Simple Clicker / Scenario Runner).
-- `SafetyCenter` surfaces the prototype state read-only and reiterates that bulk/looped/scenario real taps remain blocked.
-
-See `docs/REAL_TAP_PROTOTYPE.md`, `docs/SAFETY_REVIEW_CHECKLIST.md`, `docs/CONSENT_FLOW.md`.
+- Each flag flip is exactly one mutator call → audit-trail reasoning stays trivial.
+- `resetPrototypeFlags` exists so emergency stop has one chokepoint and cannot accidentally leave the gate in a partially-armed state.
+- The chip + reasons list make the gate's verdict legible to the user without exposing the underlying boolean snapshot.
+- Bulk real-tap dispatch (`canRunRealTap()`) remains `false` and is not touched by this step. Any future change to that surface requires its own safety review.
