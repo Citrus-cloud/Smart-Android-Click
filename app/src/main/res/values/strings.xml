@@ -221,4 +221,31 @@
 <string name="floating_marker_hide">Hide floating marker</string>
 <string name="floating_marker_not_available">Grant overlay permission to enable the floating marker preview.</string>
 <string name="floating_marker_simulation_only">Floating marker is a visual preview only. It does not perform real taps.</string>
+
+<!-- Single Real Tap prototype (Step 62) -->
+<string name="real_tap_prototype">Single Real Tap (Prototype)</string>
+<string name="real_tap_prototype_title">Single real tap — prototype</string>
+<string name="real_tap_prototype_subtitle">Experimental: one real tap, gated by safety review and per-tap consent.</string>
+<string name="real_tap_prototype_explainer">This prototype lets you dispatch exactly one real tap through the Accessibility service. Bulk, looped, and scenario-driven real taps remain hard-disabled. Every tap requires a fresh confirmation.</string>
+<string name="real_tap_safety_review_title">Safety review</string>
+<string name="real_tap_safety_review_intro">Please read and acknowledge every item before continuing. The review must be repeated each session.</string>
+<string name="real_tap_safety_review_pass">I have read and understood every item</string>
+<string name="real_tap_safety_review_passed_badge">Safety review: PASSED (this session)</string>
+<string name="real_tap_safety_review_not_passed_badge">Safety review: required</string>
+<string name="real_tap_start_session">Start real-tap session</string>
+<string name="real_tap_end_session">End real-tap session</string>
+<string name="real_tap_session_active">Real-tap session is active.</string>
+<string name="real_tap_session_inactive">Real-tap session is not active.</string>
+<string name="real_tap_request_tap">Request single real tap at marker</string>
+<string name="real_tap_consent_title">Confirm this real tap</string>
+<string name="real_tap_consent_body">You are about to perform ONE real tap at (%1$d, %2$d). Consent expires in 10 seconds and cannot be reused.</string>
+<string name="real_tap_consent_confirm">Confirm tap</string>
+<string name="real_tap_consent_cancel">Cancel</string>
+<string name="real_tap_blocked_by_gate">Blocked by SafetyGate: %1$s</string>
+<string name="real_tap_dispatch_succeeded">Real tap dispatched.</string>
+<string name="real_tap_dispatch_failed">Real tap dispatch failed.</string>
+<string name="real_tap_accessibility_required">The Accessibility service must be enabled.</string>
+<string name="real_tap_api_too_low">This device is below Android 7.0 — real tap is unavailable.</string>
+<string name="real_tap_bulk_still_blocked">Bulk and looped real taps remain blocked by SafetyGate.</string>
+<string name="real_tap_emergency_stop_note">Emergency Stop also ends the real-tap session immediately.</string>
 </resources>
