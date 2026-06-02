@@ -53,19 +53,30 @@ remain blocked by SafetyGate" footer;
 - `ui/Screens.kt`: `Screen.REAL_TAP_PROTOTYPE` routed in the navigation `when`;
 `AdvancedScreen` gains a `NavButton(stringResource(R.string.btn_real_tap_prototype))`
 entry; `MessageLine` extended with the five audit-mirror keys;
+- **Safety / metadata polish landed:** `safety/SafetyCenter.kt` extended — `items()` now
+accepts three optional read-only parameters (`realTapSafetyReviewPassed`,
+`realTapSessionActive`, `realTapConsentFresh`, all default `false` for compat); reports
+three new line items (Safety Review, session, consent), a "Single real-tap prototype"
+summary line (status: `gated — Safety Review + active session + fresh consent (10s TTL) + API ≥ 24`),
+and a permanent "Bulk / looped / scenario real taps — blocked by SafetyGate (prototype
+does not unlock these)" reminder; the legacy "Real taps" row was renamed to "Real taps
+(bulk / looped / scheduled)"; the Accessibility Service line was updated to reflect the
+Step 62 single-tap dispatch surface; `core/AppInfo.kt`: `STEP` bumped to
+`Step 62 — Single real-tap prototype (UI wiring landed; gated by SafetyGate + per-tap consent)`;
 - new docs: `docs/REAL_TAP_PROTOTYPE.md` (architecture, file map, invariants, out-of-scope),
 `docs/SAFETY_REVIEW_CHECKLIST.md` (the 10 items verbatim, EN + RU, UX rules),
 `docs/CONSENT_FLOW.md` (per-tap consent lifecycle, TTL/nonce contract, audit events,
 defence-in-depth);
-- pending in Step 62 (not yet committed): SafetyCenter prototype item bump,
-`AppInfo.STEP` bump to "Step 62 — Real tap prototype", smoke + CI verification, APK
-refresh on the pre-release;
+- pending in Step 62 (release tasks, code phase complete): smoke verification, CI green on
+`main`, release-guide refresh, APK rebuild and asset replacement on the
+`android-v0.1.0-prealpha` pre-release;
 - invariants: scenario runner untouched; `canRunRealTap()` still `false`;
 `performSingleTap` is the sole `dispatchGesture` call site; `RealTapController` is the sole
 caller of `performSingleTap`; review + session + consent state never persisted, never
 exported, never backed up; Emergency Stop ends the session and invalidates any pending consent;
 the prototype UI is reachable only from `AdvancedScreen` — no shortcut from Home / Simple
-Clicker / Scenario Runner.
+Clicker / Scenario Runner; SafetyCenter surfaces prototype state read-only and reiterates
+that bulk / looped / scenario real taps remain blocked.
 
 ### Step 61 — Permissions skeleton (overlay + accessibility service, no automation)
 
@@ -262,7 +273,7 @@ PROJECT_CONTEXT, MVP checklist, safety model;
 Details:
 
 - Initialized a native **Kotlin + Jetpack Compose** Android project (package `com.clickflow.android`,
-app name "ClickFlow Android", minSdk 26 / targetSdk 34, versionName `1.0.0-alpha.1`).
+app name "ClickFlow Android", minSdk 26 / versionName `1.0.0-alpha.1`).
 - Configured Gradle (Kotlin DSL) with AGP 8.5.2, Kotlin 1.9.24, Compose BOM 2024.06.00, and the
 Gradle 8.7 wrapper.
 - Added single-activity Compose UI: Home (status badge, Start/Stop/Emergency Stop, navigation),
