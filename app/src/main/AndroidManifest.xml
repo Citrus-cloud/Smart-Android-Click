@@ -1,33 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!--
-        ClickFlow Android — Step 52 foundation.
-        SIMULATION-ONLY. No runtime permissions are requested at this step.
-        No INTERNET, no Accessibility Service, no MediaProjection, no SYSTEM_ALERT_WINDOW.
-        Future permissions are documented in docs/ANDROID_PERMISSIONS_PLAN.md but
-        are intentionally NOT declared here yet.
-    -->
+<!--
+    ClickFlow Android — Step 61.
+    SIMULATION-ONLY. SafetyGate.canRunRealTap() is hard-coded to false; no code path
+    anywhere in the app emits a real tap or system gesture.
 
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+    New in Step 61:
+      - SYSTEM_ALERT_WINDOW: declared so the user CAN grant overlay permission via
+        Settings (PermissionsManager only reads the result). NOT used to draw any
+        overlay yet — no overlay code paths exist in this step.
+      - BIND_ACCESSIBILITY_SERVICE: required permission for the declared
+        AccessibilityService. The service itself is a no-op skeleton (see
+        ClickFlowAccessibilityService) — it subscribes to no events, dispatches no
+        gestures, and reads no window content (canRetrieveWindowContent="false").
+        See res/xml/accessibility_service_config.xml.
+
+    Still NOT declared (and intentionally so):
+      - INTERNET
+      - MediaProjection
+      - WRITE_EXTERNAL_STORAGE / READ_EXTERNAL_STORAGE
+-->
+
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+<application
+    android:allowBackup="true"
+    android:icon="@mipmap/ic_launcher"
+    android:label="@string/app_name"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:supportsRtl="true"
+    android:theme="@style/Theme.ClickFlowAndroid">
+
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
         android:theme="@style/Theme.ClickFlowAndroid">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.ClickFlowAndroid">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+    <!--
+        Step 61: declared but inert. The service class is a no-op skeleton; binding
+        it does not enable any real-input pathway. canRunRealTap() remains false.
+    -->
+    <service
+        android:name=".permissions.ClickFlowAccessibilityService"
+        android:exported="true"
+        android:label="@string/accessibility_service_label"
+        android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+        <intent-filter>
+            <action android:name="android.accessibilityservice.AccessibilityService" />
+        </intent-filter>
+        <meta-data
+            android:name="android.accessibilityservice"
+            android:resource="@xml/accessibility_service_config" />
+    </service>
 
-    </application>
+</application>
 
 </manifest>
