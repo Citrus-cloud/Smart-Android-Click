@@ -32,6 +32,12 @@
         android:theme="@style/Theme.ClickFlowAndroid" />
 
     <activity
+        android:name=".textclick.TextClickActivity"
+        android:exported="false"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.ClickFlowAndroid" />
+
+    <activity
         android:name=".capture.ScreenCaptureActivity"
         android:exported="false"
         android:label="@string/app_name"
@@ -61,6 +67,11 @@
 
     <service
         android:name=".imageclick.ImageClickService"
+        android:exported="false"
+        android:foregroundServiceType="mediaProjection" />
+
+    <service
+        android:name=".textclick.TextClickService"
         android:exported="false"
         android:foregroundServiceType="mediaProjection" />
 
