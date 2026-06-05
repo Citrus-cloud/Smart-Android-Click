@@ -282,6 +282,7 @@ Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
 
 @Composable
 private fun AdvancedScreen(vm: ClickFlowViewModel) {
+val captureCtx = androidx.compose.ui.platform.LocalContext.current
 ScreenScaffold {
 Text(stringResource(R.string.advanced_menu), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 MessageLine(vm)
@@ -293,6 +294,7 @@ NavButton(stringResource(R.string.btn_safety_center)) { vm.navigateTo(Screen.SAF
 NavButton(stringResource(R.string.btn_permissions)) { vm.navigateTo(Screen.PERMISSIONS) }
 NavButton(stringResource(R.string.btn_diagnostics)) { vm.navigateTo(Screen.DIAGNOSTICS) }
 NavButton(stringResource(R.string.btn_real_tap_prototype)) { vm.navigateTo(Screen.REAL_TAP_PROTOTYPE) }
+NavButton("Захват экрана (превью)") { captureCtx.startActivity(android.content.Intent(captureCtx, com.clickflow.android.capture.ScreenCaptureActivity::class.java)) }
 NavButton(stringResource(R.string.about)) { vm.navigateTo(Screen.ABOUT) }
 Spacer(Modifier.height(8.dp))
 Text(stringResource(R.string.real_taps_disclaimer), fontWeight = FontWeight.SemiBold)
