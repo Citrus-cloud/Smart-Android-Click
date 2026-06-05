@@ -65,7 +65,7 @@ class ImageClickService : Service() {
     }
 
     private fun begin(resultCode: Int, data: Intent, templateId: String) {
-        val templateMeta = ImageClickTemplateStore.loadTemplates(this).firstOrNull { it.id == templateId }?.normalizedRegion() ?: run {
+        val templateMeta = ImageClickTemplateStore.loadTemplates(this).firstOrNull { it.id == templateId }?.normalized() ?: run {
             stopSelf()
             return
         }
@@ -121,11 +121,13 @@ class ImageClickService : Service() {
                         regionTopPx = regionTopPx,
                         regionRightPx = regionRightPx,
                         regionBottomPx = regionBottomPx,
+                        scaleMin = templateMeta.scaleMin,
+                        scaleMax = templateMeta.scaleMax,
                     )
                     if (match != null) {
-                        val tapX = match.x + (templateBitmap.width * templateMeta.tapX).toInt()
-                        val tapY = match.y + (templateBitmap.height * templateMeta.tapY).toInt()
-                        startForegroundCompat("Найдено ${(match.confidence * 100).toInt()}% · тап")
+                        val tapX = match.x + (match.width * templateMeta.tapX).toInt()
+                        val tapY = match.y + (match.height * templateMeta.tapY).toInt()
+                        startForegroundCompat("Найдено ${(match.confidence * 100).toInt()}% · ${(match.scale * 100).toInt()}% · тап")
                         tapper.performSingleTap(tapX, tapY, 70L)
                         if (!templateMeta.continuous) {
                             running = false

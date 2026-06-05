@@ -24,6 +24,8 @@ data class ImageClickTemplate(
     val regionRight: Float = 1f,
     val regionBottom: Float = 1f,
     val continuous: Boolean = false,
+    val scaleMin: Float = 0.85f,
+    val scaleMax: Float = 1.15f,
 )
 
 object ImageClickTemplateStore {
@@ -69,13 +71,15 @@ object ImageClickTemplateStore {
                 regionRight = p.getOrNull(10)?.toFloatOrNull()?.coerceIn(0.05f, 1f) ?: 1f,
                 regionBottom = p.getOrNull(11)?.toFloatOrNull()?.coerceIn(0.05f, 1f) ?: 1f,
                 continuous = p.getOrNull(12)?.toBooleanStrictOrNull() ?: false,
-            ).normalizedRegion()
+                scaleMin = p.getOrNull(13)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 0.85f,
+                scaleMax = p.getOrNull(14)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1.15f,
+            ).normalized()
         }.filter { File(it.filePath).exists() }
     }
 
     fun saveTemplates(context: Context, templates: List<ImageClickTemplate>) {
         val raw = templates.joinToString(";") { t0 ->
-            val t = t0.normalizedRegion()
+            val t = t0.normalized()
             val line = listOf(
                 t.id,
                 t.name,
@@ -90,6 +94,8 @@ object ImageClickTemplateStore {
                 t.regionRight,
                 t.regionBottom,
                 t.continuous,
+                t.scaleMin,
+                t.scaleMax,
             ).joinToString("|")
             Base64.encodeToString(line.toByteArray(), Base64.NO_WRAP)
         }
@@ -97,10 +103,24 @@ object ImageClickTemplateStore {
     }
 }
 
-fun ImageClickTemplate.normalizedRegion(): ImageClickTemplate {
+fun ImageClickTemplate.normalizedRegion(): ImageClickTemplate = normalized()
+
+fun ImageClickTemplate.normalized(): ImageClickTemplate {
     val left = regionLeft.coerceIn(0f, 0.95f)
     val top = regionTop.coerceIn(0f, 0.95f)
     val right = regionRight.coerceIn(left + 0.05f, 1f)
     val bottom = regionBottom.coerceIn(top + 0.05f, 1f)
-    return copy(regionLeft = left, regionTop = top, regionRight = right, regionBottom = bottom)
+    val minScale = scaleMin.coerceIn(0.5f, 2f)
+    val maxScale = scaleMax.coerceIn(minScale, 2f)
+    return copy(
+        threshold = threshold.coerceIn(0.5f, 0.99f),
+        tapX = tapX.coerceIn(0f, 1f),
+        tapY = tapY.coerceIn(0f, 1f),
+        regionLeft = left,
+        regionTop = top,
+        regionRight = right,
+        regionBottom = bottom,
+        scaleMin = minScale,
+        scaleMax = maxScale,
+    )
 }
