@@ -1,28 +1,6 @@
 package com.clickflow.android.safety
 
 /**
-* Mutable, per-process snapshot of the gating flags used by [SafetyGate].
-*
-* Step 62 introduced these as compile-time defaults; Step 63 makes them
-* live, so the ViewModel can drive them as the safety review is ticked,
-* the session is started/ended, and per-tap consent is requested.
-*
-* NONE OF THIS IS PERSISTED. Process death resets every flag.
-*/
-data class SafetyState(
-   val simulationOnly: Boolean = true,
-   val realTapSafetyReviewPassed: Boolean = false,
-   val accessibilityServiceEnabled: Boolean = false,
-   val realTapSessionActive: Boolean = false,
-   val realTapConsentFresh: Boolean = false,
-) {
-   companion object {
-       /** Default state when the prototype boots — everything false except simulation. */
-       val STEP_62_DEFAULT = SafetyState()
-   }
-}
-
-/**
 * Central decision point for what the app is allowed to do.
 *
 * Step 52: real taps are categorically blocked. [canRunRealTap] always
@@ -47,6 +25,10 @@ data class SafetyState(
 * accepts a `sessionId` so audit reasoning can correlate a denial to a
 * specific session. The bulk gate [canRunRealTap] still returns false
 * unconditionally — DO NOT change that.
+*
+* The mutable [SafetyState] snapshot driven by these mutators is defined in
+* `SafetyState.kt` (single source of truth). Step 64 removed a duplicate
+* inline copy that previously lived in this file and broke compilation.
 */
 class SafetyGate(initial: SafetyState = SafetyState.STEP_62_DEFAULT) {
 

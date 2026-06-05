@@ -24,6 +24,7 @@ import com.clickflow.android.profiles.ProfileInput
 import com.clickflow.android.profiles.ProfileManager
 import com.clickflow.android.profiles.ProfileRepository
 import com.clickflow.android.profiles.ProfileValidationErrors
+import com.clickflow.android.realtap.RealTapController
 import com.clickflow.android.safety.SafetyCenter
 import com.clickflow.android.safety.SafetyGate
 import com.clickflow.android.scenarios.ActionInput
@@ -182,6 +183,13 @@ data class SafetyReviewState(
 * into the gate; `emergencyStop` calls `resetPrototypeFlags`; a new [safetyGateReasons] StateFlow
 * surfaces `gate.getSingleProtoBlockedReasons()` to the UI; a new [lastDispatchResult] StateFlow
 * exposes the most recent [RealTapDispatchResult]. Bulk `canRunRealTap()` still returns false.
+*
+* Step 64: the six real-tap prototype APIs + [emergencyStop] route every audit record through
+* [RealTapController] (a stateless domain entry point composing [SafetyGate] + the audit log),
+* using the granular `realtap.*` audit types instead of the generic `SAFETY_REAL_TAP_BLOCKED`.
+* [confirmRealTap] now also enforces a marker-only invariant: the consented (x,y) must still equal
+* the live marker or the tap is rejected as invalid consent. Bulk `canRunRealTap()` still returns
+* false.
 */
 class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -197,6 +205,9 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    private val auditLog = AuditLogManager(File(app.filesDir, "audit-log.jsonl"))
    private val backupManager = BackupManager()
    private val diagnosticsManager = DiagnosticsManager()
+
+   // Step 64: single stateless domain entry point for every real-tap decision + granular audit.
+   private val realTapController = RealTapController(gate, auditLog)
 
    // Step 61: read-only permissions detector.
    private val permissionsManager = PermissionsManager(app)
@@ -623,16 +634,14 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    fun stopSimulation() { engine.stopSimulation() }
 
    /**
-    * Emergency stop. Tears down any active real-tap session + pending consent AND resets every
-    * SafetyGate prototype flag to its safe baseline (Step 63).
+    * Emergency stop. Tears down any active real-tap session + pending consent (recording a granular
+    * session-ended event via [RealTapController]) AND resets every SafetyGate prototype flag to its
+    * safe baseline (Step 63).
     */
    fun emergencyStop() {
        engine.emergencyStop()
        if (_realTapSession.value == RealTapSessionState.ACTIVE) {
-           auditLog.log(
-               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-               "Real-tap session terminated by emergency stop (sessionId=${currentRealTapSessionId})",
-           )
+           realTapController.recordSessionEnded(currentRealTapSessionId, "emergency_stop")
            _realTapSession.value = RealTapSessionState.INACTIVE
            currentRealTapSessionId = null
            _realTapConsent.value = null
@@ -669,36 +678,41 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        false
    }
 
+   /**
+    * Legacy bulk chokepoint. Bulk / looped real taps are categorically blocked; this records the
+    * generic SAFETY_REAL_TAP_BLOCKED event and always denies. The Step 64 granular `realtap.*`
+    * events are reserved for the single-tap prototype lifecycle (see [RealTapController]).
+    */
    fun attemptRealTapBlocked(): Boolean {
        auditLog.log(AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY, "Real tap attempt blocked — not implemented")
        return gate.attemptRealTap()
    }
 
-   // ---- Step 62/63: Real Tap Prototype API -------------------------------
+   // ---- Step 62/63/64: Real Tap Prototype API ----------------------------
 
    /**
     * Toggles a single safety-review checkbox by index. Out-of-range index is a no-op.
-    * Step 63: also pushes the resulting `allPassed` into the live SafetyGate flag.
+    * Pushes the resulting `allPassed` into the live SafetyGate flag and records a granular
+    * safety-review passed/failed audit event via [RealTapController].
     */
    fun toggleSafetyReviewItem(index: Int) {
        val next = _safetyReview.value.toggled(index)
        _safetyReview.value = next
        gate.updateReviewPassed(next.allPassed)
+       if (next.allPassed) realTapController.recordSafetyReviewPassed()
+       else realTapController.recordSafetyReviewFailed(next.checked.count { !it })
        refreshSafetyGateReasons()
    }
 
    /**
     * Starts a real-tap session. Requires all 10 safety-review items to be checked.
-    * Step 63: drives `SafetyGate.updateSession(true)` on success.
+    * Drives `SafetyGate.updateSession(true)` and records the granular session-started audit event.
     * SafetyGate still blocks dispatch — the session itself only enables the consent flow.
     */
    fun startRealTapSession() {
        if (_realTapSession.value == RealTapSessionState.ACTIVE) return
        if (!_safetyReview.value.allPassed) {
-           auditLog.log(
-               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-               "Real-tap session start refused: safety review incomplete",
-           )
+           realTapController.recordSafetyReviewFailed(_safetyReview.value.checked.count { !it })
            _message.value = UiMessage("real_tap_audit_dispatch_blocked")
            return
        }
@@ -708,23 +722,17 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _realTapConsent.value = null
        gate.updateSession(true)
        refreshSafetyGateReasons()
-       auditLog.log(
-           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap session started (sessionId=$sid, gate=blocked)",
-       )
+       realTapController.recordSessionStarted(sid)
        _message.value = UiMessage("real_tap_audit_session_started")
    }
 
    /**
-    * Ends the current real-tap session. Idempotent.
-    * Step 63: drives `SafetyGate.updateSession(false)` + `updateConsentFresh(false)`.
+    * Ends the current real-tap session. Idempotent. Drives `SafetyGate.updateSession(false)` +
+    * `updateConsentFresh(false)` and records the granular session-ended audit event.
     */
    fun endRealTapSession() {
        if (_realTapSession.value == RealTapSessionState.INACTIVE) return
-       auditLog.log(
-           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap session ended (sessionId=${currentRealTapSessionId})",
-       )
+       realTapController.recordSessionEnded(currentRealTapSessionId, "user_ended")
        _realTapSession.value = RealTapSessionState.INACTIVE
        currentRealTapSessionId = null
        _realTapConsent.value = null
@@ -736,8 +744,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    /**
     * Requests consent for a single real tap at the current marker position. Creates a 10-second
-    * window during which [confirmRealTap] is accepted. SafetyGate still blocks the dispatch.
-    * Step 63: drives `SafetyGate.updateConsentFresh(true)`.
+    * window during which [confirmRealTap] is accepted and drives `SafetyGate.updateConsentFresh(true)`.
+    * SafetyGate still blocks the dispatch.
     */
    fun requestRealTap() {
        if (_realTapSession.value != RealTapSessionState.ACTIVE) return
@@ -753,33 +761,25 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        )
        gate.updateConsentFresh(true)
        refreshSafetyGateReasons()
-       auditLog.log(
-           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap consent requested at ($x,$y) — sessionId=${currentRealTapSessionId}",
-       )
+       realTapController.recordConsentRequested(currentRealTapSessionId, x, y)
        _message.value = UiMessage("real_tap_audit_consent_requested")
    }
 
    /**
-    * Confirms the pending consent. Consults [SafetyGate.canRunRealTapSingleProto] and the bulk
-    * [SafetyGate.canRunRealTap]. Today the bulk gate always returns false, so this always
-    * surfaces [RealTapDispatchResult.BLOCKED_BY_GATE]. The consent is cleared in both success
-    * and failure cases.
-    *
-    * Step 63: also drives `SafetyGate.updateConsentFresh(false)` and publishes the outcome to
-    * [lastDispatchResult] so the UI chip can render it.
+    * Confirms the pending consent. Delegates the dispatch decision to [RealTapController.evaluate];
+    * today the bulk gate is hard-coded false so this always surfaces
+    * [RealTapDispatchResult.BLOCKED_BY_GATE]. Enforces the Step 64 marker-only invariant (the
+    * consented point must still equal the live marker) and clears the consent in every outcome.
     */
    fun confirmRealTap() {
        val consent = _realTapConsent.value ?: run {
+           realTapController.recordConsentDeclined(currentRealTapSessionId, "no_pending_consent")
            _lastDispatchResult.value = RealTapDispatchResult.BLOCKED_INVALID_CONSENT
            return
        }
        val now = System.currentTimeMillis()
        if (now > consent.expiresAtMs) {
-           auditLog.log(
-               AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-               "Real-tap consent expired before confirmation",
-           )
+           realTapController.recordConsentDeclined(currentRealTapSessionId, "consent_expired")
            _realTapConsent.value = null
            gate.updateConsentFresh(false)
            refreshSafetyGateReasons()
@@ -788,24 +788,40 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            return
        }
 
-       // Bulk gate still hard-coded false → always BLOCKED_BY_GATE today.
-       val result: RealTapDispatchResult = if (!gate.canRunRealTap()) {
-           RealTapDispatchResult.BLOCKED_BY_GATE
-       } else if (!gate.canRunRealTapSingleProto()) {
-           RealTapDispatchResult.BLOCKED_BY_GATE
-       } else {
-           // Step 64 wiring will replace this branch with the real dispatch call.
-           RealTapDispatchResult.DISPATCHED
+       // Step 64: marker-only invariant. The consent payload is the marker snapshot captured at
+       // request time; reject if the live marker has moved since so a stale (x,y) is never used.
+       val curX = (_markerX.value * 1000).roundToInt()
+       val curY = (_markerY.value * 1000).roundToInt()
+       if (consent.x != curX || consent.y != curY) {
+           realTapController.recordConsentDeclined(
+               currentRealTapSessionId,
+               "marker_drift consent=(${consent.x},${consent.y}) current=($curX,$curY)",
+           )
+           _realTapConsent.value = null
+           gate.updateConsentFresh(false)
+           refreshSafetyGateReasons()
+           _lastDispatchResult.value = RealTapDispatchResult.BLOCKED_INVALID_CONSENT
+           _message.value = UiMessage("real_tap_audit_dispatch_blocked")
+           return
        }
 
-       auditLog.log(
-           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap consent confirmed at (${consent.x},${consent.y}) — result=$result",
+       // Valid, fresh, marker-matched consent → record the user's confirmation.
+       realTapController.recordConsentGiven(currentRealTapSessionId, consent.x, consent.y)
+
+       // Single source of truth for the dispatch decision. The controller logs the granular
+       // outcome and pings the centralized denier on a gate block. Bulk canRunRealTap() is still
+       // false, so today this is always BLOCKED_BY_GATE.
+       val decision = realTapController.evaluate(
+           RealTapController.Marker(consent.x, consent.y),
+           currentRealTapSessionId,
        )
-       // Defensive: also record the block via the centralized chokepoint when blocked.
-       if (result != RealTapDispatchResult.DISPATCHED) {
-           gate.attemptRealTap()
+       val result = when (decision) {
+           RealTapController.Decision.ALLOWED -> RealTapDispatchResult.DISPATCHED
+           RealTapController.Decision.BLOCKED_BY_GATE -> RealTapDispatchResult.BLOCKED_BY_GATE
+           RealTapController.Decision.BLOCKED_NO_SERVICE -> RealTapDispatchResult.BLOCKED_NO_SERVICE
+           RealTapController.Decision.BLOCKED_INVALID_CONSENT -> RealTapDispatchResult.BLOCKED_INVALID_CONSENT
        }
+
        _realTapConsent.value = null
        gate.updateConsentFresh(false)
        refreshSafetyGateReasons()
@@ -817,16 +833,13 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    }
 
    /**
-    * Cancels the pending consent without dispatching.
-    * Step 63: drives `SafetyGate.updateConsentFresh(false)` + sets `lastDispatchResult` to
+    * Cancels the pending consent without dispatching. Drives `SafetyGate.updateConsentFresh(false)`,
+    * records a granular consent-declined event, and sets `lastDispatchResult` to
     * [RealTapDispatchResult.DISPATCH_CANCELLED].
     */
    fun cancelRealTap() {
        if (_realTapConsent.value == null) return
-       auditLog.log(
-           AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY,
-           "Real-tap consent cancelled by user",
-       )
+       realTapController.recordConsentDeclined(currentRealTapSessionId, "user_cancelled")
        _realTapConsent.value = null
        gate.updateConsentFresh(false)
        refreshSafetyGateReasons()
