@@ -1,51 +1,52 @@
 package com.clickflow.android.capture
 
 /**
- * Pure-Kotlin decision layer for template matching.
+ * Step 69 — Pure-Kotlin decision layer for template matching.
  *
- * It does NOT read pixels and does NOT tap. Given a [CaptureTemplate] and one or
- * more scored [MatchCandidate]s (supplied by the caller / a future real matcher),
- * it clamps and compares the best candidate's confidence to the template's
- * threshold and produces a [MatchResult] whose [MatchResult.highlight] marks WHERE
- * a match would be shown. Nothing is captured, analyzed, persisted, or tapped here.
+ * Accepts raw float scores from a future image-similarity provider
+ * and decides whether each score constitutes a match for a given [CaptureTemplate].
+ * No bitmaps, no Android APIs, no tap dispatch.
  *
- * @param nowProvider injected clock so timestamps stay deterministic in tests.
+ * @param nowProvider  Injected clock; defaults to [System.currentTimeMillis].
  */
-class TemplateMatcher(private val nowProvider: () -> Long = { 0L }) {
+class TemplateMatcher(val nowProvider: () -> Long = { System.currentTimeMillis() }) {
 
-	/** Evaluate a single [candidate] against [template]. */
-	fun evaluate(template: CaptureTemplate, candidate: MatchCandidate): MatchResult =
-		evaluateBest(template, listOf(candidate))
+    /** Expose the clock so [ImageTargetController] can stamp error results. */
+    fun nowMs(): Long = nowProvider()
 
-	/**
-	 * Evaluate [candidates] and return the result for the highest-scoring one.
-	 * With no candidates, returns a no-match at zero confidence.
-	 */
-	fun evaluateBest(template: CaptureTemplate, candidates: List<MatchCandidate>): MatchResult {
-		val now = nowProvider()
-		val best = candidates.maxByOrNull { it.rawScore }
-			?: return MatchResult.noMatch(template.id, 0f, now)
+    /**
+     * Evaluate one [candidate] against [template].
+     *
+     * - Clamps [MatchCandidate.rawScore] to [0, 1].
+     * - Sets [MatchResult.matched] when confidence ≥ [CaptureTemplate.matchThreshold].
+     */
+    fun evaluate(template: CaptureTemplate, candidate: MatchCandidate): MatchResult {
+        val confidence = candidate.rawScore.coerceIn(0f, 1f)
+        val matched = confidence >= template.matchThreshold
+        return MatchResult(
+            templateId = template.id,
+            confidence = confidence,
+            matched = matched,
+            location = candidate.location,
+            evaluatedAtMs = nowProvider()
+        )
+    }
 
-		val confidence = best.rawScore.coerceIn(0f, 1f)
-		val matched = confidence >= template.matchThreshold
-		return MatchResult(
-			templateId = template.id,
-			confidence = confidence,
-			matched = matched,
-			location = if (matched) best.location.clampedToUnit() else null,
-			evaluatedAtMs = now,
-		)
-	}
+    /**
+     * Evaluate all [candidates] and return the result for the one with the
+     * highest [MatchCandidate.rawScore]. Returns [MatchResult.noMatch] when
+     * [candidates] is empty.
+     */
+    fun evaluateBest(template: CaptureTemplate, candidates: List<MatchCandidate>): MatchResult {
+        if (candidates.isEmpty()) return MatchResult.noMatch(template.id, nowProvider())
+        val best = candidates.maxByOrNull { it.rawScore }!!
+        return evaluate(template, best)
+    }
 
-	/**
-	 * Evaluate several templates against their own candidate lists and return only
-	 * the results that matched, sorted by confidence descending.
-	 */
-	fun matchesOnly(
-		evaluations: List<Pair<CaptureTemplate, List<MatchCandidate>>>,
-	): List<MatchResult> =
-		evaluations
-			.map { (template, candidates) -> evaluateBest(template, candidates) }
-			.filter { it.matched }
-			.sortedByDescending { it.confidence }
+    /**
+     * Filter [evaluations] to only matched results, sorted by confidence
+     * descending.
+     */
+    fun matchesOnly(evaluations: List<MatchResult>): List<MatchResult> =
+        evaluations.filter { it.matched }.sortedByDescending { it.confidence }
 }
