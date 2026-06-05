@@ -143,3 +143,13 @@ Region Selector — pure geometry + a selection state machine that records WHERE
 - `AppInfo.STEP` → Step 67.
 - Mirrors the Step 66 Part 1 approach: build pure, tested logic first; the Compose drag-to-select overlay over the captured frame and its wiring into the capture screen land in a later UI pass.
 - Invariants: geometry only — no pixels referenced, no capture/analysis, nothing persisted; `SafetyGate.canRunRealTap()` unchanged (`false`).
+
+## Step 68
+
+Template Manager — model WHAT the matching engine (Step 69+) will look for, as named "templates" with their parameters, before any bitmap or disk I/O. Pure Kotlin + JVM tests, mirroring the Step 66 Part 1 / Step 67 "brain first, I/O later" approach.
+
+- `capture/CaptureTemplate.kt` — immutable metadata for one reference target: `id`, `name`, the normalized `CaptureRegion` it came from, reference `widthPx` / `heightPx` (metadata only — no pixels), `matchThreshold` clamped to `[0.1, 1.0]`, injected `createdAtMs`. Exposes `isValid`, `aspectRatio`, and `withName` / `withThreshold` / `withRegion` copy-helpers.
+- `capture/TemplateManager.kt` — `@Synchronized` in-memory registry keyed by sequential ids (`tpl-1`, `tpl-2`, …). `add` trims + validates name (non-empty, ≤ 60, case-insensitive unique), region (`isValid`) and size (> 0), clamps threshold + region; `rename` / `setThreshold` / `setRegion` / `remove` / `clear` + read-only `list` / `count` / `isEmpty` / `get` / `contains`. Mutations return `Result.Ok` / `Result.Error(reason)` with stable codes (`empty_name`, `name_too_long`, `invalid_region`, `invalid_size`, `duplicate_name`, `not_found`). No Android imports.
+- Test `capture/TemplateManagerTest.kt` — JVM tests across add/validate, ids, rename, threshold, region, remove, clear.
+- `AppInfo.STEP` → Step 68.
+- Invariants: metadata/geometry only — no pixels, no capture/analysis, nothing persisted; `SafetyGate.canRunRealTap()` unchanged (`false`). Reference-bitmap capture, on-device matching, and the management UI land in Step 69+.

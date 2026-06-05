@@ -5,6 +5,40 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 68 — Template Manager (in-memory registry of capture templates)
+
+Phase 2 continues: models WHAT the matching engine (Step 69+) will look for —
+named "templates" with their parameters — without storing any pixels, touching
+disk, or running capture / analysis. Pure Kotlin logic + a full JVM unit suite,
+following the proven Step 66 Part 1 / Step 67 "brain first, I/O later" pattern.
+
+- New `capture/CaptureTemplate.kt` — immutable metadata for one reference target:
+`id`, `name`, the normalized `CaptureRegion` it was taken from, reference
+`widthPx` / `heightPx` (metadata only — no pixels held), a `matchThreshold`
+clamped to `[0.1, 1.0]`, and an injected `createdAtMs`. Exposes `isValid`,
+`aspectRatio`, and copy-helpers `withName` / `withThreshold` / `withRegion`.
+- New `capture/TemplateManager.kt` — `@Synchronized` in-memory registry keyed by
+stable sequential ids (`tpl-1`, `tpl-2`, …). `add` trims + validates the name
+(non-empty, ≤ 60 chars, case-insensitive unique), the region (`isValid`) and the
+size (> 0), clamps the threshold and clamps the region to the unit square;
+`rename`, `setThreshold`, `setRegion`, `remove`, `clear`, plus read-only `list` /
+`count` / `isEmpty` / `get` / `contains`. Every mutation returns a
+`Result.Ok(template)` / `Result.Error(reason)` with stable reason codes
+(`empty_name`, `name_too_long`, `invalid_region`, `invalid_size`,
+`duplicate_name`, `not_found`). No Android imports.
+- New `app/src/test/java/com/clickflow/android/capture/TemplateManagerTest.kt` —
+JVM tests: empty start, add / trim / validate (empty name, bad size, invalid
+region, duplicate name, threshold clamp), sequential unique ids, rename (success,
+duplicate rejection, rename-to-own-name, not-found), threshold clamp, region
+update, remove, and clear.
+- `AppInfo.STEP` bumped to Step 68.
+
+Safety / privacy invariants: a template is metadata + geometry only — it
+references no pixels, performs no capture and no analysis, and is never persisted
+by this step; `SafetyGate.canRunRealTap()` is untouched and still returns `false`.
+The capture of an actual reference bitmap, on-device matching, and the management
+UI land in later steps (Step 69+).
+
 ### Step 67 — Region Selector (normalized CaptureRegion + selection state machine)
 
 Phase 2 continues: lets the user mark WHERE on a captured frame a future match
