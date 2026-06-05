@@ -29,13 +29,13 @@ port and **not** a runtime copy of the desktop code.
 
 **Где мы сейчас (коротко):**
 
-- ✅ **Сделано:** Шаги 52–65 (фундамент, сценарии, профили, аудит, бэкап, релиз pre-alpha,
-  простой кликер, прототип реального тапа + его укрепление и юнит-тесты).
-- 🔄 **Только что сделали:** **Шаг 66, Часть 1** — чистый контроллер жизненного цикла
-  захвата экрана (`ScreenCaptureController` + `ScreenCaptureState`) с юнит-тестами. Кадр
-  только в памяти, на диск не пишется, анализа пока нет.
-- ➡️ **Следующий шаг (предпочтительный):** **Шаг 66, Часть 2** — реальный сервис захвата
-  через MediaProjection (разовое разрешение, один кадр в память), экран согласия и UI.
+- ✅ **Сделано:** Шаги 52–66 (фундамент, сценарии, профили, аудит, бэкап, релиз pre-alpha,
+  простой кликер, прототип реального тапа + тесты, захват экрана через MediaProjection).
+- 🔄 **Только что сделали:** **Шаг 67** — выбор области (Region Selector): нормализованная
+  геометрия `CaptureRegion` + чистый `RegionSelectorController` (выделение прямоугольника
+  на кадре) с юнит-тестами. Только геометрия — без захвата, без анализа, ничего не сохраняется.
+- ➡️ **Следующий шаг (предпочтительный):** **Шаг 68** — менеджер шаблонов: реестр целевых
+  изображений-эталонов и их параметров (порог совпадения, область) для последующего поиска.
 
 Полный план завершения проекта (шаги 64–84) ведётся в Notion. Ниже — подробности на английском.
 
@@ -43,24 +43,22 @@ port and **not** a runtime copy of the desktop code.
 
 ## Status
 
-> **Phase 2 («the brain» on Android) — in progress. Current: Step 66 (Part 1 done, Part 2 next).**
+> **Phase 2 («the brain» on Android) — in progress. Current: Step 67 done, Step 68 next.**
 >
-> Phase 1 (Android debt: Steps 64–65) is complete. Step 66 begins Phase 2 — giving the app
-> «eyes» (screen capture → template matching → OCR) so it can decide *where* to tap. All of
-> Phase 2 is **simulation / preview only**: the app shows what it *would* tap, it does not tap.
+> Phase 1 (Android debt: Steps 64–65) and Step 66 (screen capture, both parts) are complete.
+> Phase 2 gives the app «eyes» (screen capture → region → template matching → OCR) so it can
+> decide *where* to tap. All of Phase 2 is **simulation / preview only**: the app shows what it
+> *would* tap, it does not tap.
 >
-> **Just landed — Step 66, Part 1:** a pure, framework-free screen-capture lifecycle
-> (`capture/ScreenCaptureController.kt` + `capture/ScreenCaptureState.kt`) with a full JVM
-> JUnit 4 suite (`ScreenCaptureControllerTest.kt`). Privacy invariants are baked in: a captured
-> frame is **in memory only**, is **never written to disk**, and **no analysis** is run on it in
-> this step. No Android APIs yet, so it is unit-tested on the JVM — same pattern as
-> `RealTapController`.
+> **Just landed — Step 67 (Region Selector):** `capture/CaptureRegion.kt` (a resolution-independent
+> normalized rectangle) + `capture/RegionSelectorController.kt` (a framework-free begin / update /
+> commit / setRegion / clear state machine) with a full JVM JUnit 4 suite
+> (`RegionSelectorControllerTest.kt`). It records *where* on a captured frame a later match should
+> look — pure geometry, no capture, no analysis, nothing persisted.
 >
-> **Next — Step 66, Part 2:** the real `ScreenCaptureService` (MediaProjection + ImageReader +
-> VirtualDisplay capturing a single frame to memory), the Activity consent flow
-> (`createScreenCaptureIntent`), a new `Screen.SCREEN_CAPTURE` UI, and the foreground-service
-> manifest entries (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROJECTION`,
-> `POST_NOTIFICATIONS`).
+> **Next — Step 68 (Template Manager):** a pure, testable registry of target reference images
+> (id / name / dimensions / match threshold / optional region) before any bitmap or disk I/O — same
+> «brain first, I/O later» pattern used for capture.
 >
 > Bulk, looped, and scenario-driven real taps remain hard-disabled by
 > `SafetyGate.canRunRealTap() == false`. The latest published APK is still the Step 60 build at
@@ -110,12 +108,13 @@ The completion plan is tracked in Notion and grouped into 5 phases. Numbering co
 
 ### Phase 2 — «the brain» on Android (Steps 66–73) — 🔄 in progress (simulation / preview only)
 
-- **Step 66 — Screen capture (MediaProjection).** One-time permission, a single frame preview
+- **Step 66 — Screen capture (MediaProjection). ✅ done.** One-time permission, a single frame
   held in memory (never to disk), capture only — no analysis.
   - **Part 1 — ✅ done:** pure-Kotlin capture lifecycle controller + state + JVM tests.
-  - **Part 2 — ➡️ next:** real `ScreenCaptureService`, Activity consent, capture UI, manifest perms.
-- **Step 67** — Region selector (draw a rectangle on the screenshot).
-- **Step 68** — Template manager (store target images).
+  - **Part 2 — ✅ done:** real `ScreenCaptureService`, Activity consent, capture UI, manifest perms.
+- **Step 67 — Region selector. ✅ done.** Normalized `CaptureRegion` geometry + framework-free
+  `RegionSelectorController` (draw a rectangle on the frame) + JVM tests. Geometry only.
+- **Step 68 — ➡️ next.** Template manager (registry of target reference images + match params).
 - **Step 69** — Template-matching engine + confidence + highlight (show only, no tap).
 - **Step 70** — «Image target» scenario type (find → point, simulated).
 - **Step 71** — On-device OCR (ML Kit on-device or Tesseract; manual / per-session).
@@ -147,7 +146,7 @@ The completion plan is tracked in Notion and grouped into 5 phases. Numbering co
 protected-app automation; no hidden background input; real input only with explicit consent +
 audit + emergency stop.
 
-## Done so far (Steps 52–65, intact)
+## Done so far (Steps 52–67, intact)
 
 - **52** — project foundation: Kotlin + Compose shell, simulation engine, Safety Center,
   Diagnostics, docs.
@@ -164,6 +163,9 @@ audit + emergency stop.
 - **63** — real-tap prototype hardening (live SafetyGate state, granular audit groundwork).
 - **64** — `RealTapController` wired end-to-end + granular audit + marker invariant + build fix.
 - **65** — pure-JVM unit-test suite for the safety / real-tap domain.
+- **66** — screen capture via MediaProjection: pure lifecycle controller (Part 1) + real foreground
+  `ScreenCaptureService`, consent Activity, and capture UI (Part 2). In-memory frame only.
+- **67** — region selector: normalized `CaptureRegion` geometry + `RegionSelectorController` + tests.
 
 ## Build
 
@@ -183,7 +185,7 @@ release-signed.
 ./gradlew testDebugUnitTest      # pure-JVM JUnit 4 (no Robolectric / no device)
 ```
 
-Covers `safety/`, `realtap/`, and (new in Step 66 Part 1) `capture/`.
+Covers `safety/`, `realtap/`, and `capture/` (screen-capture lifecycle + region selector).
 
 ## Run
 
