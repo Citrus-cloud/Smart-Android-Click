@@ -5,51 +5,50 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
-### Step 74 — Controlled tap session (rate/count limits, TTL, emergency stop)
+### Step 75 — Smart target → single real tap with explicit consent
 
-Phase 3 begins: introduces the domain model and manager for a rate-limited
-controlled real-tap session. Bulk real taps remain categorically forbidden;
-this step adds the session shell that Step 75 will wire to a smart target.
+Phase 3 continues: wires an image-target or text-target highlight region into
+a single-tap admission flow backed by the Step 74 `ControlledTapSessionManager`
+and a single-use consent record. Does NOT call `dispatchGesture` (that is
+Step 76); all state is process-local, no Android imports.
 
-- New `realtap/ControlledTapSession.kt` — three declarations:
-  - `data class ControlledTapSession(sessionId, maxTaps, ttlMs, startedAtMs)` —
-    mutable tap counter + terminated flag. `isActive(nowMs)`, `isExhausted()`,
-    `recordTap(nowMs)` (returns false when inactive or exhausted), `terminate()`,
-    `remainingTaps()`, `remainingTtlMs(nowMs)`.
-  - `enum class ControlledTapBlockReason { SESSION_INACTIVE, SESSION_EXPIRED,
-    SESSION_TERMINATED, TAP_LIMIT_REACHED, GATE_CLOSED }`.
-  - `sealed class ControlledTapDispatchResult { Allowed, Blocked(reason) }`.
-- New `realtap/ControlledTapSessionManager.kt` — manages one active session:
-  - `startSession(sessionId, maxTaps 1–10, ttlMs 1_000–60_000)` — validates
-    params, checks `SafetyGate.canRunControlledRealTapSession(sessionId)`, creates
-    session. Returns `SessionResult.Ok` / `SessionResult.Error(reason)` with codes
-    `already_active`, `invalid_params`, `gate_closed`.
-  - `endSession()` — terminates and nulls the session.
-  - `emergencyStop()` — delegates to `endSession()`.
-  - `evaluateTap()` — checks session existence → not terminated → not expired →
-    not exhausted → `SafetyGate.canRunRealTap()` (bulk, always false until
-    Step 75). Returns `ControlledTapDispatchResult`.
-  - `hasActiveSession()`, `session` read-only. Injected clock + gate.
-- New `app/src/test/java/com/clickflow/android/realtap/ControlledTapSessionManagerTest.kt`
-  — 14 JVM tests: no session initially, start → active, double-start error,
-  invalid maxTaps, invalid TTL, endSession clears, evaluateTap no session →
-  INACTIVE, evaluateTap active → GATE_CLOSED (bulk false), session expires after
-  TTL, recordTap exhausts, remainingTaps decrements, remainingTtlMs decrements,
-  emergencyStop terminates, evaluateTap after terminate → INACTIVE.
-- `AppInfo.STEP` bumped to Step 74.
+- New `realtap/SmartTargetTapRequest.kt` — three declarations:
+  - `data class SmartTargetTapRequest(sessionId, targetType, highlightRegion,
+    requestedAtMs)` — tap coordinates derived from `highlightRegion.centerX/Y`;
+    `isValid` = region is valid.
+  - `enum class SmartTargetType { IMAGE_TARGET, TEXT_TARGET }`.
+  - `sealed class SmartTargetTapResult { Dispatched(request, tapNumber),
+    Blocked(request?, reason) }` + `enum SmartTargetBlockReason { INVALID_REQUEST,
+    NO_ACTIVE_SESSION, SESSION_GATE_CLOSED, CONSENT_MISSING, CONSENT_EXPIRED,
+    MARKER_DRIFT }`.
+- New `realtap/SmartTargetTapController.kt` — orchestrates session + consent:
+  - `recordConsent(request)` — stamps consent at `nowProvider()`.
+  - `clearConsent()`.
+  - `dispatch(request?)` — five-check chain:
+    1. Validate request (non-null, valid region) → `INVALID_REQUEST`.
+    2. Active controlled session → `NO_ACTIVE_SESSION`.
+    3. `sessionManager.evaluateTap()` → `SESSION_GATE_CLOSED`.
+    4. Consent present → `CONSENT_MISSING`; not expired (10s TTL) →
+       `CONSENT_EXPIRED` (clears consent); coordinates match within 2% →
+       `MARKER_DRIFT` (clears consent).
+    5. All passed → `session.recordTap(now)`, clears consent, returns
+       `Dispatched(request, tapNumber)`.
+  - `COORD_TOLERANCE = 0.02f`; `CONSENT_TTL_MS = 10_000L`.
+  - `data class SmartTargetConsent(request, recordedAtMs)`.
+- New test `realtap/SmartTargetTapControllerTest.kt` — 12 JVM tests:
+  null request → INVALID_REQUEST, invalid region → INVALID_REQUEST,
+  no session → NO_ACTIVE_SESSION, bulk gate closed → SESSION_GATE_CLOSED,
+  consent missing (field check), recordConsent stores, clearConsent nulls,
+  consent expiry math, tapX/Y from centre, isValid true/false, consent timestamp.
+- `AppInfo.STEP` bumped to Step 75.
 
-Safety invariants: `SafetyGate.canRunRealTap()` returns `false` unconditionally;
-`evaluateTap()` always reaches the bulk-gate check and returns `GATE_CLOSED`
-until Step 75 wires the smart-target dispatch path. No pixels, no tap, no I/O.
+Safety invariants: `SafetyGate.canRunRealTap()` = `false`; `evaluateTap()`
+still returns `GATE_CLOSED`; `dispatch()` therefore always returns
+`SESSION_GATE_CLOSED` until Step 76 opens the single-tap path.
+No `dispatchGesture`, no pixels, no I/O.
 
-### Step 73 — Visual scenario builder + presets
-- `ScenarioPreset` + `BuiltInPresets` + `VisualScenarioBuilder`. 13 JVM tests.
+### Step 74 — Controlled tap session
+- `ControlledTapSession` + `ControlledTapSessionManager`. 14 JVM tests.
 
-### Step 72 — Text-target controller
-- `TextTargetResult` + `TextTargetOutcome` + `TextTargetController`. 11 JVM tests.
-
-### Step 71 — On-device OCR stub
-- `OcrProvider` interface + `StubOcrProvider` + `OcrController`. 12 JVM tests.
-
-### Steps 52–70 — Foundation through image-target controller
+### Steps 52–73 — Foundation through visual builder
 See git history.

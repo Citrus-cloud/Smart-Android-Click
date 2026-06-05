@@ -4,63 +4,65 @@
 Read-only permissions. `PermissionsManager`, `Screen.PERMISSIONS`.
 
 ## Step 62
-Real Tap Prototype — UI skeleton. Six prototype ViewModel APIs.
+Real Tap Prototype — six prototype ViewModel APIs, SafetyState.
 
 ## Step 63
-Live SafetyGate flags + ViewModel wiring. `RealTapDispatchResult`.
+Live SafetyGate flags, `RealTapDispatchResult`, `safetyGateReasons`.
 
 ## Step 64
 RealTapController wired, granular audit, marker invariant, build fix.
 
 ## Step 65
-JVM test suite: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
+JVM tests: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
 
 ## Step 66 (Part 1)
-Screen-capture lifecycle: `ScreenCaptureState` + `ScreenCaptureController` + tests.
+`ScreenCaptureState` + `ScreenCaptureController` + tests.
 
 ## Step 66 (Part 2)
-Real MediaProjection: `ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`.
+`ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`, manifest.
 
 ## Step 67
-`CaptureRegion` + `RegionSelectorController` (EMPTY/DRAGGING/SELECTED) + tests.
+`CaptureRegion` + `RegionSelectorController` + tests.
 
 ## Step 68
 `CaptureTemplate` + `TemplateManager` + 18 JVM tests.
 
 ## Step 69
-`MatchResult` + `TemplateMatcher` (evaluate/evaluateBest/matchesOnly) + 8 JVM tests.
+`MatchResult` + `TemplateMatcher` + 8 JVM tests.
 
 ## Step 70
 `ImageTargetResult` + `ImageTargetOutcome` + `ImageTargetController` + 10 JVM tests.
 
 ## Step 71
-`OcrTextRegion` + `OcrResult` + `interface OcrProvider` + `StubOcrProvider` + `OcrController` + 12 JVM tests.
+`OcrTextRegion` + `OcrResult` + `OcrProvider` + `StubOcrProvider` + `OcrController` + 12 JVM tests.
 
 ## Step 72
 `TextTargetResult` + `TextTargetOutcome` + `TextTargetController` + 11 JVM tests.
 
 ## Step 73
-`ScenarioPreset` + `PresetAction` + `BuiltInPresets` + `VisualScenarioBuilder` + 13 JVM tests.
+`ScenarioPreset` + `BuiltInPresets` + `VisualScenarioBuilder` + 13 JVM tests.
 
 ## Step 74
+`ControlledTapSession` + `ControlledTapSessionManager` + 14 JVM tests.
 
-Controlled tap session — Phase 3 domain model.
+## Step 75
 
-- `realtap/ControlledTapSession.kt`:
-  - `data class ControlledTapSession(sessionId, maxTaps, ttlMs, startedAtMs)`: mutable
-    tap counter + terminated flag. `isActive(nowMs)`, `isExhausted()`, `recordTap(nowMs)`,
-    `terminate()`, `remainingTaps()`, `remainingTtlMs(nowMs)`.
-  - `enum ControlledTapBlockReason { SESSION_INACTIVE, SESSION_EXPIRED, SESSION_TERMINATED,
-    TAP_LIMIT_REACHED, GATE_CLOSED }`.
-  - `sealed ControlledTapDispatchResult { Allowed, Blocked(reason) }`.
-- `realtap/ControlledTapSessionManager.kt`:
-  - `startSession(sessionId, maxTaps 1–10, ttlMs 1_000–60_000)`: validates params →
-    `gate.canRunControlledRealTapSession` → creates session.
-    Result codes: `already_active`, `invalid_params`, `gate_closed`.
-  - `endSession()`, `emergencyStop()`, `evaluateTap()` (checks: inactive → terminated
-    → expired → exhausted → bulk gate), `hasActiveSession()`, `session`.
-  - Injected gate + nowProvider.
-- Test: `ControlledTapSessionManagerTest.kt` — 14 JVM tests.
-- `AppInfo.STEP` → Step 74.
-- Invariants: `SafetyGate.canRunRealTap()` = `false`; `evaluateTap()` always returns
-  GATE_CLOSED until Step 75. No tap, no I/O.
+Smart target → single real tap with explicit consent.
+
+- `realtap/SmartTargetTapRequest.kt`:
+  - `data class SmartTargetTapRequest(sessionId, targetType, highlightRegion, requestedAtMs)`.
+    `tapX` / `tapY` = `highlightRegion.centerX/Y`. `isValid` = region valid.
+  - `enum SmartTargetType { IMAGE_TARGET, TEXT_TARGET }`.
+  - `sealed SmartTargetTapResult { Dispatched(request, tapNumber), Blocked(request?, reason) }`.
+  - `enum SmartTargetBlockReason { INVALID_REQUEST, NO_ACTIVE_SESSION, SESSION_GATE_CLOSED,
+    CONSENT_MISSING, CONSENT_EXPIRED, MARKER_DRIFT }`.
+- `realtap/SmartTargetTapController.kt`:
+  - `recordConsent(request)`, `clearConsent()`, `consent: SmartTargetConsent?`.
+  - `dispatch(request?)`: 5-check chain (validate → session → evaluateTap → consent present
+    → consent fresh + coords match) → `recordTap` + `clearConsent` → `Dispatched`.
+  - `CONSENT_TTL_MS = 10_000L`, `COORD_TOLERANCE = 0.02f`.
+  - `data class SmartTargetConsent(request, recordedAtMs)`.
+- Test: `SmartTargetTapControllerTest.kt` — 12 JVM tests.
+- `AppInfo.STEP` → Step 75.
+- Invariants: `canRunRealTap()` = `false`; `evaluateTap()` → GATE_CLOSED; `dispatch()` →
+  SESSION_GATE_CLOSED until Step 76. No `dispatchGesture`, no I/O.

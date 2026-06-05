@@ -6,48 +6,39 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 
 ## 🇷🇺 Краткое описание
 
-**Что это.** ClickFlow Android — умный автокликер для Android.
-
 **Где мы сейчас:**
 
-- ✅ **Сделано:** Шаги 52–74.
-- 🔄 **Только что сделали:** **Шаг 74** — `ControlledTapSession` + `ControlledTapSessionManager`
-  (лимит maxTaps 1–10, TTL 1–60 с, проверка gate, Emergency Stop). 14 JVM-тестов.
-- ➡️ **Следующий шаг:** **Шаг 75** — умная цель → единичный реальный тап с
-  явным согласием.
+- ✅ **Сделано:** Шаги 52–75.
+- 🔄 **Только что сделали:** **Шаг 75** — `SmartTargetTapController`:
+  5-шаговая проверка (request → session → gate → consent → drift)
+  + `recordConsent` / `dispatch`. 12 JVM-тестов.
+- ➡️ **Следующий шаг:** **Шаг 76** — аудит + Emergency Stop для
+  smart-сессий.
 
 ---
 
 ## Status
 
-> **Phase 3 — real taps on Android. Step 74 done, Step 75 next.**
+> **Phase 3 — Step 75 done, Step 76 next.**
 >
-> **Just landed — Step 74:** `ControlledTapSession` (maxTaps 1–10, TTL, recordTap,
-> remainingTaps, remainingTtlMs, terminate) + `ControlledTapSessionManager`
-> (startSession / endSession / emergencyStop / evaluateTap) + 14 JVM tests.
-> `evaluateTap()` returns `GATE_CLOSED` (bulk gate always false) until Step 75.
+> **Just landed — Step 75:** `SmartTargetTapRequest` + `SmartTargetTapResult` +
+> `SmartTargetTapController` (5-check dispatch chain, 10s consent TTL, 2%
+> coordinate-drift check, recordTap on success) + 12 JVM tests.
 >
-> **Next — Step 75:** wire a smart target (image or text) into a single real tap
-> with explicit consent inside a controlled session.
+> **Next — Step 76:** audit events + Emergency Stop wiring for smart tap sessions.
 
-## Roadmap (Steps 64–84)
+## Roadmap
 
-### Phase 1 (64–65) ✅ · Phase 2 (66–73) ✅
-
-### Phase 3 — real taps on Android (Steps 74–76) — 🔄 in progress
-
-- **Step 74 ✅** — Controlled tap session domain model + manager.
-- **Step 75 ➡️** — Smart target → single real tap with explicit consent.
-- **Step 76** — Audit + emergency stop for smart sessions.
+### Phase 3 (74–76) — 🔄 in progress
+- **74 ✅** · **75 ✅** · **76 ➡️** (audit + emergency stop)
 
 ### Phase 4 (77–79) · Phase 5 (80–84)
 
-## Done so far (Steps 52–74)
+## Done so far (Steps 52–75)
 
-- **52–67** — foundation through region selector.
-- **68–70** — template manager / matching engine / image-target controller.
-- **71–73** — OCR stub / text-target controller / visual builder + presets.
+- **52–73** — foundation through visual builder.
 - **74** — controlled tap session (14 tests).
+- **75** — smart-target tap controller (12 tests).
 
 ## Build & Test
 
@@ -58,8 +49,8 @@ Native Android foundation for **ClickFlow** — the cross-platform click-automat
 
 ## Safety model
 
-`SafetyGate.canRunRealTap()` = `false`. Phase 3 introduces controlled sessions
-gated by four independent safety checks; bulk/background taps never allowed.
+`SafetyGate.canRunRealTap()` = `false`. `dispatch()` returns SESSION_GATE_CLOSED
+until Step 76. Bulk/background taps never allowed.
 
 ## License
 
