@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ClickFlow</string>
-
     <string name="accessibility_service_label">Служба специальных возможностей ClickFlow</string>
     <string name="accessibility_service_summary">Служба безопасности ClickFlow</string>
     <string name="accessibility_service_description">ClickFlow объявляет эту службу специальных возможностей для проверки безопасности и контролируемой автоматизации. В этой сборке служба не читает содержимое экрана, не обрабатывает события и не выполняет реальные нажатия без явного разрешения через Safety Gate.</string>
@@ -22,6 +21,13 @@
     <string name="btn_back">Назад</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
+
+    <string name="scenario_started">Сценарий запущен: %1$s</string>
+    <string name="scenario_completed">Сценарий завершён: %1$s</string>
+    <string name="scenario_stopped">Сценарий остановлен</string>
+    <string name="scenario_emergency_stopped">Сценарий аварийно остановлен</string>
+    <string name="simulated_tap_at">Симуляция тапа: %1$d, %2$d</string>
+    <string name="waited_ms">Ожидание %1$d мс</string>
 
     <string name="advanced_menu">Расширенное меню</string>
     <string name="scenarios">Сценарии</string>
@@ -140,7 +146,6 @@
     <string name="blocked_reasons_title">Причины блокировки</string>
     <string name="profile_storage_ready">Хранилище профилей готово</string>
     <string name="corrupted_profile_storage_recovered">Повреждённое хранилище профилей восстановлено</string>
-
     <string name="permissions_intro">Проверьте разрешения для расширенных функций ClickFlow.</string>
     <string name="permission_overlay">Разрешение overlay</string>
     <string name="permission_granted">Разрешено</string>
@@ -179,29 +184,4 @@
     <string name="real_tap_audit_consent_confirmed">Согласие подтверждено</string>
     <string name="real_tap_audit_consent_expired">Согласие истекло</string>
     <string name="real_tap_audit_dispatch_blocked">Выполнение заблокировано</string>
-
-    <string name="safety_gate_title">Центр безопасности</string>
-    <string name="safety_review_passed">Обзор пройден</string>
-    <string name="safety_consent_fresh">Согласие дано</string>
-    <string name="safety_rate_limit_ok">Лимит в норме</string>
-    <string name="safety_emergency_stop_clear">Остановка не активна</string>
-    <string name="safety_all_clear">Все проверки пройдены — готово к работе</string>
-    <string name="safety_gate_blocked">Заблокировано: %1$s</string>
-    <string name="consent_title">Подтвердите действие</string>
-    <string name="consent_description">Приложение собирается выполнить реальное нажатие. Подтвердите, чтобы разрешить.</string>
-    <string name="consent_confirm">Разрешить</string>
-    <string name="consent_cancel">Отмена</string>
-    <string name="consent_expires_in">Согласие истекает через %1$d с</string>
-    <string name="emergency_stop_button">Аварийная остановка</string>
-    <string name="emergency_stop_confirm">Остановить все действия?</string>
-    <string name="emergency_stop_active">Аварийная остановка активна</string>
-    <string name="click_image_title">Клик по шаблону</string>
-    <string name="click_text_title">Клик по тексту</string>
-    <string name="click_dispatched">Действие выполнено</string>
-    <string name="click_blocked">Действие заблокировано</string>
-    <string name="click_error">Ошибка выполнения</string>
-    <string name="session_active">Сессия активна</string>
-    <string name="session_taps_remaining">Осталось нажатий: %1$d</string>
-    <string name="session_ttl_remaining">Истекает через %1$d с</string>
-    <string name="session_ended">Сессия завершена</string>
 </resources>

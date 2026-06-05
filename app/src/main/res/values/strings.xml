@@ -25,6 +25,14 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
 
+    <!-- Simulation messages -->
+    <string name="scenario_started">Scenario started: %1$s</string>
+    <string name="scenario_completed">Scenario completed: %1$s</string>
+    <string name="scenario_stopped">Scenario stopped</string>
+    <string name="scenario_emergency_stopped">Scenario emergency-stopped</string>
+    <string name="simulated_tap_at">Simulated tap at %1$d, %2$d</string>
+    <string name="waited_ms">Waited %1$d ms</string>
+
     <!-- Advanced / about -->
     <string name="advanced_menu">Advanced menu</string>
     <string name="scenarios">Scenarios</string>
@@ -144,13 +152,11 @@
     <string name="skipped_items">Skipped items</string>
     <string name="clear_import">Clear import</string>
 
-    <!-- Safety / diagnostics -->
+    <!-- Safety / diagnostics / permissions -->
     <string name="real_taps_disabled">Real taps disabled</string>
     <string name="blocked_reasons_title">Blocked reasons</string>
     <string name="profile_storage_ready">Profile storage ready</string>
     <string name="corrupted_profile_storage_recovered">Corrupted profile storage recovered</string>
-
-    <!-- Permissions -->
     <string name="permissions_intro">Review optional permissions used by advanced ClickFlow features.</string>
     <string name="permission_overlay">Overlay permission</string>
     <string name="permission_granted">Granted</string>
@@ -190,30 +196,4 @@
     <string name="real_tap_audit_consent_confirmed">Consent confirmed</string>
     <string name="real_tap_audit_consent_expired">Consent expired</string>
     <string name="real_tap_audit_dispatch_blocked">Dispatch blocked</string>
-
-    <!-- Step 80 smart click strings -->
-    <string name="safety_gate_title">Safety Center</string>
-    <string name="safety_review_passed">Review passed</string>
-    <string name="safety_consent_fresh">Consent given</string>
-    <string name="safety_rate_limit_ok">Rate limit OK</string>
-    <string name="safety_emergency_stop_clear">No emergency stop</string>
-    <string name="safety_all_clear">All checks passed — ready to dispatch</string>
-    <string name="safety_gate_blocked">Blocked: %1$s</string>
-    <string name="consent_title">Confirm action</string>
-    <string name="consent_description">The app is about to perform a real tap. Confirm to allow.</string>
-    <string name="consent_confirm">Allow</string>
-    <string name="consent_cancel">Cancel</string>
-    <string name="consent_expires_in">Consent expires in %1$d s</string>
-    <string name="emergency_stop_button">Emergency Stop</string>
-    <string name="emergency_stop_confirm">Stop all actions?</string>
-    <string name="emergency_stop_active">Emergency stop active</string>
-    <string name="click_image_title">Image Click</string>
-    <string name="click_text_title">Text Click</string>
-    <string name="click_dispatched">Action dispatched</string>
-    <string name="click_blocked">Action blocked</string>
-    <string name="click_error">Dispatch error</string>
-    <string name="session_active">Session active</string>
-    <string name="session_taps_remaining">Taps remaining: %1$d</string>
-    <string name="session_ttl_remaining">Expires in %1$d s</string>
-    <string name="session_ended">Session ended</string>
 </resources>

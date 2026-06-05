@@ -38,7 +38,7 @@ class TemplateMatcher(val nowProvider: () -> Long = { System.currentTimeMillis()
      * [candidates] is empty.
      */
     fun evaluateBest(template: CaptureTemplate, candidates: List<MatchCandidate>): MatchResult {
-        if (candidates.isEmpty()) return MatchResult.noMatch(template.id, nowProvider())
+        if (candidates.isEmpty()) return MatchResult.noMatch(template.id, 0f, nowProvider())
         val best = candidates.maxByOrNull { it.rawScore }!!
         return evaluate(template, best)
     }
