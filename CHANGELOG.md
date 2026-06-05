@@ -5,6 +5,46 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 66 (Part 2) — Real MediaProjection screen capture (service + consent activity + UI)
+
+Completes Step 66: drives the Part 1 `ScreenCaptureController` from a real
+MediaProjection pipeline. Capture only — a single frame is read for its
+dimensions in memory and immediately discarded; nothing is written to disk,
+exported, or analyzed.
+
+- New `app/src/main/java/com/clickflow/android/capture/`:
+- `ScreenCaptureRepository.kt` — process-local `object` that wraps a single
+`ScreenCaptureController` and republishes its state as a
+`StateFlow<ScreenCaptureState>` so Compose can observe it. Holds no pixels and
+no Android Context; bridges the service (producer) and the UI (consumer).
+- `ScreenCaptureService.kt` — foreground `Service`
+(`foregroundServiceType=mediaProjection`). Receives the consent `resultCode` +
+data Intent, builds `MediaProjection` → `ImageReader` → `VirtualDisplay`,
+captures exactly one frame, reads width/height only, mirrors it via
+`ScreenCaptureRepository.onFrameCaptured(...)`, then tears the whole pipeline
+down. Registers a `MediaProjection.Callback` before creating the virtual
+display (Android 14+ requirement) and posts a low-importance ongoing
+notification while active. Never writes a frame to disk.
+- `ScreenCaptureActivity.kt` — dedicated `ComponentActivity` owning the consent
+flow via `registerForActivityResult(StartActivityForResult)` +
+`MediaProjectionManager.createScreenCaptureIntent()`. On consent it starts the
+foreground service; on denial it records `onPermissionResult(false)`. Compose
+UI observes the repository state and shows status / permission / frame
+dimensions + the three privacy-invariant flags, plus Start / Stop / Reset /
+Back.
+- `AndroidManifest.xml` — added `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_MEDIA_PROJECTION`, `POST_NOTIFICATIONS`; declared
+`ScreenCaptureActivity` (`exported=false`) and `ScreenCaptureService`
+(`exported=false`, `foregroundServiceType=mediaProjection`). Still no `INTERNET`
+or storage permissions.
+- `ui/Screens.kt` — `AdvancedScreen` gains a screen-capture entry that launches
+`ScreenCaptureActivity`.
+- `AppInfo.STEP` bumped to Step 66 (Part 2).
+
+Safety / privacy invariants: a captured frame lives only in RAM and is never
+written to disk, exported, or analyzed (no OCR / template matching in this
+step); `SafetyGate.canRunRealTap()` is untouched and still returns `false`.
+
 ### Step 66 (Part 1) — Screen-capture lifecycle controller (pure Kotlin)
 
 First slice of Phase 2 ("move the brain to Android"). Introduces the

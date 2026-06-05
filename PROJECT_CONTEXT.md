@@ -118,3 +118,17 @@ Phase 2 kickoff — bring screen capture ("the eyes") to Android, starting with 
 - Mirrors the proven `RealTapController` pattern: build the brain as pure logic guarded by tests first, wire the real I/O (Part 2) afterwards.
 - Deferred to Part 2: real `ScreenCaptureService` (MediaProjection / ImageReader / VirtualDisplay → one in-memory frame), Activity consent flow (`createScreenCaptureIntent`), foreground-service manifest permissions (`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PROJECTION` / `POST_NOTIFICATIONS`), and the capture UI screen.
 - Invariants: frame is RAM-only (never persisted/exported/backed up); capture only, no analysis; `SafetyGate.canRunRealTap()` unchanged (`false`).
+
+## Step 66 (Part 2)
+
+Completes Step 66 — the real MediaProjection capture pipeline that drives the Part 1 `ScreenCaptureController`. Capture only: a single frame is read for its dimensions in memory and immediately discarded; nothing is written to disk, exported, or analyzed.
+
+- New `capture/` files:
+  - `ScreenCaptureRepository.kt` — process-local `object`; wraps one `ScreenCaptureController`, exposes `state: StateFlow<ScreenCaptureState>`; bridges the service (producer) and the UI (consumer). Holds no pixels and no Android Context.
+  - `ScreenCaptureService.kt` — foreground `Service` (`foregroundServiceType=mediaProjection`). Builds `MediaProjection` → `ImageReader` → `VirtualDisplay`, captures exactly one frame, reads width/height only, calls `repository.onFrameCaptured(...)`, then releases everything. Registers a `MediaProjection.Callback` before `createVirtualDisplay` (Android 14+). Posts a low-importance ongoing notification while active. Never persists a frame.
+  - `ScreenCaptureActivity.kt` — dedicated `ComponentActivity` owning the consent dialog (`createScreenCaptureIntent` via `registerForActivityResult(StartActivityForResult)`). Starts the foreground service on grant; records `onPermissionResult(false)` on denial. Compose UI observes `ScreenCaptureRepository.state` (status / permission / frame dimensions + the three privacy-invariant flags) with Start / Stop / Reset / Back.
+- `AndroidManifest.xml` — added `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROJECTION`, `POST_NOTIFICATIONS`; declared `ScreenCaptureActivity` (`exported=false`) and `ScreenCaptureService` (`exported=false`, `foregroundServiceType=mediaProjection`). Still no `INTERNET` / storage permissions.
+- `ui/Screens.kt` — `AdvancedScreen` gains a screen-capture entry ("Захват экрана (превью)") that launches `ScreenCaptureActivity`. This is the only existing file touched.
+- `AppInfo.STEP` bumped to Step 66 (Part 2).
+- Design note: a dedicated Activity + foreground Service was chosen (over routing capture through the main Compose navigation) because the MediaProjection consent dialog must come from an Activity result and the projection must run under a `mediaProjection` foreground service. This keeps the feature self-contained and leaves the large `ClickFlowViewModel` untouched.
+- Invariants: frame is RAM-only (never persisted/exported/backed up); capture only, no analysis (no OCR / template matching this step); `SafetyGate.canRunRealTap()` unchanged (`false`).
