@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.clickflow.android.core.ClickFlowViewModel
 import com.clickflow.android.core.Screen
+import com.clickflow.android.imageclick.ImageTemplateActivity
 import com.clickflow.android.overlay.FloatingTapperOverlayService
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import kotlinx.coroutines.Job
@@ -72,8 +73,7 @@ private const val KEY_MARKERS = "markers"
 
 private data class UiTapMarker(val id: Int, val x: Float, val y: Float)
 
-private fun encodeMarkers(markers: List<UiTapMarker>): String =
-    markers.joinToString(";") { "${it.id},${it.x},${it.y}" }
+private fun encodeMarkers(markers: List<UiTapMarker>): String = markers.joinToString(";") { "${it.id},${it.x},${it.y}" }
 
 private fun decodeMarkers(raw: String?): List<UiTapMarker> {
     if (raw.isNullOrBlank()) return listOf(UiTapMarker(1, 0.5f, 0.5f))
@@ -103,10 +103,7 @@ fun ClickFlowApp(vm: ClickFlowViewModel) {
 @Composable
 private fun Page(content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(18.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) { content() }
 }
@@ -118,9 +115,7 @@ private fun GlassCard(content: @Composable () -> Unit) {
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
-    }
+    ) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() } }
 }
 
 @Composable
@@ -207,11 +202,7 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
 
     Page {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(34.dp))
-                .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, Color(0xFF55504A))))
-                .padding(22.dp),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(34.dp)).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, Color(0xFF55504A)))).padding(22.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("ClickFlow", color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
@@ -230,127 +221,75 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
             }
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(290.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(26.dp))
-                    .onGloballyPositioned {
-                        areaSize = it.size
-                        areaWindowPos = it.positionInWindow()
-                    },
+                modifier = Modifier.fillMaxWidth().height(290.dp).clip(RoundedCornerShape(26.dp)).background(MaterialTheme.colorScheme.surfaceVariant).border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(26.dp)).onGloballyPositioned {
+                    areaSize = it.size
+                    areaWindowPos = it.positionInWindow()
+                },
             ) {
                 markers.forEachIndexed { index, marker ->
                     val x = if (areaSize.width == 0) 0 else (marker.x * areaSize.width).roundToInt()
                     val y = if (areaSize.height == 0) 0 else (marker.y * areaSize.height).roundToInt()
                     Box(
-                        modifier = Modifier
-                            .offset { IntOffset(x - 31, y - 31) }
-                            .size(62.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .border(4.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                            .pointerInput(areaSize, marker.id) {
-                                detectDragGestures(onDragEnd = { saveAll() }) { change, drag ->
-                                    change.consume()
-                                    val w = areaSize.width.toFloat().coerceAtLeast(1f)
-                                    val h = areaSize.height.toFloat().coerceAtLeast(1f)
-                                    val currentIndex = markers.indexOfFirst { it.id == marker.id }
-                                    if (currentIndex >= 0) {
-                                        val current = markers[currentIndex]
-                                        markers[currentIndex] = current.copy(
-                                            x = (current.x + drag.x / w).coerceIn(0.03f, 0.97f),
-                                            y = (current.y + drag.y / h).coerceIn(0.03f, 0.97f),
-                                        )
-                                    }
+                        modifier = Modifier.offset { IntOffset(x - 31, y - 31) }.size(62.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary).border(4.dp, MaterialTheme.colorScheme.surface, CircleShape).pointerInput(areaSize, marker.id) {
+                            detectDragGestures(onDragEnd = { saveAll() }) { change, drag ->
+                                change.consume()
+                                val w = areaSize.width.toFloat().coerceAtLeast(1f)
+                                val h = areaSize.height.toFloat().coerceAtLeast(1f)
+                                val currentIndex = markers.indexOfFirst { it.id == marker.id }
+                                if (currentIndex >= 0) {
+                                    val current = markers[currentIndex]
+                                    markers[currentIndex] = current.copy(
+                                        x = (current.x + drag.x / w).coerceIn(0.03f, 0.97f),
+                                        y = (current.y + drag.y / h).coerceIn(0.03f, 0.97f),
+                                    )
                                 }
-                            },
+                            }
+                        },
                         contentAlignment = Alignment.Center,
                     ) { Text("${index + 1}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black) }
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        if (markers.size < 5) {
-                            val offset = 0.12f * markers.size
-                            markers.add(UiTapMarker(nextMarkerId++, (0.5f + offset).coerceAtMost(0.88f), (0.5f + offset).coerceAtMost(0.88f)))
-                            saveAll()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { Text("+ Метка") }
-                OutlinedButton(
-                    onClick = {
-                        if (markers.size > 1) {
-                            markers.removeAt(markers.lastIndex)
-                            saveAll()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { Text("− Метка") }
+                OutlinedButton(onClick = {
+                    if (markers.size < 5) {
+                        val offset = 0.12f * markers.size
+                        markers.add(UiTapMarker(nextMarkerId++, (0.5f + offset).coerceAtMost(0.88f), (0.5f + offset).coerceAtMost(0.88f)))
+                        saveAll()
+                    }
+                }, modifier = Modifier.weight(1f)) { Text("+ Метка") }
+                OutlinedButton(onClick = {
+                    if (markers.size > 1) {
+                        markers.removeAt(markers.lastIndex)
+                        saveAll()
+                    }
+                }, modifier = Modifier.weight(1f)) { Text("− Метка") }
             }
         }
 
         GlassCard {
-            CounterRow("Таймер", "${intervalMs}мс", "-100", "+100", {
-                intervalMs = (intervalMs - 100).coerceAtLeast(100)
-                saveAll()
-            }, {
-                intervalMs += 100
-                saveAll()
-            })
-            CounterRow("Повторы", if (infiniteMode) "∞" else "$repeatCount", "-5", "+5", {
-                repeatCount = (repeatCount - 5).coerceAtLeast(1)
-                infiniteMode = false
-                saveAll()
-            }, {
-                repeatCount += 5
-                infiniteMode = false
-                saveAll()
-            })
-            CounterRow("Задержка старта", "${startDelayMs / 1000}с", "-1с", "+1с", {
-                startDelayMs = (startDelayMs - 1000).coerceAtLeast(0)
-                saveAll()
-            }, {
-                startDelayMs += 1000
-                saveAll()
-            })
-            OutlinedButton(
-                onClick = {
-                    infiniteMode = !infiniteMode
-                    saveAll()
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (infiniteMode) "Бесконечный режим: ВКЛ" else "Бесконечный режим: ВЫКЛ") }
+            CounterRow("Таймер", "${intervalMs}мс", "-100", "+100", { intervalMs = (intervalMs - 100).coerceAtLeast(100); saveAll() }, { intervalMs += 100; saveAll() })
+            CounterRow("Повторы", if (infiniteMode) "∞" else "$repeatCount", "-5", "+5", { repeatCount = (repeatCount - 5).coerceAtLeast(1); infiniteMode = false; saveAll() }, { repeatCount += 5; infiniteMode = false; saveAll() })
+            CounterRow("Задержка старта", "${startDelayMs / 1000}с", "-1с", "+1с", { startDelayMs = (startDelayMs - 1000).coerceAtLeast(0); saveAll() }, { startDelayMs += 1000; saveAll() })
+            OutlinedButton(onClick = { infiniteMode = !infiniteMode; saveAll() }, modifier = Modifier.fillMaxWidth()) { Text(if (infiniteMode) "Бесконечный режим: ВКЛ" else "Бесконечный режим: ВЫКЛ") }
         }
 
-        Button(
-            onClick = { if (running) stop() else start() },
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            shape = RoundedCornerShape(22.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = if (running) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary),
-        ) { Text(if (running) "Стоп" else "Запустить", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-
+        Button(onClick = { if (running) stop() else start() }, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = if (running) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)) {
+            Text(if (running) "Стоп" else "Запустить", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
         OutlinedButton(onClick = { stop("Аварийная остановка") }, modifier = Modifier.fillMaxWidth()) { Text("Аварийная остановка") }
-
         Text(status, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
-                onClick = {
-                    saveAll()
-                    vm.refreshPermissions()
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-                        context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    } else {
-                        context.startService(Intent(context, FloatingTapperOverlayService::class.java))
-                    }
-                },
-                modifier = Modifier.weight(1f),
-            ) { Text("Метки поверх") }
+            OutlinedButton(onClick = {
+                saveAll()
+                vm.refreshPermissions()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } else {
+                    context.startService(Intent(context, FloatingTapperOverlayService::class.java))
+                }
+            }, modifier = Modifier.weight(1f)) { Text("Метки поверх") }
             OutlinedButton(onClick = { vm.navigateTo(Screen.ADVANCED) }, modifier = Modifier.weight(1f)) { Text("Расширенные") }
         }
 
@@ -381,8 +320,13 @@ private fun AdvancedScreen(vm: ClickFlowViewModel) {
         Text("Расширенные", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
         GlassCard {
             Text("Клик по картинке", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Следующий шаг: выбрать фото/иконку, область поиска и точку тапа внутри найденного изображения.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = { context.startActivity(Intent(context, com.clickflow.android.capture.ScreenCaptureActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("Захват экрана") }
+            Text("Выбери фото/иконку, настрой порог похожести и точку тапа. Следующий шаг — поиск на экране и автотап.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = { context.startActivity(Intent(context, ImageTemplateActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("Настроить шаблоны") }
+        }
+        GlassCard {
+            Text("Захват экрана", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Технический экран для проверки MediaProjection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { context.startActivity(Intent(context, com.clickflow.android.capture.ScreenCaptureActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("Открыть захват") }
         }
         OutlinedButton(onClick = { vm.navigateTo(Screen.PERMISSIONS) }, modifier = Modifier.fillMaxWidth()) { Text("Разрешения") }
         OutlinedButton(onClick = { vm.navigateTo(Screen.HOME) }, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
