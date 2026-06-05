@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">ClickFlow</string>
 
+    <!-- Accessibility service -->
+    <string name="accessibility_service_label">ClickFlow Accessibility Service</string>
+    <string name="accessibility_service_summary">ClickFlow safety service</string>
+    <string name="accessibility_service_description">ClickFlow declares this accessibility service for safety review and controlled automation. In this build, it does not read screen content, does not process events, and does not perform real taps unless explicitly enabled by the safety gate.</string>
+
     <!-- Safety gate -->
     <string name="safety_gate_title">Safety Center</string>
     <string name="safety_review_passed">Review passed</string>

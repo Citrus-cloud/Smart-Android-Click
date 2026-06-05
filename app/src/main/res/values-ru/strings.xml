@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">ClickFlow</string>
 
+    <!-- Accessibility service -->
+    <string name="accessibility_service_label">Служба специальных возможностей ClickFlow</string>
+    <string name="accessibility_service_summary">Служба безопасности ClickFlow</string>
+    <string name="accessibility_service_description">ClickFlow объявляет эту службу специальных возможностей для проверки безопасности и контролируемой автоматизации. В этой сборке служба не читает содержимое экрана, не обрабатывает события и не выполняет реальные нажатия без явного разрешения через Safety Gate.</string>
+
     <!-- Safety gate -->
     <string name="safety_gate_title">Центр безопасности</string>
     <string name="safety_review_passed">Обзор пройден</string>
