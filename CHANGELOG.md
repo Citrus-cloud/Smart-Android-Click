@@ -5,46 +5,50 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
-### Step 72 — Text-target scenario controller (preview/simulation, no tap)
+### Step 73 — Visual scenario builder + presets (domain layer)
 
-Phase 2 continues: wires the Step 71 `OcrController` into a single
-`TextTargetController.evaluate` call that runs OCR, finds the best text
-match, and returns a typed `TextTargetOutcome` with a highlighted region.
-Pure Kotlin, no Android imports, no tap dispatch.
+Phase 2 closes: introduces the builder-pattern domain layer for assembling
+visual scenarios from typed actions and built-in presets. No UI, no persistence,
+pure Kotlin + JVM tests.
 
-- New `capture/TextTargetResult.kt` — two types:
-  - `TextTargetResult(query, matched, highlight?, matchedText?, confidence,
-    evaluatedAtMs, errorReason?)` — flat data class with the decision outcome.
-  - `sealed class TextTargetOutcome { Matched(result), NoMatch(result),
-    Error(result) }` — typed wrapper; `Error.reason` exposes stable code
-    (`empty_query`).
-- New `capture/TextTargetController.kt` — wires `OcrController` + injected clock:
-  - `evaluate(query, candidates, caseSensitive)` — validates query (non-blank),
-    calls `OcrController.recognize(candidates)`, then `OcrController.bestMatch`;
-    returns `Error` for blank query, `Matched` / `NoMatch` otherwise. Confidence
-    clamped to `[0, 1]`. No Android imports.
-- New `app/src/test/java/com/clickflow/android/capture/TextTargetControllerTest.kt`
-  — 11 JVM tests: query found → Matched, highlight is highest-confidence bounds,
-  query not found → NoMatch, empty query → Error, blank query → Error,
-  case-insensitive by default, case-sensitive miss, case-sensitive hit,
-  `evaluatedAtMs` from provider, query preserved in result, NoMatch null
-  highlight + zero confidence.
-- `AppInfo.STEP` bumped to Step 72.
+- New `scenario/ScenarioPreset.kt` — three declarations:
+  - `enum class PresetActionType { TAP, WAIT, NOTE }`.
+  - `data class PresetAction(type, label, x, y, durationMs, note)` — one step;
+    `isValid` enforces type-specific constraints (TAP: x/y in [0,1]; WAIT:
+    durationMs ≥ 100; NOTE: non-blank, ≤ 300 chars; label ≤ 60).
+  - `data class ScenarioPreset(id, name, description, actions)` — named template;
+    `isValid` checks id/name non-blank, name ≤ 60, description ≤ 200, 1–20
+    actions, all actions valid.
+  - `object BuiltInPresets` — `TAP_CENTER` (single centre tap) and
+    `TAP_AND_WAIT` (centre tap + 500 ms wait); `ALL` list for enumeration.
+- New `scenario/VisualScenarioBuilder.kt` — mutable ordered action list
+  (max 20) with CRUD + preset support; all mutations return
+  `BuilderResult.Ok` / `BuilderResult.Error(reason)` with stable reason codes
+  (`invalid_action`, `too_many_actions`, `invalid_index`, `invalid_preset`):
+  - `add(action)`, `update(index, action)`, `remove(index)`, `move(from, to)`,
+    `clear()`.
+  - `applyPreset(preset)` — replaces all actions with preset's actions.
+  - `appendPreset(preset)` — appends preset's actions to existing list.
+  - Read-only `actions`, `count`, `isEmpty`. No Android imports.
+- New `app/src/test/java/com/clickflow/android/scenario/VisualScenarioBuilderTest.kt`
+  — 13 JVM tests: starts empty, add valid, add invalid (→ error), add → 20 limit,
+  update replaces, update out-of-bounds, remove at index, move reorders, clear,
+  applyPreset replaces all, appendPreset appends, appendPreset limit exceeded,
+  BuiltInPresets all valid.
+- `AppInfo.STEP` bumped to Step 73.
 
-Safety / privacy invariants: result is a preview only — no tap, no pixels stored,
-no network; `SafetyGate.canRunRealTap()` unchanged (`false`).
+Safety / privacy invariants: builder is pure in-memory data — no capture, no tap,
+no persistence; `SafetyGate.canRunRealTap()` unchanged (`false`).
+
+### Step 72 — Text-target scenario controller
+
+- `TextTargetResult` + `TextTargetOutcome` + `TextTargetController`. 11 JVM tests.
 
 ### Step 71 — On-device OCR stub
 
-- `OcrTextRegion` + `OcrResult` + `interface OcrProvider` + `StubOcrProvider` +
-  `OcrController` (findText / findExact / bestMatch). 12 JVM tests.
-  `AppInfo.STEP` → Step 71.
+- `OcrTextRegion` + `OcrResult` + `OcrProvider` + `StubOcrProvider` +
+  `OcrController`. 12 JVM tests.
 
-### Step 70 — Image-target controller
-
-- `ImageTargetResult` + `ImageTargetOutcome` + `ImageTargetController`. 10 JVM tests.
-  `AppInfo.STEP` → Step 70.
-
-### Steps 52–69 — Foundation through template matching engine
+### Steps 52–70 — Foundation through image-target controller
 
 See git history for full details.
