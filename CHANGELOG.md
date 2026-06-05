@@ -5,60 +5,46 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
-### Step 71 — On-device OCR stub (OcrProvider interface + StubOcrProvider + OcrController)
+### Step 72 — Text-target scenario controller (preview/simulation, no tap)
 
-Phase 2 continues: introduces the OCR abstraction layer following the proven
-"brain first, I/O later" pattern. No ML Kit, no Tesseract, no Android imports
-at the interface level. The real engine plugs in later by implementing `OcrProvider`.
+Phase 2 continues: wires the Step 71 `OcrController` into a single
+`TextTargetController.evaluate` call that runs OCR, finds the best text
+match, and returns a typed `TextTargetOutcome` with a highlighted region.
+Pure Kotlin, no Android imports, no tap dispatch.
 
-- New `capture/OcrTextRegion.kt` — two data classes:
-  - `OcrTextRegion(text, bounds: CaptureRegion, confidence)` — one recognized
-    text region. Exposes `isUsable` (valid bounds + confidence > 0).
-  - `OcrResult(regions, pageText, recognizedAtMs)` — full OCR pass result.
-    Companion factories: `OcrResult.from(regions, nowMs)` (auto-builds `pageText`
-    by joining region texts with a space) and `OcrResult.empty(nowMs)`.
-- New `capture/OcrProvider.kt` — two declarations:
-  - `interface OcrProvider { fun recognize(candidates: List<CaptureRegion>): OcrResult }`
-    — the single-method contract for all OCR engines. No Android imports.
-  - `class StubOcrProvider(injectedRegions, nowProvider)` — returns the injected
-    list of `OcrTextRegion`s on every call; used in tests and simulation.
-- New `capture/OcrController.kt` — orchestrates provider + search:
-  - `recognize(candidates)` — delegates to provider, returns `OcrResult`.
-  - `findText(query, result, caseSensitive)` — substring filter over regions.
-  - `findExact(query, result, caseSensitive)` — equality filter.
-  - `bestMatch(query, result, caseSensitive)` — highest-confidence `findText` hit.
-    Empty query always returns empty / null. No Android imports.
-- New `app/src/test/java/com/clickflow/android/capture/OcrControllerTest.kt`
-  — 12 JVM tests: recognize all regions, pageText concatenation, findText
-  case-insensitive (multiple hits), findText case-sensitive, findText empty
-  query, findText no match, findExact case-insensitive, findExact case-sensitive
-  no match, bestMatch highest confidence, bestMatch null, OcrResult.empty,
-  OcrTextRegion.isUsable false for invalid bounds.
-- `AppInfo.STEP` bumped to Step 71.
+- New `capture/TextTargetResult.kt` — two types:
+  - `TextTargetResult(query, matched, highlight?, matchedText?, confidence,
+    evaluatedAtMs, errorReason?)` — flat data class with the decision outcome.
+  - `sealed class TextTargetOutcome { Matched(result), NoMatch(result),
+    Error(result) }` — typed wrapper; `Error.reason` exposes stable code
+    (`empty_query`).
+- New `capture/TextTargetController.kt` — wires `OcrController` + injected clock:
+  - `evaluate(query, candidates, caseSensitive)` — validates query (non-blank),
+    calls `OcrController.recognize(candidates)`, then `OcrController.bestMatch`;
+    returns `Error` for blank query, `Matched` / `NoMatch` otherwise. Confidence
+    clamped to `[0, 1]`. No Android imports.
+- New `app/src/test/java/com/clickflow/android/capture/TextTargetControllerTest.kt`
+  — 11 JVM tests: query found → Matched, highlight is highest-confidence bounds,
+  query not found → NoMatch, empty query → Error, blank query → Error,
+  case-insensitive by default, case-sensitive miss, case-sensitive hit,
+  `evaluatedAtMs` from provider, query preserved in result, NoMatch null
+  highlight + zero confidence.
+- `AppInfo.STEP` bumped to Step 72.
 
-Safety / privacy invariants: OCR operates on injected regions only — no frame
-bytes, no network, no tap; `SafetyGate.canRunRealTap()` unchanged (`false`).
-ML Kit / Tesseract integration lands in a later step.
+Safety / privacy invariants: result is a preview only — no tap, no pixels stored,
+no network; `SafetyGate.canRunRealTap()` unchanged (`false`).
 
-### Step 70 — Image-target scenario controller (preview/simulation, no tap)
+### Step 71 — On-device OCR stub
 
-- `ImageTargetResult` + `ImageTargetOutcome` (Matched / NoMatch / Error).
-- `ImageTargetController.evaluate(templateId, candidates)` wiring `TemplateManager`
-  + `TemplateMatcher`. 10 JVM tests. `AppInfo.STEP` → Step 70.
+- `OcrTextRegion` + `OcrResult` + `interface OcrProvider` + `StubOcrProvider` +
+  `OcrController` (findText / findExact / bestMatch). 12 JVM tests.
+  `AppInfo.STEP` → Step 71.
 
-### Step 69 — Template matching engine
+### Step 70 — Image-target controller
 
-- `MatchResult` + `TemplateMatcher` (evaluate / evaluateBest / matchesOnly).
-  8 JVM tests. `AppInfo.STEP` → Step 69.
+- `ImageTargetResult` + `ImageTargetOutcome` + `ImageTargetController`. 10 JVM tests.
+  `AppInfo.STEP` → Step 70.
 
-### Step 68 — Template Manager
-
-- `CaptureTemplate` + `TemplateManager`. 18 JVM tests. `AppInfo.STEP` → Step 68.
-
-### Step 67 — Region Selector
-
-- `CaptureRegion` + `RegionSelectorController`. JVM tests. `AppInfo.STEP` → Step 67.
-
-### Steps 52–66 — Foundation through screen capture
+### Steps 52–69 — Foundation through template matching engine
 
 See git history for full details.

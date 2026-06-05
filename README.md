@@ -1,8 +1,6 @@
 # ClickFlow Android
 
 Native Android foundation for **ClickFlow** — the cross-platform click-automation project.
-This is a **separate native Android application** (Kotlin + Jetpack Compose), **not** an Electron
-port and **not** a runtime copy of the desktop code.
 
 ---
 
@@ -12,58 +10,38 @@ port and **not** a runtime copy of the desktop code.
 
 **Где мы сейчас:**
 
-- ✅ **Сделано:** Шаги 52–71.
-- 🔄 **Только что сделали:** **Шаг 71** — OCR-абстракция: `OcrTextRegion` + `OcrResult` +
-  `interface OcrProvider` + `StubOcrProvider` + `OcrController` (findText / findExact /
-  bestMatch). 12 JVM-тестов. ML Kit ещё не подключён.
-- ➡️ **Следующий шаг:** **Шаг 72** — сценарий «Text target»: `TextTargetController`
-  (запрос → OCR → `bestMatch` → `TextTargetOutcome`).
+- ✅ **Сделано:** Шаги 52–72.
+- 🔄 **Только что сделали:** **Шаг 72** — `TextTargetController`: OCR → `bestMatch` →
+  `TextTargetOutcome` (Matched/NoMatch/Error) с `highlight`. 11 JVM-тестов.
+- ➡️ **Следующий шаг:** **Шаг 73** — визуальный строитель сценариев +
+  пресеты (модель + валидация, без UI пока).
 
 ---
 
 ## Status
 
-> **Phase 2 («the brain» on Android) — in progress. Current: Step 71 done, Step 72 next.**
+> **Phase 2 — in progress. Step 72 done, Step 73 next.**
 >
-> **Just landed — Step 71 (On-device OCR stub):** `OcrTextRegion` / `OcrResult` /
-> `OcrProvider` interface / `StubOcrProvider` / `OcrController` with 12 JVM tests.
-> Pure abstraction — no ML Kit, no frame bytes, no tap.
+> **Just landed — Step 72:** `TextTargetResult` + `TextTargetOutcome` +
+> `TextTargetController` (validate → OCR → bestMatch → typed outcome) + 11 JVM tests.
 >
-> **Next — Step 72 (Text-target scenario controller):** wires `OcrController` into a
-> `TextTargetController` that returns a typed `TextTargetOutcome` with a highlighted
-> bounds region (preview only, no tap).
->
-> Bulk real taps remain hard-disabled by `SafetyGate.canRunRealTap() == false`.
-
-## What this app is (and does)
-
-ClickFlow Android is a **smart auto-clicker**: find *where* to tap by image template
-matching or on-device OCR, then tap with explicit consent and full audit.
+> **Next — Step 73:** Visual scenario builder + presets model (domain layer only).
 
 ## Roadmap (Steps 64–84)
 
 ### Phase 2 — «the brain» on Android (Steps 66–73) — 🔄 in progress
 
-- **Step 66** — Screen capture. ✅
-- **Step 67** — Region selector. ✅
-- **Step 68** — Template manager. ✅
-- **Step 69** — Template matching engine. ✅
-- **Step 70** — Image-target controller. ✅
-- **Step 71** — On-device OCR stub. ✅
-- **Step 72** — ➡️ next. Text-target scenario controller.
-- **Step 73** — Visual scenario builder + presets.
+- Step 66 ✅ · Step 67 ✅ · Step 68 ✅ · Step 69 ✅ · Step 70 ✅ · Step 71 ✅ · **Step 72 ✅**
+- **Step 73 ➡️** — Visual scenario builder + presets.
 
-### Phase 3 — real taps (Steps 74–76)
-### Phase 4 — desktop smart click (Steps 77–79)
-### Phase 5 — finish (Steps 80–84)
+### Phase 3 (Steps 74–76) · Phase 4 (Steps 77–79) · Phase 5 (Steps 80–84)
 
-## Done so far (Steps 52–71)
+## Done so far (Steps 52–72)
 
 - **52–67** — foundation through region selector.
-- **68** — template manager (18 JVM tests).
-- **69** — template matching engine (8 JVM tests).
-- **70** — image-target controller (10 JVM tests).
-- **71** — OCR stub: `OcrProvider` interface + `StubOcrProvider` + `OcrController` (12 JVM tests).
+- **68** — template manager (18 tests). **69** — matching engine (8 tests).
+- **70** — image-target controller (10 tests). **71** — OCR stub (12 tests).
+- **72** — text-target controller (11 tests).
 
 ## Build & Test
 
@@ -74,7 +52,7 @@ matching or on-device OCR, then tap with explicit consent and full audit.
 
 ## Safety model
 
-`SafetyGate.canRunRealTap()` = `false` (hard-coded). Phase 2 is preview-only.
+`SafetyGate.canRunRealTap()` = `false`. Phase 2 is preview-only.
 
 ## License
 

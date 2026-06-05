@@ -2,65 +2,65 @@
 
 ## Step 61
 
-Read-only permissions surface for the Real Tap prototype.
-- Added `PermissionsManager`, `Screen.PERMISSIONS`, Permissions screen.
-- `SafetyGate.canRunRealTap()` remains `false`.
+Read-only permissions surface. `PermissionsManager`, `Screen.PERMISSIONS`.
 
 ## Step 62
 
-Real Tap Prototype — UI skeleton, dispatch still blocked.
-- `RealTapPrototypeScreen.kt`, six prototype ViewModel APIs, `SafetyState` + `canRunRealTapSingleProto()`.
+Real Tap Prototype — UI skeleton, dispatch blocked. Six prototype ViewModel APIs.
 
 ## Step 63
 
-Live SafetyGate flags + ViewModel wiring.
-- Four per-flag mutators + `resetPrototypeFlags()`, `RealTapDispatchResult`, `safetyGateReasons`.
+Live SafetyGate flags + ViewModel wiring. `RealTapDispatchResult`, `safetyGateReasons`.
 
 ## Step 64
 
-RealTapController wired end-to-end + granular audit + marker invariant + build fix.
-- Removed duplicate `SafetyState`. Granular `realtap.*` audit. `canRunControlledRealTapSession`.
+RealTapController wired, granular audit, marker invariant, duplicate SafetyState fix.
 
 ## Step 65
 
-First JVM test suite — `SafetyGateTest`, `RealTapControllerTest`, `RealTapSessionTest`, `RealTapSafetyReviewTest`.
+First JVM test suite: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
 
 ## Step 66 (Part 1)
 
-Pure-Kotlin screen-capture lifecycle controller (`ScreenCaptureState` + `ScreenCaptureController` + tests).
+Pure-Kotlin screen-capture lifecycle: `ScreenCaptureState` + `ScreenCaptureController` + tests.
 
 ## Step 66 (Part 2)
 
-Real MediaProjection pipeline (`ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`, manifest perms).
+Real MediaProjection: `ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`, manifest.
 
 ## Step 67
 
-Region Selector — `CaptureRegion` (normalized [0,1] rect) + `RegionSelectorController` (EMPTY / DRAGGING / SELECTED) + tests.
+`CaptureRegion` (normalized [0,1]) + `RegionSelectorController` (EMPTY/DRAGGING/SELECTED) + tests.
 
 ## Step 68
 
-Template Manager — `CaptureTemplate` + `TemplateManager` (@Synchronized registry, sequential ids, Result.Ok/Error) + 18 JVM tests.
+`CaptureTemplate` + `TemplateManager` (@Synchronized, sequential ids, Result.Ok/Error) + 18 JVM tests.
 
 ## Step 69
 
-Template Matching Engine — `MatchResult` + `TemplateMatcher` (evaluate / evaluateBest / matchesOnly, injected nowProvider) + 8 JVM tests.
+`MatchResult` + `TemplateMatcher` (evaluate/evaluateBest/matchesOnly, injected nowProvider) + 8 JVM tests.
 
 ## Step 70
 
-Image-target controller — `ImageTargetResult` + `ImageTargetOutcome` (Matched/NoMatch/Error) + `ImageTargetController` (evaluate wiring TemplateManager → TemplateMatcher) + 10 JVM tests. Added `nowMs()` to `TemplateMatcher`.
+`ImageTargetResult` + `ImageTargetOutcome` (Matched/NoMatch/Error) + `ImageTargetController` + 10 JVM tests.
+Added `nowMs()` to `TemplateMatcher`.
 
 ## Step 71
 
-On-device OCR stub — OCR abstraction layer, "brain first" pattern. No ML Kit yet.
+`OcrTextRegion` + `OcrResult` (with `from` / `empty` factories) + `interface OcrProvider` +
+`StubOcrProvider` + `OcrController` (findText / findExact / bestMatch) + 12 JVM tests.
+No ML Kit yet; real engine plugs in by implementing `OcrProvider`.
 
-- `capture/OcrTextRegion.kt`:
-  - `OcrTextRegion(text, bounds: CaptureRegion, confidence)` — one recognized region. `isUsable` = valid bounds + confidence > 0.
-  - `OcrResult(regions, pageText, recognizedAtMs)` — full OCR pass. Factories: `from(regions, nowMs)` (auto-builds pageText) + `empty(nowMs)`.
-- `capture/OcrProvider.kt`:
-  - `interface OcrProvider { fun recognize(candidates): OcrResult }` — single-method contract, no Android imports.
-  - `class StubOcrProvider(injectedRegions, nowProvider)` — returns injected regions; for tests + simulation.
-- `capture/OcrController.kt` — orchestrates provider + text search:
-  - `recognize(candidates)`, `findText(query, result, caseSensitive)` (substring), `findExact(query, result, caseSensitive)` (equality), `bestMatch(query, result, caseSensitive)` (highest-confidence hit).
-- Test: `OcrControllerTest.kt` — 12 JVM tests.
-- `AppInfo.STEP` → Step 71.
-- Invariants: no frame bytes, no network, no tap; `SafetyGate.canRunRealTap()` unchanged (`false`). Real ML engine lands in a later step.
+## Step 72
+
+Text-target controller — wires `OcrController` into typed text-target lookup.
+
+- `capture/TextTargetResult.kt`:
+  - `TextTargetResult(query, matched, highlight?, matchedText?, confidence, evaluatedAtMs, errorReason?)`.
+  - `sealed class TextTargetOutcome { Matched, NoMatch, Error }`. `Error.reason` = `empty_query`.
+- `capture/TextTargetController.kt`:
+  - `evaluate(query, candidates, caseSensitive)`: validates query → OCR → bestMatch →
+    typed outcome. Confidence clamped [0,1]. No Android imports.
+- Test: `TextTargetControllerTest.kt` — 11 JVM tests.
+- `AppInfo.STEP` → Step 72.
+- Invariants: preview only — no tap, no pixels, no network; `SafetyGate.canRunRealTap()` unchanged.
