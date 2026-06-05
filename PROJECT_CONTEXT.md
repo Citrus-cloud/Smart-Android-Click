@@ -81,3 +81,28 @@ Make the SafetyGate prototype flags **live** and wire the ViewModel + UI to them
 - `resetPrototypeFlags` exists so emergency stop has one chokepoint and cannot accidentally leave the gate in a partially-armed state.
 - The chip + reasons list make the gate's verdict legible to the user without exposing the underlying boolean snapshot.
 - Bulk real-tap dispatch (`canRunRealTap()`) remains `false` and is not touched by this step. Any future change to that surface requires its own safety review.
+
+## Step 64
+
+Wire `RealTapController` end-to-end into the ViewModel, emit granular `realtap.*` audit events, enforce the marker-only invariant, and fix a build-breaking duplicate `SafetyState`. This closes all three items deferred from Step 63.
+
+- **Build fix:** `safety/SafetyGate.kt` previously declared an inline `data class SafetyState` in the same package as `safety/SafetyState.kt` — a redeclaration that broke compilation. The inline copy was removed; the standalone superset in `SafetyState.kt` is the single source of truth.
+- **ViewModel:** the six prototype APIs (`toggleSafetyReviewItem`, `startRealTapSession`, `endRealTapSession`, `requestRealTap`, `confirmRealTap`, `cancelRealTap`) + `emergencyStop` now route every audit record through `RealTapController(gate, auditLog)` using the granular `AuditType.REAL_TAP_*` constants instead of the generic `SAFETY_REAL_TAP_BLOCKED`. The dispatch decision is delegated to `RealTapController.evaluate(...)` and mapped onto the existing `RealTapDispatchResult` for the UI chip (`ALLOWED`→`DISPATCHED`, plus the three BLOCKED_* values).
+- **Marker invariant:** `confirmRealTap` recomputes the live marker `(x,y)` and rejects the tap as `BLOCKED_INVALID_CONSENT` (granular consent-declined, reason `marker_drift`) when the marker has moved since consent was requested. Consent expiry and the missing-consent case are also recorded through the controller.
+- **SafetyGate:** added `canRunControlledRealTapSession(sessionId)` (identical preconditions to `canRunRealTapSingleProto`) and `getControlledSessionBlockedReasons(sessionId)`. Bulk `canRunRealTap()` still returns `false` unconditionally.
+- **No new strings:** the UI reuses the existing `real_tap_audit_*` message keys.
+- `AppInfo.STEP` bumped to 64.
+
+## Step 65
+
+First automated test coverage for the real-tap prototype — pure-JVM JUnit 4, no Android framework or Robolectric, runnable via `./gradlew testDebugUnitTest`.
+
+- New `app/src/test/java/com/clickflow/android/`:
+  - `safety/SafetyGateTest.kt`
+  - `realtap/RealTapControllerTest.kt`
+  - `realtap/RealTapSessionTest.kt`
+  - `realtap/RealTapSafetyReviewTest.kt`
+- The controller tests construct `AuditLogManager()` with no storage file, so the JSONL / `org.json` persistence path is never exercised and the tests stay framework-free.
+- Covered: bulk gate always closed; single-proto / controlled-session gating; `resetPrototypeFlags` semantics; controller decision matrix (invalid consent / no service / gate-blocked / allowed) with matching granular audit types; consent TTL + single-use nonce; the 10-item safety-review lifecycle.
+- Deferred (need instrumentation / Robolectric): ViewModel StateFlow transitions and the `confirmRealTap` message-emission path. The domain logic they delegate to is covered here.
+- `AppInfo.STEP` bumped to 65.
