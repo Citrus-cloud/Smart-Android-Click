@@ -132,3 +132,14 @@ Completes Step 66 — the real MediaProjection capture pipeline that drives the 
 - `AppInfo.STEP` bumped to Step 66 (Part 2).
 - Design note: a dedicated Activity + foreground Service was chosen (over routing capture through the main Compose navigation) because the MediaProjection consent dialog must come from an Activity result and the projection must run under a `mediaProjection` foreground service. This keeps the feature self-contained and leaves the large `ClickFlowViewModel` untouched.
 - Invariants: frame is RAM-only (never persisted/exported/backed up); capture only, no analysis (no OCR / template matching this step); `SafetyGate.canRunRealTap()` unchanged (`false`).
+
+## Step 67
+
+Region Selector — pure geometry + a selection state machine that records WHERE on a captured frame a later matching step (Step 69+) should look. No capture, no analysis, nothing persisted.
+
+- `capture/CaptureRegion.kt` — normalized [0, 1] rectangle (left / top / right / bottom), resolution-independent. `width` / `height` / `area` / `center{X,Y}`, `isValid`, `contains`, `clampedToUnit`, `toPixels(w, h)`; companion `FULL` + `fromCorners(ax, ay, bx, by)` (orders edges, clamps).
+- `capture/RegionSelectorController.kt` — `@Synchronized` state machine. `RegionSelectorState { phase: EMPTY / DRAGGING / SELECTED, region, error }`. `beginSelection` / `updateSelection` / `commitSelection` (min 2% dimension, else `region_too_small` and stays DRAGGING) / `setRegion` / `clear`. Pure Kotlin, no Android imports.
+- Test `capture/RegionSelectorControllerTest.kt` covers every transition + `CaptureRegion` geometry / `toPixels` math.
+- `AppInfo.STEP` → Step 67.
+- Mirrors the Step 66 Part 1 approach: build pure, tested logic first; the Compose drag-to-select overlay over the captured frame and its wiring into the capture screen land in a later UI pass.
+- Invariants: geometry only — no pixels referenced, no capture/analysis, nothing persisted; `SafetyGate.canRunRealTap()` unchanged (`false`).

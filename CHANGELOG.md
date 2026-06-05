@@ -5,6 +5,38 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 67 — Region Selector (normalized CaptureRegion + selection state machine)
+
+Phase 2 continues: lets the user mark WHERE on a captured frame a future match
+should look, without capturing or analyzing anything. Pure geometry + a
+framework-free selection state machine, fully unit-tested on the JVM (the proven
+Step 66 Part 1 pattern).
+
+- New `capture/CaptureRegion.kt` — resolution-independent rectangle in normalized
+[0, 1] fractions (left / top / right / bottom). Exposes `width` / `height` /
+`area` / `centerX` / `centerY`, `isValid`, `contains(x, y)`, `clampedToUnit()`,
+`toPixels(w, h)`, plus companion `FULL` and `fromCorners(...)` which orders the
+edges so a drag in any direction yields a valid rectangle.
+- New `capture/RegionSelectorController.kt` — `@Synchronized` state machine over
+`RegionSelectorState { phase (EMPTY / DRAGGING / SELECTED), region, error }`:
+`beginSelection` → DRAGGING point-rect at the clamped anchor; `updateSelection`
+rebuilds the rectangle from anchor → current corner; `commitSelection` rejects a
+sub-2% region (`region_too_small`, stays DRAGGING) else → SELECTED; `setRegion`
+selects a preset / full-frame region (clamped); `clear` → EMPTY. No Android
+imports.
+- New `app/src/test/java/com/clickflow/android/capture/RegionSelectorControllerTest.kt`
+— initial empty, begin → dragging point-rect, drag-direction normalization,
+update-without-begin rejected, commit-too-small stays dragging, commit-valid
+selects + `contains` checks, `setRegion` clamp + too-small rejection, clear
+resets, and `CaptureRegion` geometry / `toPixels` math.
+- `AppInfo.STEP` bumped to Step 67.
+
+Safety / privacy invariants: a region is pure geometry — it references no pixels,
+performs no capture and no analysis, and is never persisted by this step;
+`SafetyGate.canRunRealTap()` is untouched and still returns `false`. The Compose
+drag-to-select overlay over the captured frame and its wiring into the capture
+screen land in a later UI pass.
+
 ### Step 66 (Part 2) — Real MediaProjection screen capture (service + consent activity + UI)
 
 Completes Step 66: drives the Part 1 `ScreenCaptureController` from a real
