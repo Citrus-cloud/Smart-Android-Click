@@ -37,7 +37,7 @@ class ScenarioActivity : ComponentActivity() {
                 ScenarioScreen(
                     context = this,
                     onStart = {
-                        startForegroundService(Intent(this, ScenarioRunnerService::class.java).apply { action = ScenarioRunnerService.ACTION_START })
+                        startService(Intent(this, ScenarioRunnerService::class.java).apply { action = ScenarioRunnerService.ACTION_START })
                     },
                     onStop = {
                         startService(Intent(this, ScenarioRunnerService::class.java).apply { action = ScenarioRunnerService.ACTION_STOP })
@@ -52,6 +52,7 @@ class ScenarioActivity : ComponentActivity() {
 @Composable
 private fun ScenarioScreen(context: Context, onStart: () -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
     var config by remember { mutableStateOf(ScenarioStore.load(context)) }
+    var status by remember { mutableStateOf("Готово") }
     fun refresh() { config = ScenarioStore.load(context) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -68,6 +69,7 @@ private fun ScenarioScreen(context: Context, onStart: () -> Unit, onStop: () -> 
                     Text("Метки: ${config.markers.size}")
                     Text("Таймер: ${config.intervalMs}мс")
                     Text("Повторы: ${if (config.infinite) "∞" else config.repeatCount}")
+                    Text("Статус: $status")
                     if (config.markers.isEmpty()) {
                         Text("Сначала открой «Метки поверх», добавь и расставь метки. После этого сценарий сможет их запускать.", color = MaterialTheme.colorScheme.error)
                     }
@@ -83,9 +85,23 @@ private fun ScenarioScreen(context: Context, onStart: () -> Unit, onStop: () -> 
                 }
             }
 
-            Button(onClick = onStart, modifier = Modifier.fillMaxWidth(), enabled = config.markers.isNotEmpty(), shape = RoundedCornerShape(20.dp)) { Text("Запустить сценарий") }
-            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Остановить сценарий") }
-            OutlinedButton(onClick = { refresh() }, modifier = Modifier.fillMaxWidth()) { Text("Обновить из меток") }
+            Button(
+                onClick = {
+                    onStart()
+                    status = "Сценарий запущен"
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = config.markers.isNotEmpty(),
+                shape = RoundedCornerShape(20.dp),
+            ) { Text("Запустить сценарий") }
+            OutlinedButton(
+                onClick = {
+                    onStop()
+                    status = "Сценарий остановлен"
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Остановить сценарий") }
+            OutlinedButton(onClick = { refresh(); status = "Обновлено" }, modifier = Modifier.fillMaxWidth()) { Text("Обновить из меток") }
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
         }
     }

@@ -1,14 +1,8 @@
 package com.clickflow.android.scenario
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +36,6 @@ class ScenarioRunnerService : Service() {
         }
         val config = ScenarioStore.load(this)
         if (config.markers.isEmpty()) {
-            startForegroundCompat("Нет overlay-меток")
             scope.launch {
                 delay(900)
                 stopSelf()
@@ -50,13 +43,11 @@ class ScenarioRunnerService : Service() {
             return
         }
 
-        startForegroundCompat("Сценарий запущен")
         job = scope.launch {
             var cycle = 0
             while (isActive && (config.infinite || cycle < config.repeatCount)) {
-                config.markers.forEachIndexed { index, marker ->
+                config.markers.forEach { marker ->
                     if (!isActive) return@launch
-                    startForegroundCompat("Цикл ${cycle + 1}/${if (config.infinite) "∞" else config.repeatCount} · метка ${index + 1}")
                     tapper.performSingleTap(marker.x, marker.y, 70L)
                     delay(config.intervalMs)
                 }
@@ -64,27 +55,6 @@ class ScenarioRunnerService : Service() {
             }
             stopSelf()
         }
-    }
-
-    private fun startForegroundCompat(text: String) {
-        val channelId = ensureChannel()
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("ClickFlow")
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setOngoing(true)
-            .build()
-        startForeground(NOTIFICATION_ID, notification)
-    }
-
-    private fun ensureChannel(): String {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Scenario runner", NotificationManager.IMPORTANCE_LOW))
-            }
-        }
-        return CHANNEL_ID
     }
 
     override fun onDestroy() {
@@ -96,7 +66,5 @@ class ScenarioRunnerService : Service() {
     companion object {
         const val ACTION_START = "com.clickflow.android.scenario.START"
         const val ACTION_STOP = "com.clickflow.android.scenario.STOP"
-        private const val CHANNEL_ID = "scenario_runner"
-        private const val NOTIFICATION_ID = 4272
     }
 }
