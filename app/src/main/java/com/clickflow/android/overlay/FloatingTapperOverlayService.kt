@@ -1,6 +1,7 @@
 package com.clickflow.android.overlay
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -24,25 +25,26 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private const val PREFS_NAME = "clickflow_tapper"
+private const val KEY_INTERVAL_MS = "interval_ms"
+private const val KEY_REPEAT_COUNT = "repeat_count"
+private const val KEY_INFINITE = "infinite"
+private const val KEY_OVERLAY_MARKERS = "overlay_markers"
+
 class FloatingTapperOverlayService : Service() {
 
-    private data class FloatingMarker(
-        val id: Int,
-        val view: TextView,
-        val params: WindowManager.LayoutParams,
-    )
+    private data class FloatingMarker(val id: Int, val view: TextView, val params: WindowManager.LayoutParams)
 
     private lateinit var windowManager: WindowManager
     private var panel: LinearLayout? = null
-    private var panelParams: WindowManager.LayoutParams? = null
+    private var panelStatus: TextView? = null
+    private var panelStartButton: Button? = null
     private val markers = mutableListOf<FloatingMarker>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var tapJob: Job? = null
     private var running = false
     private var nextId = 1
-    private var intervalMs: Long = 500L
-    private var repeatCount: Int = 100
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,11 +52,14 @@ class FloatingTapperOverlayService : Service() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         showPanel()
-        addMarker(260, 420)
+        loadMarkers()
+        if (markers.isEmpty()) addMarker(260, 420)
+        updateStatus("${markers.size} меток")
     }
 
     override fun onDestroy() {
         stopLoop()
+        saveMarkers()
         markers.toList().forEach { runCatching { windowManager.removeView(it.view) } }
         markers.clear()
         panel?.let { runCatching { windowManager.removeView(it) } }
@@ -62,12 +67,8 @@ class FloatingTapperOverlayService : Service() {
         super.onDestroy()
     }
 
-    private fun overlayType(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-    } else {
-        @Suppress("DEPRECATION")
-        WindowManager.LayoutParams.TYPE_PHONE
-    }
+    private fun prefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun overlayType(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
 
     private fun roundedBg(color: Int, strokeColor: Int? = null): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
@@ -82,7 +83,6 @@ class FloatingTapperOverlayService : Service() {
             setPadding(14, 12, 14, 12)
             background = roundedBg(0xF20D0E10.toInt(), 0x55FFFFFF)
         }
-
         val title = TextView(this).apply {
             text = "ClickFlow"
             textSize = 15f
@@ -90,7 +90,7 @@ class FloatingTapperOverlayService : Service() {
             gravity = Gravity.CENTER
         }
         val status = TextView(this).apply {
-            text = "${markers.size} метка"
+            text = "Готово"
             textSize = 12f
             setTextColor(0xFFD9D9D9.toInt())
             gravity = Gravity.CENTER
@@ -98,15 +98,7 @@ class FloatingTapperOverlayService : Service() {
         val startStop = Button(this).apply {
             text = "Старт"
             textSize = 12f
-            setOnClickListener {
-                if (running) {
-                    stopLoop()
-                    text = "Старт"
-                    status.text = "Стоп"
-                } else {
-                    startLoop(status, this)
-                }
-            }
+            setOnClickListener { if (running) stopLoop() else startLoop() }
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val add = Button(this).apply {
@@ -115,7 +107,8 @@ class FloatingTapperOverlayService : Service() {
             setOnClickListener {
                 if (markers.size < 5) {
                     addMarker(260 + markers.size * 55, 420 + markers.size * 55)
-                    status.text = "${markers.size} меток"
+                    saveMarkers()
+                    updateStatus("${markers.size} меток")
                 }
             }
         }
@@ -124,7 +117,8 @@ class FloatingTapperOverlayService : Service() {
             textSize = 14f
             setOnClickListener {
                 removeLastMarker()
-                status.text = "${markers.size} меток"
+                saveMarkers()
+                updateStatus("${markers.size} меток")
             }
         }
         val close = Button(this).apply {
@@ -140,26 +134,21 @@ class FloatingTapperOverlayService : Service() {
         root.addView(startStop, LinearLayout.LayoutParams(240, 76))
         root.addView(row)
 
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
+        val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
             x = 28
             y = 120
         }
-
-        makeDraggable(root, lp)
+        makeDraggable(root, lp, saveOnEnd = false)
         panel = root
-        panelParams = lp
+        panelStatus = status
+        panelStartButton = startStop
         windowManager.addView(root, lp)
     }
 
-    private fun addMarker(x: Int, y: Int) {
-        val id = nextId++
+    private fun addMarker(x: Int, y: Int, forcedId: Int? = null) {
+        val id = forcedId ?: nextId++
+        nextId = maxOf(nextId, id + 1)
         val marker = TextView(this).apply {
             text = "$id"
             textSize = 18f
@@ -172,18 +161,12 @@ class FloatingTapperOverlayService : Service() {
             }
             elevation = 16f
         }
-        val lp = WindowManager.LayoutParams(
-            86,
-            86,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
+        val lp = WindowManager.LayoutParams(86, 86, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
             this.x = x
             this.y = y
         }
-        makeDraggable(marker, lp)
+        makeDraggable(marker, lp, saveOnEnd = true)
         windowManager.addView(marker, lp)
         markers.add(FloatingMarker(id, marker, lp))
     }
@@ -194,7 +177,7 @@ class FloatingTapperOverlayService : Service() {
         runCatching { windowManager.removeView(last.view) }
     }
 
-    private fun makeDraggable(view: View, lp: WindowManager.LayoutParams) {
+    private fun makeDraggable(view: View, lp: WindowManager.LayoutParams, saveOnEnd: Boolean) {
         var downRawX = 0f
         var downRawY = 0f
         var startX = 0
@@ -214,24 +197,33 @@ class FloatingTapperOverlayService : Service() {
                     windowManager.updateViewLayout(view, lp)
                     true
                 }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (saveOnEnd) saveMarkers()
+                    true
+                }
                 else -> true
             }
         }
     }
 
-    private fun startLoop(status: TextView, button: Button) {
+    private fun startLoop() {
         val service = ClickFlowAccessibilityService.liveInstance
         if (service == null) {
-            status.text = "Включи Accessibility"
+            updateStatus("Включи Accessibility")
             return
         }
+        val p = prefs()
+        val intervalMs = p.getLong(KEY_INTERVAL_MS, 500L)
+        val repeatCount = p.getInt(KEY_REPEAT_COUNT, 100)
+        val infinite = p.getBoolean(KEY_INFINITE, false)
+
         running = true
-        button.text = "Стоп"
-        status.text = "Работает · ${markers.size} меток"
+        panelStartButton?.text = "Стоп"
+        updateStatus("Работает · ${markers.size} меток")
 
         tapJob = scope.launch {
-            repeat(repeatCount) { cycle ->
-                if (!isActive || !running) return@launch
+            var cycle = 0
+            while (isActive && running && (infinite || cycle < repeatCount)) {
                 markers.toList().forEachIndexed { index, marker ->
                     if (!isActive || !running) return@launch
                     setAllOverlaysVisible(false)
@@ -241,13 +233,15 @@ class FloatingTapperOverlayService : Service() {
                     val ok = service.performSingleTap(centerX, centerY, 70L)
                     delay(60)
                     setAllOverlaysVisible(true)
-                    status.text = if (ok) "${cycle + 1}/$repeatCount · метка ${index + 1}" else "Ошибка"
+                    val total = if (infinite) "∞" else repeatCount.toString()
+                    updateStatus(if (ok) "${cycle + 1}/$total · метка ${index + 1}" else "Ошибка")
                     delay(intervalMs)
                 }
+                cycle++
             }
             running = false
-            button.text = "Старт"
-            status.text = "Готово"
+            panelStartButton?.text = "Старт"
+            updateStatus("Готово")
         }
     }
 
@@ -261,6 +255,28 @@ class FloatingTapperOverlayService : Service() {
         running = false
         tapJob?.cancel()
         tapJob = null
+        panelStartButton?.text = "Старт"
+        updateStatus("Стоп")
         setAllOverlaysVisible(true)
+    }
+
+    private fun updateStatus(text: String) { panelStatus?.text = text }
+
+    private fun saveMarkers() {
+        val raw = markers.joinToString(";") { "${it.id},${it.params.x},${it.params.y}" }
+        prefs().edit().putString(KEY_OVERLAY_MARKERS, raw).apply()
+    }
+
+    private fun loadMarkers() {
+        val raw = prefs().getString(KEY_OVERLAY_MARKERS, null).orEmpty()
+        raw.split(";").filter { it.isNotBlank() }.take(5).forEach { part ->
+            val pieces = part.split(",")
+            if (pieces.size == 3) {
+                val id = pieces[0].toIntOrNull()
+                val x = pieces[1].toIntOrNull()
+                val y = pieces[2].toIntOrNull()
+                if (id != null && x != null && y != null) addMarker(x, y, id)
+            }
+        }
     }
 }
