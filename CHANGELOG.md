@@ -5,6 +5,42 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 66 (Part 1) — Screen-capture lifecycle controller (pure Kotlin)
+
+First slice of Phase 2 ("move the brain to Android"). Introduces the
+framework-free state machine that the real MediaProjection pipeline (Part 2)
+will drive. No Android APIs here, so it runs under `./gradlew testDebugUnitTest`
+alongside the Step 65 suite.
+
+- New `app/src/main/java/com/clickflow/android/capture/`:
+- `ScreenCaptureState.kt` — `CapturePermission` (NOT_REQUESTED / GRANTED /
+DENIED), `CaptureStatus` (IDLE / AWAITING_PERMISSION / CAPTURING / FRAME_READY /
+STOPPED / ERROR), and `CaptureFrame` (metadata only: width, height,
+capturedAtMs — holds no pixels). The state carries the invariant flags
+`inMemoryOnly = true`, `persistedToDisk = false`, `analysisPerformed = false`.
+- `ScreenCaptureController.kt` — `@Synchronized` state machine:
+`requestPermission` → AWAITING_PERMISSION; `onPermissionResult(granted)` →
+GRANTED or DENIED + error; `startCapture` requires GRANTED; `onFrameCaptured`
+records frame metadata only (rejects a non-CAPTURING state and non-positive
+dimensions); `stop` drops the in-memory frame; `onError`; `reset` preserves a
+previously granted permission. Holds no Android dependencies.
+- New `app/src/test/java/com/clickflow/android/capture/ScreenCaptureControllerTest.kt`
+— initial state, permission request/deny, start-requires-permission,
+granted→capture→in-memory frame (asserts the three privacy invariants),
+frame-requires-capturing, invalid-dimension rejection, stop-drops-frame,
+reset-preserves-permission, and the error transition.
+- `AppInfo.STEP` bumped to Step 66 (Part 1).
+- Deferred to Step 66 Part 2: the real `ScreenCaptureService`
+(MediaProjection + ImageReader + VirtualDisplay capturing a single frame to
+memory), the Activity consent flow (`createScreenCaptureIntent`), the
+foreground-service manifest entries (`FOREGROUND_SERVICE` /
+`FOREGROUND_SERVICE_MEDIA_PROJECTION` / `POST_NOTIFICATIONS`), and the capture
+screen UI.
+
+Safety / privacy invariants: a captured frame lives only in RAM and is never
+written to disk; this step captures only — no OCR / template matching runs;
+`SafetyGate.canRunRealTap()` is untouched and still returns `false`.
+
 ### Step 65 — RealTap JVM unit-test suite
 
 First automated test coverage for the real-tap prototype. Pure-JVM JUnit 4 (no

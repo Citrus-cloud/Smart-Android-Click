@@ -106,3 +106,15 @@ First automated test coverage for the real-tap prototype — pure-JVM JUnit 4, n
 - Covered: bulk gate always closed; single-proto / controlled-session gating; `resetPrototypeFlags` semantics; controller decision matrix (invalid consent / no service / gate-blocked / allowed) with matching granular audit types; consent TTL + single-use nonce; the 10-item safety-review lifecycle.
 - Deferred (need instrumentation / Robolectric): ViewModel StateFlow transitions and the `confirmRealTap` message-emission path. The domain logic they delegate to is covered here.
 - `AppInfo.STEP` bumped to 65.
+
+## Step 66 (Part 1)
+
+Phase 2 kickoff — bring screen capture ("the eyes") to Android, starting with a pure, testable lifecycle controller before any MediaProjection plumbing.
+
+- New `capture/` package:
+  - `ScreenCaptureState.kt` — `CapturePermission` (NOT_REQUESTED / GRANTED / DENIED), `CaptureStatus` (IDLE / AWAITING_PERMISSION / CAPTURING / FRAME_READY / STOPPED / ERROR), `CaptureFrame` (metadata only — width, height, capturedAtMs; no pixels). Invariant flags: `inMemoryOnly` (always true), `persistedToDisk` (always false), `analysisPerformed` (always false).
+  - `ScreenCaptureController.kt` — framework-free `@Synchronized` state machine: `requestPermission` / `onPermissionResult` / `startCapture` / `onFrameCaptured` / `stop` / `onError` / `reset`. No Android imports, so it is unit-tested on the JVM.
+- `app/src/test/java/com/clickflow/android/capture/ScreenCaptureControllerTest.kt` covers every transition + the three privacy invariants.
+- Mirrors the proven `RealTapController` pattern: build the brain as pure logic guarded by tests first, wire the real I/O (Part 2) afterwards.
+- Deferred to Part 2: real `ScreenCaptureService` (MediaProjection / ImageReader / VirtualDisplay → one in-memory frame), Activity consent flow (`createScreenCaptureIntent`), foreground-service manifest permissions (`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PROJECTION` / `POST_NOTIFICATIONS`), and the capture UI screen.
+- Invariants: frame is RAM-only (never persisted/exported/backed up); capture only, no analysis; `SafetyGate.canRunRealTap()` unchanged (`false`).
