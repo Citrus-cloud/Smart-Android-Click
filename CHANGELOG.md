@@ -5,50 +5,51 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
-### Step 73 — Visual scenario builder + presets (domain layer)
+### Step 74 — Controlled tap session (rate/count limits, TTL, emergency stop)
 
-Phase 2 closes: introduces the builder-pattern domain layer for assembling
-visual scenarios from typed actions and built-in presets. No UI, no persistence,
-pure Kotlin + JVM tests.
+Phase 3 begins: introduces the domain model and manager for a rate-limited
+controlled real-tap session. Bulk real taps remain categorically forbidden;
+this step adds the session shell that Step 75 will wire to a smart target.
 
-- New `scenario/ScenarioPreset.kt` — three declarations:
-  - `enum class PresetActionType { TAP, WAIT, NOTE }`.
-  - `data class PresetAction(type, label, x, y, durationMs, note)` — one step;
-    `isValid` enforces type-specific constraints (TAP: x/y in [0,1]; WAIT:
-    durationMs ≥ 100; NOTE: non-blank, ≤ 300 chars; label ≤ 60).
-  - `data class ScenarioPreset(id, name, description, actions)` — named template;
-    `isValid` checks id/name non-blank, name ≤ 60, description ≤ 200, 1–20
-    actions, all actions valid.
-  - `object BuiltInPresets` — `TAP_CENTER` (single centre tap) and
-    `TAP_AND_WAIT` (centre tap + 500 ms wait); `ALL` list for enumeration.
-- New `scenario/VisualScenarioBuilder.kt` — mutable ordered action list
-  (max 20) with CRUD + preset support; all mutations return
-  `BuilderResult.Ok` / `BuilderResult.Error(reason)` with stable reason codes
-  (`invalid_action`, `too_many_actions`, `invalid_index`, `invalid_preset`):
-  - `add(action)`, `update(index, action)`, `remove(index)`, `move(from, to)`,
-    `clear()`.
-  - `applyPreset(preset)` — replaces all actions with preset's actions.
-  - `appendPreset(preset)` — appends preset's actions to existing list.
-  - Read-only `actions`, `count`, `isEmpty`. No Android imports.
-- New `app/src/test/java/com/clickflow/android/scenario/VisualScenarioBuilderTest.kt`
-  — 13 JVM tests: starts empty, add valid, add invalid (→ error), add → 20 limit,
-  update replaces, update out-of-bounds, remove at index, move reorders, clear,
-  applyPreset replaces all, appendPreset appends, appendPreset limit exceeded,
-  BuiltInPresets all valid.
-- `AppInfo.STEP` bumped to Step 73.
+- New `realtap/ControlledTapSession.kt` — three declarations:
+  - `data class ControlledTapSession(sessionId, maxTaps, ttlMs, startedAtMs)` —
+    mutable tap counter + terminated flag. `isActive(nowMs)`, `isExhausted()`,
+    `recordTap(nowMs)` (returns false when inactive or exhausted), `terminate()`,
+    `remainingTaps()`, `remainingTtlMs(nowMs)`.
+  - `enum class ControlledTapBlockReason { SESSION_INACTIVE, SESSION_EXPIRED,
+    SESSION_TERMINATED, TAP_LIMIT_REACHED, GATE_CLOSED }`.
+  - `sealed class ControlledTapDispatchResult { Allowed, Blocked(reason) }`.
+- New `realtap/ControlledTapSessionManager.kt` — manages one active session:
+  - `startSession(sessionId, maxTaps 1–10, ttlMs 1_000–60_000)` — validates
+    params, checks `SafetyGate.canRunControlledRealTapSession(sessionId)`, creates
+    session. Returns `SessionResult.Ok` / `SessionResult.Error(reason)` with codes
+    `already_active`, `invalid_params`, `gate_closed`.
+  - `endSession()` — terminates and nulls the session.
+  - `emergencyStop()` — delegates to `endSession()`.
+  - `evaluateTap()` — checks session existence → not terminated → not expired →
+    not exhausted → `SafetyGate.canRunRealTap()` (bulk, always false until
+    Step 75). Returns `ControlledTapDispatchResult`.
+  - `hasActiveSession()`, `session` read-only. Injected clock + gate.
+- New `app/src/test/java/com/clickflow/android/realtap/ControlledTapSessionManagerTest.kt`
+  — 14 JVM tests: no session initially, start → active, double-start error,
+  invalid maxTaps, invalid TTL, endSession clears, evaluateTap no session →
+  INACTIVE, evaluateTap active → GATE_CLOSED (bulk false), session expires after
+  TTL, recordTap exhausts, remainingTaps decrements, remainingTtlMs decrements,
+  emergencyStop terminates, evaluateTap after terminate → INACTIVE.
+- `AppInfo.STEP` bumped to Step 74.
 
-Safety / privacy invariants: builder is pure in-memory data — no capture, no tap,
-no persistence; `SafetyGate.canRunRealTap()` unchanged (`false`).
+Safety invariants: `SafetyGate.canRunRealTap()` returns `false` unconditionally;
+`evaluateTap()` always reaches the bulk-gate check and returns `GATE_CLOSED`
+until Step 75 wires the smart-target dispatch path. No pixels, no tap, no I/O.
 
-### Step 72 — Text-target scenario controller
+### Step 73 — Visual scenario builder + presets
+- `ScenarioPreset` + `BuiltInPresets` + `VisualScenarioBuilder`. 13 JVM tests.
 
+### Step 72 — Text-target controller
 - `TextTargetResult` + `TextTargetOutcome` + `TextTargetController`. 11 JVM tests.
 
 ### Step 71 — On-device OCR stub
-
-- `OcrTextRegion` + `OcrResult` + `OcrProvider` + `StubOcrProvider` +
-  `OcrController`. 12 JVM tests.
+- `OcrProvider` interface + `StubOcrProvider` + `OcrController`. 12 JVM tests.
 
 ### Steps 52–70 — Foundation through image-target controller
-
-See git history for full details.
+See git history.

@@ -1,63 +1,66 @@
 <PLACEHOLDER_EXISTING_CONTENT>
 
 ## Step 61
-Read-only permissions surface. `PermissionsManager`, `Screen.PERMISSIONS`.
+Read-only permissions. `PermissionsManager`, `Screen.PERMISSIONS`.
 
 ## Step 62
-Real Tap Prototype — UI skeleton, dispatch blocked. Six prototype ViewModel APIs.
+Real Tap Prototype — UI skeleton. Six prototype ViewModel APIs.
 
 ## Step 63
-Live SafetyGate flags + ViewModel wiring. `RealTapDispatchResult`, `safetyGateReasons`.
+Live SafetyGate flags + ViewModel wiring. `RealTapDispatchResult`.
 
 ## Step 64
-RealTapController wired, granular audit, marker invariant, duplicate SafetyState fix.
+RealTapController wired, granular audit, marker invariant, build fix.
 
 ## Step 65
-First JVM test suite: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
+JVM test suite: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
 
 ## Step 66 (Part 1)
-Pure-Kotlin screen-capture lifecycle: `ScreenCaptureState` + `ScreenCaptureController` + tests.
+Screen-capture lifecycle: `ScreenCaptureState` + `ScreenCaptureController` + tests.
 
 ## Step 66 (Part 2)
-Real MediaProjection: `ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`, manifest.
+Real MediaProjection: `ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`.
 
 ## Step 67
-`CaptureRegion` (normalized [0,1]) + `RegionSelectorController` (EMPTY/DRAGGING/SELECTED) + tests.
+`CaptureRegion` + `RegionSelectorController` (EMPTY/DRAGGING/SELECTED) + tests.
 
 ## Step 68
-`CaptureTemplate` + `TemplateManager` (@Synchronized, sequential ids, Result.Ok/Error) + 18 JVM tests.
+`CaptureTemplate` + `TemplateManager` + 18 JVM tests.
 
 ## Step 69
-`MatchResult` + `TemplateMatcher` (evaluate/evaluateBest/matchesOnly, injected nowProvider) + 8 JVM tests.
+`MatchResult` + `TemplateMatcher` (evaluate/evaluateBest/matchesOnly) + 8 JVM tests.
 
 ## Step 70
-`ImageTargetResult` + `ImageTargetOutcome` (Matched/NoMatch/Error) + `ImageTargetController` + 10 JVM tests.
+`ImageTargetResult` + `ImageTargetOutcome` + `ImageTargetController` + 10 JVM tests.
 
 ## Step 71
-`OcrTextRegion` + `OcrResult` (from/empty factories) + `interface OcrProvider` +
-`StubOcrProvider` + `OcrController` (findText/findExact/bestMatch) + 12 JVM tests.
+`OcrTextRegion` + `OcrResult` + `interface OcrProvider` + `StubOcrProvider` + `OcrController` + 12 JVM tests.
 
 ## Step 72
-`TextTargetResult` + `TextTargetOutcome` (Matched/NoMatch/Error) +
-`TextTargetController` (validate → OCR → bestMatch → typed outcome) + 11 JVM tests.
+`TextTargetResult` + `TextTargetOutcome` + `TextTargetController` + 11 JVM tests.
 
 ## Step 73
+`ScenarioPreset` + `PresetAction` + `BuiltInPresets` + `VisualScenarioBuilder` + 13 JVM tests.
 
-Visual scenario builder + presets — domain layer for assembling visual scenarios.
+## Step 74
 
-- `scenario/ScenarioPreset.kt`:
-  - `enum PresetActionType { TAP, WAIT, NOTE }`.
-  - `data class PresetAction(type, label, x, y, durationMs, note)` + `isValid`.
-  - `data class ScenarioPreset(id, name, description, actions)` + `isValid`
-    (id/name non-blank, name ≤ 60, description ≤ 200, 1–20 valid actions).
-  - `object BuiltInPresets { TAP_CENTER, TAP_AND_WAIT, ALL }`.
-- `scenario/VisualScenarioBuilder.kt`:
-  - Mutable ordered action list (max 20).
-  - `add`, `update`, `remove`, `move`, `clear`, `applyPreset`, `appendPreset`.
-  - All mutations return `BuilderResult.Ok` / `BuilderResult.Error(reason)`.
-  - Reason codes: `invalid_action`, `too_many_actions`, `invalid_index`, `invalid_preset`.
-  - No Android imports.
-- Test: `VisualScenarioBuilderTest.kt` — 13 JVM tests.
-- `AppInfo.STEP` → Step 73.
-- Invariants: pure in-memory data — no capture, no tap, no persistence;
-  `SafetyGate.canRunRealTap()` unchanged (`false`).
+Controlled tap session — Phase 3 domain model.
+
+- `realtap/ControlledTapSession.kt`:
+  - `data class ControlledTapSession(sessionId, maxTaps, ttlMs, startedAtMs)`: mutable
+    tap counter + terminated flag. `isActive(nowMs)`, `isExhausted()`, `recordTap(nowMs)`,
+    `terminate()`, `remainingTaps()`, `remainingTtlMs(nowMs)`.
+  - `enum ControlledTapBlockReason { SESSION_INACTIVE, SESSION_EXPIRED, SESSION_TERMINATED,
+    TAP_LIMIT_REACHED, GATE_CLOSED }`.
+  - `sealed ControlledTapDispatchResult { Allowed, Blocked(reason) }`.
+- `realtap/ControlledTapSessionManager.kt`:
+  - `startSession(sessionId, maxTaps 1–10, ttlMs 1_000–60_000)`: validates params →
+    `gate.canRunControlledRealTapSession` → creates session.
+    Result codes: `already_active`, `invalid_params`, `gate_closed`.
+  - `endSession()`, `emergencyStop()`, `evaluateTap()` (checks: inactive → terminated
+    → expired → exhausted → bulk gate), `hasActiveSession()`, `session`.
+  - Injected gate + nowProvider.
+- Test: `ControlledTapSessionManagerTest.kt` — 14 JVM tests.
+- `AppInfo.STEP` → Step 74.
+- Invariants: `SafetyGate.canRunRealTap()` = `false`; `evaluateTap()` always returns
+  GATE_CLOSED until Step 75. No tap, no I/O.
