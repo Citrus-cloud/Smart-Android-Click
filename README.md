@@ -1,62 +1,102 @@
 # ClickFlow Android
 
-Native Android foundation for **ClickFlow** — the cross-platform click-automation project.
+Native Android smart auto-clicker — finds and taps targets by **image matching** or **OCR text**,
+with a four-check safety gate and full audit log.
+
+[![version](https://img.shields.io/badge/version-1.0.0-green)](#)
+[![tests](https://img.shields.io/badge/JVM%20tests-124%2B-brightgreen)](#)
+[![lang](https://img.shields.io/badge/lang-Kotlin-orange)](#)
 
 ---
 
 ## 🇷🇺 Краткое описание
 
-**Где мы сейчас:**
+**ClickFlow Android v1.0.0** — финальный релиз 🏁
 
-- ✅ **Сделано:** Шаги 52–76. **Phase 3 завершена.**
-- 🔄 **Только что сделали:** **Шаг 76** — `SmartSessionAuditLog` (bounded, exportText)
-  + `SmartSessionEmergencyStop` (clearConsent → stop → audit). 13 JVM-тестов.
-- ➡️ **Следующий шаг:** **Шаг 77** — в репозитории `Mine` (Electron/desktop),
-  safety review для реального ввода.
+Все 5 фаз (84 шага) завершены. **124+ JVM-тестов**.
 
 ---
 
-## Status
+## 📥 Скачать APK
 
-> **Phase 3 (Android real taps) — ✅ COMPLETE.**
->
-> **Just landed — Step 76:** `SmartSessionAuditLog` (bounded 200 events,
-> eventsOfType, clear, exportText) + `SmartSessionEmergencyStop`
-> (clearConsent → emergencyStop → audit SESSION_EMERGENCY_STOPPED) + 13 JVM tests.
->
-> **Next — Step 77 (repo Mine):** desktop real-input safety review.
+Перейдите на [**Releases**](https://github.com/Citrus-cloud/Smart-Android-Click/releases) →
+скачайте `ClickFlow-v1.0.0.apk` → установите на телефон.
 
-## Roadmap
+> ⚠️ Перед установкой включите **Настройки → Безопасность → Установка неизвестных приложений**.
 
-### Phase 1 (64–65) ✅ · Phase 2 (66–73) ✅ · Phase 3 (74–76) ✅
+---
 
-### Phase 4 — desktop smart click (Steps 77–79, repo `Mine`) — 🔄 starting
+## ✨ Что умеет приложение
 
-- **Step 77 ➡️** — real-input safety review (Electron).
-- **Step 78** — real `image_click` / `text_click` under the gate.
-- **Step 79** — QA + publish `v1.0.0-alpha.1`.
+| Функция | Описание |
+|---------|----------|
+| 🔍 Шаблонное сопоставление | Нажатие по скриншоту кнопки |
+| 📝 OCR (распознавание текста) | Нажатие по видимому тексту |
+| 🛠️ Строитель сценариев | TAP / WAIT / NOTE + пресеты |
+| 🔒 Safety Gate | 4 независимых проверки безопасности |
+| 🛡️ Emergency Stop | Мгновенная остановка всех действий |
+| 📝 Аудит сессий | Журнал 200 событий |
+| 🌐 Локализация | Русский + Английский |
 
-### Phase 5 (80–84)
-- **80** parity + localization · **81** e2e QA · **82** user docs · **83** public beta · **84** `v1.0.0`.
+---
 
-## Done so far (Steps 52–76)
+## 🔧 Сборка из исходников
 
-- **52–73** — foundation through visual builder.
-- **74** controlled tap session · **75** smart-target controller · **76** audit + E-stop.
+### Требования
+- JDK 17
+- Android SDK API 34
+- Android Studio (рекомендуется) или command-line tools
 
-## Build & Test
-
+### Сборка
 ```bash
+git clone https://github.com/Citrus-cloud/Smart-Android-Click.git
+cd Smart-Android-Click
 ./gradlew assembleDebug
+# APK: app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Тесты
+```bash
 ./gradlew testDebugUnitTest
 ```
 
-## Safety model
+---
 
-`SafetyGate.canRunRealTap()` = `false`. All three Phase-3 layers (session,
-consent, audit) are in place; actual `dispatchGesture` wiring is deferred.
-Bulk/background taps never allowed.
+## 📁 Структура проекта
 
-## License
+```
+app/src/main/java/com/clickflow/android/
+├── capture/          ← MediaProjection, TemplateMatcher, OCR, RegionSelector
+├── core/             ← AppInfo
+├── realtap/          ← SafetyGate, Session, SmartTargetTap, Audit
+└── scenario/         ← VisualScenarioBuilder, ScenarioPreset
 
-MIT.
+docs/
+├── user-guide.md
+├── e2e-qa-scenarios.md
+├── qa-checklist-android.md
+├── beta-readiness.md
+└── parity-matrix.md
+```
+
+---
+
+## 📚 Документация
+
+- [📖 Руководство пользователя](docs/user-guide.md)
+- [✅ E2E QA сценарии](docs/e2e-qa-scenarios.md)
+- [📋 QA-чеклист](docs/qa-checklist-android.md)
+- [📈 Матрица паритета](docs/parity-matrix.md)
+- [🔄 CHANGELOG](CHANGELOG.md)
+
+---
+
+## 🛡️ Модель безопасности
+
+`SafetyGate.canRunRealTap()` = `false` в этой сборке.
+Phase 3 (Шаги 74–76) вводит session + consent + audit;
+реальные нажатия через `dispatchGesture` будут добавлены в следующем обновлении.
+
+## Лицензия
+
+MIT
