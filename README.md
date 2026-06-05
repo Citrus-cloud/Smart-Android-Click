@@ -12,86 +12,69 @@ port and **not** a runtime copy of the desktop code.
 
 **Где мы сейчас:**
 
-- ✅ **Сделано:** Шаги 52–70.
-- 🔄 **Только что сделали:** **Шаг 70** — `ImageTargetController`: запросит шаблон из
-  `TemplateManager`, запускает `TemplateMatcher.evaluateBest`, возвращает
-  `ImageTargetOutcome` (Matched / NoMatch / Error) с `highlight`. 10 JVM-тестов.
-- ➡️ **Следующий шаг:** **Шаг 71** — on-device OCR: интерфейс + stub для
-  распознавания текста на устройстве (без реального ML пока).
+- ✅ **Сделано:** Шаги 52–71.
+- 🔄 **Только что сделали:** **Шаг 71** — OCR-абстракция: `OcrTextRegion` + `OcrResult` +
+  `interface OcrProvider` + `StubOcrProvider` + `OcrController` (findText / findExact /
+  bestMatch). 12 JVM-тестов. ML Kit ещё не подключён.
+- ➡️ **Следующий шаг:** **Шаг 72** — сценарий «Text target»: `TextTargetController`
+  (запрос → OCR → `bestMatch` → `TextTargetOutcome`).
 
 ---
 
 ## Status
 
-> **Phase 2 («the brain» on Android) — in progress. Current: Step 70 done, Step 71 next.**
+> **Phase 2 («the brain» on Android) — in progress. Current: Step 71 done, Step 72 next.**
 >
-> **Just landed — Step 70 (Image-target controller):** `ImageTargetResult` +
-> `ImageTargetOutcome` (sealed: Matched / NoMatch / Error) + `ImageTargetController`
-> (`evaluate(templateId, candidates)` wiring `TemplateManager` → `TemplateMatcher` →
-> typed outcome with `highlight`). 10 JVM tests. Pure float-score preview — no bitmaps,
-> no tap.
+> **Just landed — Step 71 (On-device OCR stub):** `OcrTextRegion` / `OcrResult` /
+> `OcrProvider` interface / `StubOcrProvider` / `OcrController` with 12 JVM tests.
+> Pure abstraction — no ML Kit, no frame bytes, no tap.
 >
-> **Next — Step 71 (On-device OCR stub):** `OcrResult` + `OcrProvider` interface +
-> `StubOcrProvider` (returns synthetic text regions), JVM tests. Brain-first, no ML yet.
+> **Next — Step 72 (Text-target scenario controller):** wires `OcrController` into a
+> `TextTargetController` that returns a typed `TextTargetOutcome` with a highlighted
+> bounds region (preview only, no tap).
 >
 > Bulk real taps remain hard-disabled by `SafetyGate.canRunRealTap() == false`.
 
 ## What this app is (and does)
 
-ClickFlow Android is a **smart auto-clicker**: an automation tool that can decide *where* to tap
-by looking at the screen — either by matching a reference image (template) or by reading text
-(on-device OCR) — and then perform that tap **only with the user's explicit, audited consent**.
+ClickFlow Android is a **smart auto-clicker**: find *where* to tap by image template
+matching or on-device OCR, then tap with explicit consent and full audit.
 
 ## Roadmap (Steps 64–84)
 
-### Phase 1 — Android debt (Steps 64–65) — ✅ done
-
 ### Phase 2 — «the brain» on Android (Steps 66–73) — 🔄 in progress
 
-- **Step 66** — Screen capture (MediaProjection). ✅ done.
-- **Step 67** — Region selector. ✅ done.
-- **Step 68** — Template manager. ✅ done.
-- **Step 69** — Template matching engine. ✅ done.
-- **Step 70** — Image-target controller. ✅ done.
-- **Step 71** — ➡️ next. On-device OCR (interface + stub, no real ML yet).
-- **Step 72** — «Text target» scenario type (simulated).
+- **Step 66** — Screen capture. ✅
+- **Step 67** — Region selector. ✅
+- **Step 68** — Template manager. ✅
+- **Step 69** — Template matching engine. ✅
+- **Step 70** — Image-target controller. ✅
+- **Step 71** — On-device OCR stub. ✅
+- **Step 72** — ➡️ next. Text-target scenario controller.
 - **Step 73** — Visual scenario builder + presets.
 
-### Phase 3 — real taps on Android (Steps 74–76)
-
-### Phase 4 — desktop smart click (Steps 77–79, repo `Mine`)
-
+### Phase 3 — real taps (Steps 74–76)
+### Phase 4 — desktop smart click (Steps 77–79)
 ### Phase 5 — finish (Steps 80–84)
 
-## Done so far (Steps 52–70)
+## Done so far (Steps 52–71)
 
-- **52–67** — foundation, scenarios, profiles, audit, backup, release, simple clicker,
-  real-tap prototype + tests, screen capture, region selector.
-- **68** — template manager (`CaptureTemplate` + `TemplateManager` + 18 JVM tests).
-- **69** — template matching engine (`MatchResult` + `TemplateMatcher` + 8 JVM tests).
-- **70** — image-target controller (`ImageTargetResult` + `ImageTargetOutcome` + `ImageTargetController` + 10 JVM tests).
+- **52–67** — foundation through region selector.
+- **68** — template manager (18 JVM tests).
+- **69** — template matching engine (8 JVM tests).
+- **70** — image-target controller (10 JVM tests).
+- **71** — OCR stub: `OcrProvider` interface + `StubOcrProvider` + `OcrController` (12 JVM tests).
 
-## Build
+## Build & Test
 
 ```bash
 ./gradlew assembleDebug
 ./gradlew testDebugUnitTest
 ```
 
-## App identity
+## Safety model
 
-| | |
-|---|---|
-| Package | `com.clickflow.android` |
-| minSdk | 26 |
-| targetSdk / compileSdk | 34 |
-| versionName | 0.1.0-prealpha |
-| Stack | Kotlin, Jetpack Compose, Material 3 |
-
-## Safety model (summary)
-
-`SafetyGate.canRunRealTap()` returns `false` (hard-coded). Phase 2 is preview-only.
-No hidden automation; no captcha/anti-bot; no ad-click, banking, or payment automation.
+`SafetyGate.canRunRealTap()` = `false` (hard-coded). Phase 2 is preview-only.
 
 ## License
 
