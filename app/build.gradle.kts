@@ -11,8 +11,8 @@ android {
         applicationId = "com.clickflow.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0-prealpha"
+        versionCode = 2
+        versionName = "0.2.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

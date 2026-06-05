@@ -1,102 +1,43 @@
 # ClickFlow Android
 
-Native Android smart auto-clicker — finds and taps targets by **image matching** or **OCR text**,
-with a four-check safety gate and full audit log.
+ClickFlow — минималистичный умный автокликер для Android.
 
-[![version](https://img.shields.io/badge/version-1.0.0-green)](#)
-[![tests](https://img.shields.io/badge/JVM%20tests-124%2B-brightgreen)](#)
-[![lang](https://img.shields.io/badge/lang-Kotlin-orange)](#)
+## Возможности
 
----
+- Обычная тапалка по одной или нескольким меткам.
+- Плавающие overlay-метки поверх других приложений.
+- Сохранение настроек и позиций меток.
+- Таймер, повторы, бесконечный режим.
+- Аварийная остановка.
+- Клик по картинке/иконке.
+- Клик по тексту через OCR.
+- Простой сценарий по сохранённым overlay-меткам.
 
-## 🇷🇺 Краткое описание
+## Разрешения
 
-**ClickFlow Android v1.0.0** — финальный релиз 🏁
+ClickFlow использует системные разрешения Android:
 
-Все 5 фаз (84 шага) завершены. **124+ JVM-тестов**.
+- Accessibility — для реальных тапов.
+- Overlay — для меток поверх экрана.
+- MediaProjection — для поиска картинки и текста на экране.
 
----
+Внутренние лишние согласия и демо-чеклисты убраны из основного пользовательского потока.
 
-## 📥 Скачать APK
+## Как собрать
 
-Перейдите на [**Releases**](https://github.com/Citrus-cloud/Smart-Android-Click/releases) →
-скачайте `ClickFlow-v1.0.0.apk` → установите на телефон.
-
-> ⚠️ Перед установкой включите **Настройки → Безопасность → Установка неизвестных приложений**.
-
----
-
-## ✨ Что умеет приложение
-
-| Функция | Описание |
-|---------|----------|
-| 🔍 Шаблонное сопоставление | Нажатие по скриншоту кнопки |
-| 📝 OCR (распознавание текста) | Нажатие по видимому тексту |
-| 🛠️ Строитель сценариев | TAP / WAIT / NOTE + пресеты |
-| 🔒 Safety Gate | 4 независимых проверки безопасности |
-| 🛡️ Emergency Stop | Мгновенная остановка всех действий |
-| 📝 Аудит сессий | Журнал 200 событий |
-| 🌐 Локализация | Русский + Английский |
-
----
-
-## 🔧 Сборка из исходников
-
-### Требования
-- JDK 17
-- Android SDK API 34
-- Android Studio (рекомендуется) или command-line tools
-
-### Сборка
 ```bash
-git clone https://github.com/Citrus-cloud/Smart-Android-Click.git
-cd Smart-Android-Click
-./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
+./gradlew testDebugUnitTest --no-daemon
+./gradlew assembleDebug --no-daemon
 ```
 
-### Тесты
-```bash
-./gradlew testDebugUnitTest
+APK:
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
 ```
 
----
+## Документация
 
-## 📁 Структура проекта
-
-```
-app/src/main/java/com/clickflow/android/
-├── capture/          ← MediaProjection, TemplateMatcher, OCR, RegionSelector
-├── core/             ← AppInfo
-├── realtap/          ← SafetyGate, Session, SmartTargetTap, Audit
-└── scenario/         ← VisualScenarioBuilder, ScenarioPreset
-
-docs/
-├── user-guide.md
-├── e2e-qa-scenarios.md
-├── qa-checklist-android.md
-├── beta-readiness.md
-└── parity-matrix.md
-```
-
----
-
-## 📚 Документация
-
-- [📖 Руководство пользователя](docs/user-guide.md)
-- [✅ E2E QA сценарии](docs/e2e-qa-scenarios.md)
-- [📋 QA-чеклист](docs/qa-checklist-android.md)
-- [📈 Матрица паритета](docs/parity-matrix.md)
-- [🔄 CHANGELOG](CHANGELOG.md)
-
----
-
-## 🛡️ Модель безопасности
-
-`SafetyGate.canRunRealTap()` = `false` в этой сборке.
-Phase 3 (Шаги 74–76) вводит session + consent + audit;
-реальные нажатия через `dispatchGesture` будут добавлены в следующем обновлении.
-
-## Лицензия
-
-MIT
+- [Инструкция для тестирования](docs/TESTING_GUIDE_RU.md)
+- [План доведения до магазина](docs/STORE_READY_PLAN_RU.md)
+- [Черновик Privacy Policy](docs/PRIVACY_POLICY_DRAFT_RU.md)
