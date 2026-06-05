@@ -1,29 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-<!--
-    ClickFlow Android — Step 66 (Part 2).
-    SIMULATION / PREVIEW ONLY for taps. SafetyGate.canRunRealTap() is hard-coded to false; no
-    code path anywhere in the app emits a real tap or system gesture.
-
-    Step 61 (unchanged):
-      - SYSTEM_ALERT_WINDOW: user CAN grant overlay permission via Settings (read-only check).
-      - BIND_ACCESSIBILITY_SERVICE: required by the declared no-op AccessibilityService.
-
-    New in Step 66 (Part 2) — screen capture («the eyes»), capture only, no analysis:
-      - FOREGROUND_SERVICE + FOREGROUND_SERVICE_MEDIA_PROJECTION: required to run the
-        ScreenCaptureService as a media-projection foreground service.
-      - POST_NOTIFICATIONS: the foreground service shows an ongoing notification while capturing.
-      - ScreenCaptureActivity: owns the MediaProjection consent dialog (createScreenCaptureIntent).
-      - ScreenCaptureService: captures a SINGLE frame into memory (ImageReader + VirtualDisplay),
-        reads its dimensions only, then tears down. The frame is NEVER written to disk, exported,
-        or analyzed in this step.
-
-    Still NOT declared (and intentionally so):
-      - INTERNET
-      - WRITE_EXTERNAL_STORAGE / READ_EXTERNAL_STORAGE
--->
-
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
@@ -48,20 +25,12 @@
         </intent-filter>
     </activity>
 
-    <!--
-        Step 66 (Part 2): hosts the MediaProjection consent flow and the capture preview UI.
-        Not exported — launched only from within the app (Advanced menu).
-    -->
     <activity
         android:name=".capture.ScreenCaptureActivity"
         android:exported="false"
         android:label="@string/app_name"
         android:theme="@style/Theme.ClickFlowAndroid" />
 
-    <!--
-        Step 61: declared but inert. The service class is a no-op skeleton; binding
-        it does not enable any real-input pathway. canRunRealTap() remains false.
-    -->
     <service
         android:name=".permissions.ClickFlowAccessibilityService"
         android:exported="true"
@@ -75,10 +44,10 @@
             android:resource="@xml/accessibility_service_config" />
     </service>
 
-    <!--
-        Step 66 (Part 2): media-projection foreground service. Captures a single in-memory frame
-        and tears down. No disk writes, no export, no analysis.
-    -->
+    <service
+        android:name=".overlay.FloatingTapperOverlayService"
+        android:exported="false" />
+
     <service
         android:name=".capture.ScreenCaptureService"
         android:exported="false"
