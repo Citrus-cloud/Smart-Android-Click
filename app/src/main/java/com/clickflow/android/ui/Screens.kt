@@ -58,6 +58,7 @@ import com.clickflow.android.core.Screen
 import com.clickflow.android.imageclick.ImageTemplateActivity
 import com.clickflow.android.overlay.FloatingTapperOverlayService
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.scenario.ScenarioActivity
 import com.clickflow.android.textclick.TextClickActivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -260,6 +261,11 @@ private fun AdvancedScreen(vm: ClickFlowViewModel) {
             Text("Клик по тексту", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Введи текст кнопки. ClickFlow найдёт его через OCR и тапнет.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = { context.startActivity(Intent(context, TextClickActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("Настроить текст") }
+        }
+        GlassCard {
+            Text("Сценарий", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Запускает сохранённые overlay-метки по очереди с текущим таймером и повторами.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = { context.startActivity(Intent(context, ScenarioActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("Открыть сценарий") }
         }
         GlassCard {
             Text("Захват экрана", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
