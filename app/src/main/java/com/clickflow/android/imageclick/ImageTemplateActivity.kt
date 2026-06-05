@@ -66,6 +66,9 @@ class ImageTemplateActivity : ComponentActivity() {
                         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                         projectionLauncher.launch(mpm.createScreenCaptureIntent())
                     },
+                    onStop = {
+                        startService(Intent(this, ImageClickService::class.java).apply { action = ImageClickService.ACTION_STOP })
+                    },
                     onBack = { finish() },
                 )
             }
@@ -74,7 +77,7 @@ class ImageTemplateActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBack: () -> Unit) {
+private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
     val templates = remember { mutableStateListOf<ImageClickTemplate>().also { it.addAll(ImageClickTemplateStore.loadTemplates(context)) } }
     val selectedId = remember { mutableStateOf<String?>(templates.firstOrNull()?.id) }
     val selected = templates.firstOrNull { it.id == selectedId.value }
@@ -96,9 +99,10 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBac
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("Клик по картинке", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-            Text("Добавь фото/иконку, настрой похожесть и нажми запуск. ClickFlow будет искать шаблон на экране и тапнет в выбранную точку.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Добавь фото/иконку, выбери область поиска и запусти. ClickFlow найдёт похожую картинку и тапнет.", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Button(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("+ Добавить фото / иконку") }
+            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Остановить поиск картинки") }
 
             templates.forEachIndexed { index, template ->
                 val active = selectedId.value == template.id
@@ -113,6 +117,8 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBac
                             Text("${template.width}×${template.height}")
                         }
                         Text("Порог: ${(template.threshold * 100).roundToInt()}% · Тап: ${(template.tapX * 100).roundToInt()}%, ${(template.tapY * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Область: ${(template.regionLeft * 100).roundToInt()}-${(template.regionRight * 100).roundToInt()}% X, ${(template.regionTop * 100).roundToInt()}-${(template.regionBottom * 100).roundToInt()}% Y", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (template.continuous) "Режим: искать постоянно" else "Режим: один тап и стоп", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { selectedId.value = template.id }, modifier = Modifier.weight(1f)) { Text("Настроить") }
                             Button(onClick = { onRun(template.id) }, modifier = Modifier.weight(1f)) { Text("Запустить") }
@@ -134,7 +140,7 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBac
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Шаблонов пока нет", fontWeight = FontWeight.Bold)
-                        Text("Выбери иконку или фрагмент скриншота. Лучше использовать небольшую картинку кнопки.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Выбери небольшую картинку кнопки/иконки. Чем меньше и точнее шаблон, тем лучше поиск.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -145,7 +151,7 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBac
                     onUpdate = { updated ->
                         val idx = templates.indexOfFirst { it.id == updated.id }
                         if (idx >= 0) {
-                            templates[idx] = updated
+                            templates[idx] = updated.normalizedRegion()
                             persist()
                         }
                     },
@@ -156,9 +162,9 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onBac
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Как тестировать", fontWeight = FontWeight.Bold)
                     Text("1. Добавь маленькую картинку кнопки/иконки.")
-                    Text("2. Поставь порог 75–85%.")
-                    Text("3. Нажми «Запустить» и разреши захват экрана.")
-                    Text("4. Открой приложение, где должна появиться эта картинка. Когда ClickFlow найдёт её, он тапнет один раз.")
+                    Text("2. Если знаешь, где она появится — сузь область поиска.")
+                    Text("3. Порог обычно 75–85%.")
+                    Text("4. Нажми «Запустить», разреши захват экрана и открой нужное приложение.")
                 }
             }
 
@@ -178,6 +184,21 @@ private fun TemplateEditor(template: ImageClickTemplate, onUpdate: (ImageClickTe
             Slider(value = template.tapX, onValueChange = { onUpdate(template.copy(tapX = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
             Text("Точка тапа по Y: ${(template.tapY * 100).roundToInt()}%")
             Slider(value = template.tapY, onValueChange = { onUpdate(template.copy(tapY = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
+
+            Text("Область поиска", fontWeight = FontWeight.Bold)
+            Text("Слева: ${(template.regionLeft * 100).roundToInt()}%")
+            Slider(value = template.regionLeft, onValueChange = { onUpdate(template.copy(regionLeft = it.coerceIn(0f, template.regionRight - 0.05f))) }, valueRange = 0f..0.95f)
+            Text("Справа: ${(template.regionRight * 100).roundToInt()}%")
+            Slider(value = template.regionRight, onValueChange = { onUpdate(template.copy(regionRight = it.coerceIn(template.regionLeft + 0.05f, 1f))) }, valueRange = 0.05f..1f)
+            Text("Сверху: ${(template.regionTop * 100).roundToInt()}%")
+            Slider(value = template.regionTop, onValueChange = { onUpdate(template.copy(regionTop = it.coerceIn(0f, template.regionBottom - 0.05f))) }, valueRange = 0f..0.95f)
+            Text("Снизу: ${(template.regionBottom * 100).roundToInt()}%")
+            Slider(value = template.regionBottom, onValueChange = { onUpdate(template.copy(regionBottom = it.coerceIn(template.regionTop + 0.05f, 1f))) }, valueRange = 0.05f..1f)
+
+            OutlinedButton(onClick = { onUpdate(template.copy(regionLeft = 0f, regionTop = 0f, regionRight = 1f, regionBottom = 1f)) }, modifier = Modifier.fillMaxWidth()) { Text("Искать по всему экрану") }
+            OutlinedButton(onClick = { onUpdate(template.copy(continuous = !template.continuous)) }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (template.continuous) "Режим: постоянно ВКЛ" else "Режим: один тап")
+            }
         }
     }
 }

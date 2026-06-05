@@ -19,6 +19,11 @@ data class ImageClickTemplate(
     val threshold: Float = 0.82f,
     val tapX: Float = 0.5f,
     val tapY: Float = 0.5f,
+    val regionLeft: Float = 0f,
+    val regionTop: Float = 0f,
+    val regionRight: Float = 1f,
+    val regionBottom: Float = 1f,
+    val continuous: Boolean = false,
 )
 
 object ImageClickTemplateStore {
@@ -49,7 +54,7 @@ object ImageClickTemplateStore {
         return raw.split(";").mapNotNull { encoded ->
             val line = String(Base64.decode(encoded, Base64.NO_WRAP))
             val p = line.split("|")
-            if (p.size != 8) return@mapNotNull null
+            if (p.size < 8) return@mapNotNull null
             ImageClickTemplate(
                 id = p[0],
                 name = p[1],
@@ -59,15 +64,43 @@ object ImageClickTemplateStore {
                 threshold = p[5].toFloatOrNull() ?: 0.82f,
                 tapX = p[6].toFloatOrNull() ?: 0.5f,
                 tapY = p[7].toFloatOrNull() ?: 0.5f,
-            )
+                regionLeft = p.getOrNull(8)?.toFloatOrNull()?.coerceIn(0f, 0.95f) ?: 0f,
+                regionTop = p.getOrNull(9)?.toFloatOrNull()?.coerceIn(0f, 0.95f) ?: 0f,
+                regionRight = p.getOrNull(10)?.toFloatOrNull()?.coerceIn(0.05f, 1f) ?: 1f,
+                regionBottom = p.getOrNull(11)?.toFloatOrNull()?.coerceIn(0.05f, 1f) ?: 1f,
+                continuous = p.getOrNull(12)?.toBooleanStrictOrNull() ?: false,
+            ).normalizedRegion()
         }.filter { File(it.filePath).exists() }
     }
 
     fun saveTemplates(context: Context, templates: List<ImageClickTemplate>) {
-        val raw = templates.joinToString(";") { t ->
-            val line = listOf(t.id, t.name, t.filePath, t.width, t.height, t.threshold, t.tapX, t.tapY).joinToString("|")
+        val raw = templates.joinToString(";") { t0 ->
+            val t = t0.normalizedRegion()
+            val line = listOf(
+                t.id,
+                t.name,
+                t.filePath,
+                t.width,
+                t.height,
+                t.threshold,
+                t.tapX,
+                t.tapY,
+                t.regionLeft,
+                t.regionTop,
+                t.regionRight,
+                t.regionBottom,
+                t.continuous,
+            ).joinToString("|")
             Base64.encodeToString(line.toByteArray(), Base64.NO_WRAP)
         }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_TEMPLATES, raw).apply()
     }
+}
+
+fun ImageClickTemplate.normalizedRegion(): ImageClickTemplate {
+    val left = regionLeft.coerceIn(0f, 0.95f)
+    val top = regionTop.coerceIn(0f, 0.95f)
+    val right = regionRight.coerceIn(left + 0.05f, 1f)
+    val bottom = regionBottom.coerceIn(top + 0.05f, 1f)
+    return copy(regionLeft = left, regionTop = top, regionRight = right, regionBottom = bottom)
 }

@@ -56,7 +56,7 @@ class ImageClickService : Service() {
                     stopSelf()
                     return START_NOT_STICKY
                 }
-                startForegroundCompat()
+                startForegroundCompat("Ищу картинку")
                 begin(resultCode, data, templateId)
             }
             else -> stopSelf()
@@ -65,7 +65,7 @@ class ImageClickService : Service() {
     }
 
     private fun begin(resultCode: Int, data: Intent, templateId: String) {
-        val templateMeta = ImageClickTemplateStore.loadTemplates(this).firstOrNull { it.id == templateId } ?: run {
+        val templateMeta = ImageClickTemplateStore.loadTemplates(this).firstOrNull { it.id == templateId }?.normalizedRegion() ?: run {
             stopSelf()
             return
         }
@@ -101,23 +101,44 @@ class ImageClickService : Service() {
             handler,
         )
 
+        val regionLeftPx = (width * templateMeta.regionLeft).toInt()
+        val regionTopPx = (height * templateMeta.regionTop).toInt()
+        val regionRightPx = (width * templateMeta.regionRight).toInt()
+        val regionBottomPx = (height * templateMeta.regionBottom).toInt()
+
         running = true
         scope.launch {
+            var attempts = 0
             while (running) {
                 val bitmap = acquireBitmap(reader)
                 if (bitmap != null) {
-                    val match = BitmapTemplateMatcher.findBest(bitmap, templateBitmap, templateMeta.threshold)
+                    attempts++
+                    val match = BitmapTemplateMatcher.findBest(
+                        screen = bitmap,
+                        template = templateBitmap,
+                        threshold = templateMeta.threshold,
+                        regionLeftPx = regionLeftPx,
+                        regionTopPx = regionTopPx,
+                        regionRightPx = regionRightPx,
+                        regionBottomPx = regionBottomPx,
+                    )
                     if (match != null) {
                         val tapX = match.x + (templateBitmap.width * templateMeta.tapX).toInt()
                         val tapY = match.y + (templateBitmap.height * templateMeta.tapY).toInt()
+                        startForegroundCompat("Найдено ${(match.confidence * 100).toInt()}% · тап")
                         tapper.performSingleTap(tapX, tapY, 70L)
-                        running = false
-                        bitmap.recycle()
-                        break
+                        if (!templateMeta.continuous) {
+                            running = false
+                            bitmap.recycle()
+                            break
+                        }
+                        delay(700)
+                    } else if (attempts % 5 == 0) {
+                        startForegroundCompat("Ищу картинку · попытка $attempts")
                     }
                     bitmap.recycle()
                 }
-                delay(450)
+                delay(420)
             }
             stopSelf()
         }
@@ -141,11 +162,11 @@ class ImageClickService : Service() {
         }
     }
 
-    private fun startForegroundCompat() {
+    private fun startForegroundCompat(text: String) {
         val channelId = ensureChannel()
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("ClickFlow")
-            .setContentText("Ищу картинку на экране")
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_search)
             .setOngoing(true)
             .build()
