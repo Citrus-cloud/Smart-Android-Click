@@ -29,13 +29,14 @@ port and **not** a runtime copy of the desktop code.
 
 **Где мы сейчас (коротко):**
 
-- ✅ **Сделано:** Шаги 52–66 (фундамент, сценарии, профили, аудит, бэкап, релиз pre-alpha,
-  простой кликер, прототип реального тапа + тесты, захват экрана через MediaProjection).
-- 🔄 **Только что сделали:** **Шаг 67** — выбор области (Region Selector): нормализованная
-  геометрия `CaptureRegion` + чистый `RegionSelectorController` (выделение прямоугольника
-  на кадре) с юнит-тестами. Только геометрия — без захвата, без анализа, ничего не сохраняется.
-- ➡️ **Следующий шаг (предпочтительный):** **Шаг 68** — менеджер шаблонов: реестр целевых
-  изображений-эталонов и их параметров (порог совпадения, область) для последующего поиска.
+- ✅ **Сделано:** Шаги 52–69 (фундамент, сценарии, профили, аудит, бэкап, релиз pre-alpha,
+  простой кликер, прототип реального тапа + тесты, захват экрана через MediaProjection,
+  выбор области, менеджер шаблонов, движок принятия решений по совпадению).
+- 🔄 **Только что сделали:** **Шаг 69** — движок сопоставления шаблонов: `MatchCandidate` +
+  `MatchResult` (confidence, matched, highlight) + `TemplateMatcher` (evaluate / evaluateBest /
+  matchesOnly) с 8 JVM-тестами. Только логика решений — без пикселей, без захвата, без тапа.
+- ➡️ **Следующий шаг (предпочтительный):** **Шаг 70** — сценарий «Image target»: связать
+  шаблон → TemplateMatcher → точку на экране (симуляция/превью, без реального тапа).
 
 Полный план завершения проекта (шаги 64–84) ведётся в Notion. Ниже — подробности на английском.
 
@@ -43,22 +44,21 @@ port and **not** a runtime copy of the desktop code.
 
 ## Status
 
-> **Phase 2 («the brain» on Android) — in progress. Current: Step 67 done, Step 68 next.**
+> **Phase 2 («the brain» on Android) — in progress. Current: Step 69 done, Step 70 next.**
 >
 > Phase 1 (Android debt: Steps 64–65) and Step 66 (screen capture, both parts) are complete.
 > Phase 2 gives the app «eyes» (screen capture → region → template matching → OCR) so it can
 > decide *where* to tap. All of Phase 2 is **simulation / preview only**: the app shows what it
 > *would* tap, it does not tap.
 >
-> **Just landed — Step 67 (Region Selector):** `capture/CaptureRegion.kt` (a resolution-independent
-> normalized rectangle) + `capture/RegionSelectorController.kt` (a framework-free begin / update /
-> commit / setRegion / clear state machine) with a full JVM JUnit 4 suite
-> (`RegionSelectorControllerTest.kt`). It records *where* on a captured frame a later match should
-> look — pure geometry, no capture, no analysis, nothing persisted.
+> **Just landed — Step 69 (Template Matching Engine):** `capture/MatchResult.kt`
+> (`MatchCandidate(location, rawScore)` + `MatchResult(templateId, confidence, matched, location?,
+> evaluatedAtMs)` with `.highlight`) and `capture/TemplateMatcher.kt` (stateless decision layer:
+> `evaluate`, `evaluateBest`, `matchesOnly`, injected `nowProvider`) with a full JVM JUnit 4 suite
+> (8 tests). Pure float-score decisions — no bitmaps, no Android APIs, no tap dispatch.
 >
-> **Next — Step 68 (Template Manager):** a pure, testable registry of target reference images
-> (id / name / dimensions / match threshold / optional region) before any bitmap or disk I/O — same
-> «brain first, I/O later» pattern used for capture.
+> **Next — Step 70 (Image-target scenario):** wire `TemplateMatcher` into a simulated scenario
+> action type that finds → points to a matched region on the captured frame (preview only, no tap).
 >
 > Bulk, looped, and scenario-driven real taps remain hard-disabled by
 > `SafetyGate.canRunRealTap() == false`. The latest published APK is still the Step 60 build at
@@ -114,9 +114,11 @@ The completion plan is tracked in Notion and grouped into 5 phases. Numbering co
   - **Part 2 — ✅ done:** real `ScreenCaptureService`, Activity consent, capture UI, manifest perms.
 - **Step 67 — Region selector. ✅ done.** Normalized `CaptureRegion` geometry + framework-free
   `RegionSelectorController` (draw a rectangle on the frame) + JVM tests. Geometry only.
-- **Step 68 — ➡️ next.** Template manager (registry of target reference images + match params).
-- **Step 69** — Template-matching engine + confidence + highlight (show only, no tap).
-- **Step 70** — «Image target» scenario type (find → point, simulated).
+- **Step 68 — Template manager. ✅ done.** In-memory registry of named capture templates
+  (`CaptureTemplate` + `TemplateManager`) + 18 JVM tests. Metadata/geometry only, no pixels.
+- **Step 69 — Template matching engine. ✅ done.** `MatchResult` + `TemplateMatcher`
+  (evaluate / evaluateBest / matchesOnly) + 8 JVM tests. Float-score decisions only.
+- **Step 70 — ➡️ next.** «Image target» scenario type (find → point, simulated/preview).
 - **Step 71** — On-device OCR (ML Kit on-device or Tesseract; manual / per-session).
 - **Step 72** — «Text target» scenario type (simulated).
 - **Step 73** — Visual scenario builder + presets.
@@ -146,7 +148,7 @@ The completion plan is tracked in Notion and grouped into 5 phases. Numbering co
 protected-app automation; no hidden background input; real input only with explicit consent +
 audit + emergency stop.
 
-## Done so far (Steps 52–67, intact)
+## Done so far (Steps 52–69, intact)
 
 - **52** — project foundation: Kotlin + Compose shell, simulation engine, Safety Center,
   Diagnostics, docs.
@@ -166,6 +168,8 @@ audit + emergency stop.
 - **66** — screen capture via MediaProjection: pure lifecycle controller (Part 1) + real foreground
   `ScreenCaptureService`, consent Activity, and capture UI (Part 2). In-memory frame only.
 - **67** — region selector: normalized `CaptureRegion` geometry + `RegionSelectorController` + tests.
+- **68** — template manager: `CaptureTemplate` + `TemplateManager` (in-memory registry) + 18 JVM tests.
+- **69** — template matching engine: `MatchResult` + `TemplateMatcher` + 8 JVM tests. Decision layer only.
 
 ## Build
 
@@ -185,7 +189,8 @@ release-signed.
 ./gradlew testDebugUnitTest      # pure-JVM JUnit 4 (no Robolectric / no device)
 ```
 
-Covers `safety/`, `realtap/`, and `capture/` (screen-capture lifecycle + region selector).
+Covers `safety/`, `realtap/`, and `capture/` (screen-capture lifecycle + region selector +
+template manager + template matching engine).
 
 ## Run
 
