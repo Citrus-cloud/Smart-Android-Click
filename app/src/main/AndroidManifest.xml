@@ -59,6 +59,11 @@
         android:exported="false"
         android:foregroundServiceType="mediaProjection" />
 
+    <service
+        android:name=".imageclick.ImageClickService"
+        android:exported="false"
+        android:foregroundServiceType="mediaProjection" />
+
 </application>
 
 </manifest>
