@@ -2,12 +2,184 @@
 <resources>
     <string name="app_name">ClickFlow</string>
 
-    <!-- Accessibility service -->
     <string name="accessibility_service_label">Служба специальных возможностей ClickFlow</string>
     <string name="accessibility_service_summary">Служба безопасности ClickFlow</string>
     <string name="accessibility_service_description">ClickFlow объявляет эту службу специальных возможностей для проверки безопасности и контролируемой автоматизации. В этой сборке служба не читает содержимое экрана, не обрабатывает события и не выполняет реальные нажатия без явного разрешения через Safety Gate.</string>
 
-    <!-- Safety gate -->
+    <string name="status_badge">Режим симуляции</string>
+    <string name="drag_to_choose_click_point">Перетащите маркер, чтобы выбрать точку симуляции.</string>
+    <string name="interval">Интервал</string>
+    <string name="count">Количество</string>
+    <string name="start_clicker">Запустить кликер</string>
+    <string name="stop_clicker">Стоп</string>
+    <string name="btn_emergency_stop">Аварийная остановка</string>
+    <string name="current_status">Статус: %1$s</string>
+    <string name="current_tap">Текущий тап</string>
+    <string name="open_advanced">Открыть расширенное меню</string>
+    <string name="tap_target">Цель нажатия</string>
+    <string name="marker_position">Позиция маркера</string>
+    <string name="center_marker">По центру</string>
+    <string name="btn_back">Назад</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+
+    <string name="advanced_menu">Расширенное меню</string>
+    <string name="scenarios">Сценарии</string>
+    <string name="profiles">Профили</string>
+    <string name="audit_log">Журнал аудита</string>
+    <string name="backup">Резервная копия</string>
+    <string name="btn_safety_center">Центр безопасности</string>
+    <string name="btn_permissions">Разрешения</string>
+    <string name="btn_diagnostics">Диагностика</string>
+    <string name="btn_real_tap_prototype">Прототип реального тапа</string>
+    <string name="about">О приложении</string>
+    <string name="real_taps_disclaimer">Реальные нажатия отключены в этой сборке.</string>
+    <string name="simulation_only_marker">Маркер только для симуляции. Реальное нажатие не выполняется.</string>
+
+    <string name="profile_saved">Профиль сохранён</string>
+    <string name="profile_deleted">Профиль удалён</string>
+    <string name="profile_cannot_delete_active">Нельзя удалить активный профиль</string>
+    <string name="profile_cannot_delete_last">Нельзя удалить последний профиль</string>
+    <string name="profile_cannot_delete_with_scenarios">Нельзя удалить профиль со сценариями</string>
+    <string name="scenario_saved">Сценарий сохранён</string>
+    <string name="scenario_deleted">Сценарий удалён</string>
+    <string name="active_scenario_none">Нет активного сценария</string>
+    <string name="audit_log_exported">Журнал аудита экспортирован</string>
+    <string name="audit_log_export_failed">Ошибка экспорта журнала</string>
+    <string name="active_profile">Активный профиль</string>
+    <string name="active_scenario">Активный сценарий</string>
+    <string name="backup_exported">Резервная копия экспортирована</string>
+    <string name="backup_export_failed">Ошибка экспорта резервной копии</string>
+    <string name="backup_import_completed">Импорт завершён</string>
+    <string name="backup_import_failed">Ошибка импорта</string>
+
+    <string name="scenarios_for_profile">Сценарии для профиля</string>
+    <string name="no_scenarios">Сценариев пока нет</string>
+    <string name="create_scenario">Создать сценарий</string>
+    <string name="active_badge">АКТИВЕН</string>
+    <string name="scenario_meta_summary">%1$d действий · повтор %2$d · интервал %3$d мс</string>
+    <string name="open_scenario">Открыть</string>
+    <string name="select_scenario">Выбрать</string>
+    <string name="delete_scenario">Удалить</string>
+    <string name="run_simulation">Запустить симуляцию</string>
+    <string name="reset_scenarios">Сбросить сценарии</string>
+    <string name="edit_scenario">Редактировать сценарий</string>
+    <string name="actions">Действия</string>
+    <string name="edit_action">Редактировать</string>
+    <string name="delete_action">Удалить</string>
+    <string name="move_up">Выше</string>
+    <string name="move_down">Ниже</string>
+    <string name="add_tap_action">Добавить TAP</string>
+    <string name="add_wait_action">Добавить WAIT</string>
+    <string name="add_note_action">Добавить NOTE</string>
+    <string name="simulation_only_actions">Действия выполняются только в симуляции.</string>
+    <string name="scenario_name">Название сценария</string>
+    <string name="repeat_count">Повторы</string>
+    <string name="interval_ms">Интервал, мс</string>
+    <string name="validation_name_required">Название обязательно</string>
+    <string name="validation_repeat_invalid">Некорректное количество повторов</string>
+    <string name="validation_interval_invalid">Некорректный интервал</string>
+    <string name="validation_actions_required">Нужно хотя бы одно действие</string>
+    <string name="simulation_only_scenario">Этот сценарий работает только в симуляции.</string>
+    <string name="add_action">Добавить действие</string>
+    <string name="action_type">Тип действия</string>
+    <string name="simulated_tap_action">Симуляция тапа</string>
+    <string name="wait_action">Ожидание</string>
+    <string name="note_action">Заметка</string>
+    <string name="validation_coordinate_invalid">Некорректные координаты</string>
+    <string name="action_label">Метка</string>
+    <string name="duration_ms">Длительность, мс</string>
+    <string name="validation_duration_invalid">Некорректная длительность</string>
+    <string name="note_message">Текст заметки</string>
+    <string name="validation_message_required">Сообщение обязательно</string>
+    <string name="real_tap_still_disabled">Реальные нажатия всё ещё отключены.</string>
+
+    <string name="profiles_are_local">Профили хранятся локально на устройстве.</string>
+    <string name="no_profiles">Нет профилей</string>
+    <string name="default_profile">Профиль по умолчанию</string>
+    <string name="select_profile">Выбрать</string>
+    <string name="edit_profile">Редактировать</string>
+    <string name="delete_profile">Удалить</string>
+    <string name="create_profile">Создать профиль</string>
+    <string name="reset_profiles">Сбросить профили</string>
+    <string name="profile_name">Название профиля</string>
+    <string name="profile_name_too_long">Название профиля слишком длинное</string>
+    <string name="profile_name_required">Название профиля обязательно</string>
+    <string name="profile_description">Описание</string>
+    <string name="profile_description_too_long">Описание слишком длинное</string>
+
+    <string name="audit_summary">Сводка аудита</string>
+    <string name="audit_storage_ready">Хранилище аудита готово</string>
+    <string name="corrupted_audit_recovered">Повреждённый аудит восстановлен</string>
+    <string name="share_audit_log">Поделиться журналом аудита</string>
+    <string name="clear_audit_log">Очистить журнал аудита</string>
+
+    <string name="backup_profiles_count">Профили</string>
+    <string name="backup_scenarios_count">Сценарии</string>
+    <string name="backup_simulation_only">Резервная копия содержит только данные симуляции.</string>
+    <string name="backup_does_not_include_audit_log">Резервная копия не содержит журнал аудита.</string>
+    <string name="no_permissions_required">Дополнительные разрешения не требуются.</string>
+    <string name="export_backup">Экспортировать резервную копию</string>
+    <string name="import_backup">Импорт резервной копии</string>
+    <string name="paste_backup_json">Вставьте JSON резервной копии</string>
+    <string name="validate_backup">Проверить резервную копию</string>
+    <string name="backup_valid">Резервная копия корректна</string>
+    <string name="backup_invalid">Резервная копия некорректна</string>
+    <string name="invalid_items_count">Некорректные элементы</string>
+    <string name="backup_warnings">Предупреждения</string>
+    <string name="import_strategy">Стратегия импорта</string>
+    <string name="merge_rename_conflicts">Объединить и переименовать конфликты</string>
+    <string name="replace_all_requires_confirmation">Заменить всё требует подтверждения</string>
+    <string name="import_result">Результат импорта</string>
+    <string name="imported_profiles">Импортировано профилей</string>
+    <string name="imported_scenarios">Импортировано сценариев</string>
+    <string name="skipped_items">Пропущено элементов</string>
+    <string name="clear_import">Очистить импорт</string>
+
+    <string name="real_taps_disabled">Реальные нажатия отключены</string>
+    <string name="blocked_reasons_title">Причины блокировки</string>
+    <string name="profile_storage_ready">Хранилище профилей готово</string>
+    <string name="corrupted_profile_storage_recovered">Повреждённое хранилище профилей восстановлено</string>
+
+    <string name="permissions_intro">Проверьте разрешения для расширенных функций ClickFlow.</string>
+    <string name="permission_overlay">Разрешение overlay</string>
+    <string name="permission_granted">Разрешено</string>
+    <string name="permission_not_granted">Не разрешено</string>
+    <string name="permission_overlay_description">Позволяет ClickFlow показывать плавающую кнопку управления.</string>
+    <string name="open_overlay_settings">Открыть настройки overlay</string>
+    <string name="permission_accessibility">Служба специальных возможностей</string>
+    <string name="permission_accessibility_description">Позволяет контролируемую автоматизацию через настройки специальных возможностей Android. Реальные тапы остаются под Safety Gate.</string>
+    <string name="open_accessibility_settings">Открыть настройки специальных возможностей</string>
+    <string name="refresh_permissions">Обновить разрешения</string>
+    <string name="permissions_safety_note">Разрешения сами по себе не включают реальные нажатия.</string>
+
+    <string name="real_tap_prototype_title">Прототип реального тапа</string>
+    <string name="real_tap_prototype_intro">Защищённый прототип одного подтверждённого реального тапа. Массовые тапы заблокированы.</string>
+    <string name="real_tap_safety_review">Проверка безопасности</string>
+    <string name="real_tap_safety_review_passed">Проверка безопасности пройдена</string>
+    <string name="real_tap_blocked_by_gate">Заблокировано Safety Gate</string>
+    <string name="real_tap_session_start">Начать сессию реального тапа</string>
+    <string name="real_tap_session_end">Завершить сессию</string>
+    <string name="real_tap_request_consent">Запросить согласие</string>
+    <string name="real_tap_consent_pending">Ожидается согласие</string>
+    <string name="real_tap_confirm">Подтвердить</string>
+    <string name="real_tap_cancel">Отмена</string>
+    <string name="real_tap_why_blocked">Почему заблокировано</string>
+    <string name="real_tap_bulk_still_blocked">Массовые реальные тапы остаются заблокированы.</string>
+    <string name="real_tap_emergency_stop_note">Аварийная остановка сбрасывает сессию и согласие.</string>
+    <string name="real_tap_result_dispatched">Выполнено</string>
+    <string name="real_tap_result_blocked_by_gate">Заблокировано gate</string>
+    <string name="real_tap_result_blocked_no_service">Заблокировано: нет службы</string>
+    <string name="real_tap_result_blocked_invalid_consent">Заблокировано: неверное согласие</string>
+    <string name="real_tap_result_dispatch_cancelled">Выполнение отменено</string>
+    <string name="real_tap_result_dispatch_failed">Ошибка выполнения</string>
+    <string name="real_tap_audit_session_started">Сессия реального тапа начата</string>
+    <string name="real_tap_audit_session_ended">Сессия реального тапа завершена</string>
+    <string name="real_tap_audit_consent_requested">Согласие запрошено</string>
+    <string name="real_tap_audit_consent_confirmed">Согласие подтверждено</string>
+    <string name="real_tap_audit_consent_expired">Согласие истекло</string>
+    <string name="real_tap_audit_dispatch_blocked">Выполнение заблокировано</string>
+
     <string name="safety_gate_title">Центр безопасности</string>
     <string name="safety_review_passed">Обзор пройден</string>
     <string name="safety_consent_fresh">Согласие дано</string>
@@ -15,27 +187,19 @@
     <string name="safety_emergency_stop_clear">Остановка не активна</string>
     <string name="safety_all_clear">Все проверки пройдены — готово к работе</string>
     <string name="safety_gate_blocked">Заблокировано: %1$s</string>
-
-    <!-- Consent -->
     <string name="consent_title">Подтвердите действие</string>
     <string name="consent_description">Приложение собирается выполнить реальное нажатие. Подтвердите, чтобы разрешить.</string>
     <string name="consent_confirm">Разрешить</string>
     <string name="consent_cancel">Отмена</string>
     <string name="consent_expires_in">Согласие истекает через %1$d с</string>
-
-    <!-- Emergency stop -->
     <string name="emergency_stop_button">Аварийная остановка</string>
     <string name="emergency_stop_confirm">Остановить все действия?</string>
     <string name="emergency_stop_active">Аварийная остановка активна</string>
-
-    <!-- Smart click -->
     <string name="click_image_title">Клик по шаблону</string>
     <string name="click_text_title">Клик по тексту</string>
     <string name="click_dispatched">Действие выполнено</string>
     <string name="click_blocked">Действие заблокировано</string>
     <string name="click_error">Ошибка выполнения</string>
-
-    <!-- Session -->
     <string name="session_active">Сессия активна</string>
     <string name="session_taps_remaining">Осталось нажатий: %1$d</string>
     <string name="session_ttl_remaining">Истекает через %1$d с</string>
