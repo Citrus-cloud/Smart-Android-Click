@@ -98,14 +98,8 @@ data class ProfileFormState(
 
 data class UiMessage(val key: String)
 
-// ---------------------------------------------------------------------------
-// Step 62: Real Tap Prototype — types
-// ---------------------------------------------------------------------------
-
-/** Session state of the real-tap prototype. INACTIVE by default. */
 enum class RealTapSessionState { INACTIVE, ACTIVE }
 
-/** A pending single-tap consent. Expires after 10 seconds. */
 data class RealTapConsent(
    val x: Int,
    val y: Int,
@@ -113,14 +107,6 @@ data class RealTapConsent(
    val expiresAtMs: Long,
 )
 
-/**
-* Step 63: outcome of the most recent real-tap dispatch attempt.
-*
-* Today every confirmation produces [BLOCKED_BY_GATE] because the bulk
-* `SafetyGate.canRunRealTap()` is still hard-coded false at the dispatch
-* layer. The enum exists so the UI can show the actual reason and so the
-* Step 64 wiring can return the other values without a state model change.
-*/
 enum class RealTapDispatchResult {
    DISPATCHED,
    BLOCKED_BY_GATE,
@@ -130,10 +116,6 @@ enum class RealTapDispatchResult {
    DISPATCH_FAILED,
 }
 
-/**
-* 10-item safety review checklist. The user must tick every item before a session can start.
-* Items are referenced by index (0..9). [itemsLocalized] returns ready-to-render labels.
-*/
 data class SafetyReviewState(
    val checked: List<Boolean> = List(10) { false },
 ) {
@@ -148,7 +130,6 @@ data class SafetyReviewState(
    }
    data class ReviewLine(val label: String, val checked: Boolean)
    private companion object {
-       // Static labels (intentionally not translated yet — Step 62 is a prototype).
        val LABELS = listOf(
            "Я понимаю, что это прототип и реальный dispatch отключён",
            "Я не запускаю это на критичном устройстве",
@@ -164,33 +145,6 @@ data class SafetyReviewState(
    }
 }
 
-/**
-* Single app-wide state holder for ClickFlow Android (Step 55).
-*
-* Adds profiles (local workspaces grouping scenarios) and persistent/exportable audit logging on top
-* of the Step 54 multi-step simulation layer. Holds NO real-input logic.
-*
-* Step 61: adds a read-only PermissionsManager + PermissionStatus state. Granting overlay or
-* accessibility permissions does NOT enable real input — SafetyGate.canRunRealTap() is still
-* hard-coded to false. Permissions are opt-in plumbing only.
-*
-* Step 62 (UI prototype): adds an explicit "real tap prototype" screen flow — safety review
-* checklist, session start/end, and single-tap consent. SafetyGate still blocks every dispatch.
-* Bulk real taps remain forbidden.
-*
-* Step 63: makes the four SafetyGate prototype flags LIVE. Every transition on the six prototype
-* APIs drives the matching SafetyGate mutator; `refreshPermissions` pushes the accessibility flag
-* into the gate; `emergencyStop` calls `resetPrototypeFlags`; a new [safetyGateReasons] StateFlow
-* surfaces `gate.getSingleProtoBlockedReasons()` to the UI; a new [lastDispatchResult] StateFlow
-* exposes the most recent [RealTapDispatchResult]. Bulk `canRunRealTap()` still returns false.
-*
-* Step 64: the six real-tap prototype APIs + [emergencyStop] route every audit record through
-* [RealTapController] (a stateless domain entry point composing [SafetyGate] + the audit log),
-* using the granular `realtap.*` audit types instead of the generic `SAFETY_REAL_TAP_BLOCKED`.
-* [confirmRealTap] now also enforces a marker-only invariant: the consented (x,y) must still equal
-* the live marker or the tap is rejected as invalid consent. Bulk `canRunRealTap()` still returns
-* false.
-*/
 class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    private val appRef = app
@@ -205,11 +159,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    private val auditLog = AuditLogManager(File(app.filesDir, "audit-log.jsonl"))
    private val backupManager = BackupManager()
    private val diagnosticsManager = DiagnosticsManager()
-
-   // Step 64: single stateless domain entry point for every real-tap decision + granular audit.
    private val realTapController = RealTapController(gate, auditLog)
 
-   // Step 61: read-only permissions detector.
    private val permissionsManager = PermissionsManager(app)
    private val _permissionStatus = MutableStateFlow(PermissionStatus.EMPTY)
    val permissionStatus: StateFlow<PermissionStatus> = _permissionStatus.asStateFlow()
@@ -227,13 +178,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    )
    private val engine = SimulationEngine(gate, auditLog, messages)
 
-   /**
-    * Legacy SafetyCenter instance with empty permission status — kept for any caller that
-    * pre-dates Step 61. New UI should call [currentSafetyCenter] which reflects live status.
-    */
    val safetyCenter = SafetyCenter(gate)
-
-   /** Live SafetyCenter computed from the current permission status. */
    fun currentSafetyCenter(): SafetyCenter = SafetyCenter(gate, _permissionStatus.value)
 
    private val _screen = MutableStateFlow(Screen.HOME)
@@ -270,7 +215,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    private val _message = MutableStateFlow<UiMessage?>(null)
    val message: StateFlow<UiMessage?> = _message.asStateFlow()
 
-   // Backup (Step 56)
    private val _backupJsonText = MutableStateFlow("")
    val backupJsonText: StateFlow<String> = _backupJsonText.asStateFlow()
    private val _backupPreview = MutableStateFlow<BackupPreview?>(null)
@@ -283,7 +227,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    private var lastBackupImportAt: Long? = null
    private var invalidImportItemsLast: Int = 0
 
-   // Simple Clicker (Step 59) — marker fractions in [0,1]; quick interval/count.
    private val _markerX = MutableStateFlow(0.5f)
    val markerX: StateFlow<Float> = _markerX.asStateFlow()
    private val _markerY = MutableStateFlow(0.5f)
@@ -294,7 +237,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    val quickRepeatCount: StateFlow<Int> = _quickRepeatCount.asStateFlow()
    private var quickScenarioId: String? = null
 
-   // Step 62: Real Tap Prototype state.
    private val _safetyReview = MutableStateFlow(SafetyReviewState())
    val safetyReview: StateFlow<SafetyReviewState> = _safetyReview.asStateFlow()
    private val _realTapSession = MutableStateFlow(RealTapSessionState.INACTIVE)
@@ -303,7 +245,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    val realTapConsent: StateFlow<RealTapConsent?> = _realTapConsent.asStateFlow()
    private var currentRealTapSessionId: String? = null
 
-   // Step 63: live SafetyGate state mirrored into StateFlows for the UI.
    private val _safetyGateReasons = MutableStateFlow<List<String>>(emptyList())
    val safetyGateReasons: StateFlow<List<String>> = _safetyGateReasons.asStateFlow()
    private val _lastDispatchResult = MutableStateFlow<RealTapDispatchResult?>(null)
@@ -316,6 +257,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    val corruptedProfileStorageRecovered: Boolean get() = profileManager.corruptedStorageRecovered
    val auditStorageReady: Boolean get() = auditLog.storageReady
    val corruptedAuditRecovered: Boolean get() = auditLog.corruptedAuditRecovered
+
+   companion object {
+       const val QUICK_NAME = "Quick clicker"
+   }
 
    init {
        profileManager.load()
@@ -332,13 +277,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        refreshSafetyGateReasons()
    }
 
-   // ---- Permissions (Step 61) --------------------------------------------
-
-   /**
-    * Re-reads overlay + accessibility status from the system. Pure detection — does NOT grant
-    * anything. Step 63: also pushes the accessibility flag into [gate] so the live prototype
-    * truth follows system settings without the user having to leave and re-enter the screen.
-    */
    fun refreshPermissions() {
        val status = permissionsManager.refresh()
        _permissionStatus.value = status
@@ -346,7 +284,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        refreshSafetyGateReasons()
    }
 
-   /** Launches the system overlay-permission settings screen for ClickFlow. */
    fun openOverlaySettings() {
        runCatching {
            val intent = permissionsManager.overlaySettingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -354,7 +291,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        }
    }
 
-   /** Launches the system accessibility-services settings screen. */
    fun openAccessibilitySettings() {
        runCatching {
            val intent = permissionsManager.accessibilitySettingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -362,14 +298,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        }
    }
 
-   // ---- Simple Clicker / quick scenario ----------------------------------
-
-   companion object { const val QUICK_NAME = "Quick clicker" }
-
-   /**
-    * Ensures the active profile has a "Quick clicker" scenario (one SIMULATED_TAP action) backing
-    * the Simple Clicker screen, and loads its marker + interval/count into state.
-    */
    fun ensureQuickClicker() {
        val pid = activeProfileId()
        var q = scenarioManager.scenariosForProfile(pid).firstOrNull { it.name == QUICK_NAME }
@@ -393,7 +321,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        }
    }
 
-   /** Updates the in-memory marker fraction during a drag (no disk write). */
    fun setMarker(fx: Float, fy: Float) {
        _markerX.value = fx.coerceIn(0f, 1f)
        _markerY.value = fy.coerceIn(0f, 1f)
@@ -401,7 +328,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    fun centerMarker() { setMarker(0.5f, 0.5f); commitMarker() }
 
-   /** Persists the current marker fraction into the quick scenario's tap action. */
    fun commitMarker() {
        val id = quickScenarioId ?: return
        val tap = scenarioManager.byId(id)?.actions?.firstOrNull { it.type == ScenarioActionType.SIMULATED_TAP } ?: return
@@ -426,7 +352,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    fun setQuickCount(n: Int) { _quickRepeatCount.value = n.coerceIn(1, 1000); persistQuickMeta() }
    fun adjustQuickCount(delta: Int) = setQuickCount(_quickRepeatCount.value + delta)
 
-   /** Starts the Simple Clicker simulation using the marker + quick settings. */
    fun startQuickSimulation() {
        ensureQuickClicker()
        commitMarker()
@@ -436,13 +361,9 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        scenarioManager.byId(id)?.let { startRun(it) }
    }
 
-   // ---- Navigation / helpers ---------------------------------------------
-
    fun navigateTo(screen: Screen) {
        _screen.value = screen
-       // Step 61: when entering the Permissions screen, refresh live status so the UI is current.
        if (screen == Screen.PERMISSIONS) refreshPermissions()
-       // Step 63: when entering the Real Tap Prototype screen, refresh the gate reasons display.
        if (screen == Screen.REAL_TAP_PROTOTYPE) refreshSafetyGateReasons()
    }
    fun consumeMessage() { _message.value = null }
@@ -450,13 +371,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    fun activeProfile(): Profile? = profileManager.getActiveProfile()
    fun activeProfileId(): String = profileManager.activeProfileId()
    fun selectedScenario(): Scenario? = _selectedScenarioId.value?.let { scenarioManager.byId(it) }
-
-   /** Scenarios belonging to the active profile (what the UI should show). */
    fun scenariosForActiveProfile(): List<Scenario> = scenarioManager.scenariosForProfile(activeProfileId())
-
    fun activeScenario(): Scenario? = scenarioManager.getActiveScenarioForProfile(activeProfileId())
-
-   // ---- Profiles ----------------------------------------------------------
 
    fun openCreateProfile() {
        _profileForm.value = ProfileFormState()
@@ -471,15 +387,12 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _screen.value = Screen.PROFILE_FORM
    }
 
-   fun updateProfileForm(transform: (ProfileFormState) -> ProfileFormState) {
-       _profileForm.value = transform(_profileForm.value)
-   }
+   fun updateProfileForm(transform: (ProfileFormState) -> ProfileFormState) { _profileForm.value = transform(_profileForm.value) }
 
    fun saveProfileForm() {
        val form = _profileForm.value
        val input = form.toInput()
-       val errors = if (form.isEditing) profileManager.updateProfile(form.editingId!!, input)
-       else profileManager.createProfile(input)
+       val errors = if (form.isEditing) profileManager.updateProfile(form.editingId!!, input) else profileManager.createProfile(input)
        _profileErrors.value = errors
        if (!errors.hasErrors) {
            _message.value = UiMessage("profile_saved")
@@ -494,11 +407,8 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    fun selectProfile(id: String) {
        profileManager.setActiveProfile(id)
-       // Ensure an active scenario exists within the newly active profile.
        val inProfile = scenarioManager.scenariosForProfile(id)
-       if (inProfile.none { it.isActive } && inProfile.isNotEmpty()) {
-           scenarioManager.setActiveScenario(inProfile.first().id)
-       }
+       if (inProfile.none { it.isActive } && inProfile.isNotEmpty()) scenarioManager.setActiveScenario(inProfile.first().id)
        ensureQuickClicker()
        _message.value = UiMessage("active_profile")
    }
@@ -511,21 +421,13 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        }
    }
 
-   fun resetProfiles() {
-       profileManager.resetProfiles()
-       _message.value = UiMessage("profile_saved")
-   }
-
+   fun resetProfiles() { profileManager.resetProfiles(); _message.value = UiMessage("profile_saved") }
    fun scenarioCountForProfile(id: String): Int = scenarioManager.countForProfile(id)
-
-   // ---- Scenario list / selection ----------------------------------------
 
    fun openScenarioDetail(id: String) { _selectedScenarioId.value = id; _screen.value = Screen.SCENARIO_DETAIL }
    fun selectScenario(id: String) { scenarioManager.setActiveScenario(id); _message.value = UiMessage("active_scenario") }
    fun deleteScenario(id: String) { scenarioManager.deleteScenario(id); _message.value = UiMessage("scenario_deleted") }
    fun resetScenarios() { scenarioManager.resetToDefaults(); _message.value = UiMessage("scenario_saved") }
-
-   // ---- Scenario metadata form -------------------------------------------
 
    fun openCreateScenario() {
        _scenarioForm.value = ScenarioFormState()
@@ -535,24 +437,17 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    fun openEditScenario(id: String) {
        val s = scenarioManager.byId(id) ?: return
-       _scenarioForm.value = ScenarioFormState(
-           editingId = s.id, name = s.name,
-           repeatCount = s.settings.repeatCount.toString(),
-           intervalMs = s.settings.intervalMs.toString(),
-       )
+       _scenarioForm.value = ScenarioFormState(editingId = s.id, name = s.name, repeatCount = s.settings.repeatCount.toString(), intervalMs = s.settings.intervalMs.toString())
        _scenarioErrors.value = ScenarioValidationErrors()
        _screen.value = Screen.SCENARIO_FORM
    }
 
-   fun updateScenarioForm(transform: (ScenarioFormState) -> ScenarioFormState) {
-       _scenarioForm.value = transform(_scenarioForm.value)
-   }
+   fun updateScenarioForm(transform: (ScenarioFormState) -> ScenarioFormState) { _scenarioForm.value = transform(_scenarioForm.value) }
 
    fun saveScenarioForm() {
        val form = _scenarioForm.value
        val input = form.toInput()
-       val errors = if (form.isEditing) scenarioManager.updateScenarioMeta(form.editingId!!, input)
-       else scenarioManager.createScenario(input, activeProfileId())
+       val errors = if (form.isEditing) scenarioManager.updateScenarioMeta(form.editingId!!, input) else scenarioManager.createScenario(input, activeProfileId())
        _scenarioErrors.value = errors
        if (!errors.hasErrors) {
            _message.value = UiMessage("scenario_saved")
@@ -566,8 +461,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _screen.value = if (_selectedScenarioId.value != null) Screen.SCENARIO_DETAIL else Screen.SCENARIOS
    }
 
-   // ---- Action form -------------------------------------------------------
-
    fun openAddAction(scenarioId: String, type: ScenarioActionType) {
        _selectedScenarioId.value = scenarioId
        _editingActionId.value = null
@@ -580,10 +473,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _selectedScenarioId.value = scenarioId
        val a = scenarioManager.byId(scenarioId)?.actions?.firstOrNull { it.id == actionId } ?: return
        _editingActionId.value = actionId
-       _actionForm.value = ActionFormState(
-           type = a.type, x = (a.x ?: 0).toString(), y = (a.y ?: 0).toString(),
-           label = a.label.orEmpty(), durationMs = (a.durationMs ?: 500L).toString(), message = a.message.orEmpty(),
-       )
+       _actionForm.value = ActionFormState(type = a.type, x = (a.x ?: 0).toString(), y = (a.y ?: 0).toString(), label = a.label.orEmpty(), durationMs = (a.durationMs ?: 500L).toString(), message = a.message.orEmpty())
        _actionErrors.value = ActionValidationErrors()
        _screen.value = Screen.ACTION_FORM
    }
@@ -600,8 +490,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            return
        }
        val editingId = _editingActionId.value
-       val ok = if (editingId != null) scenarioManager.updateAction(scenarioId, editingId, input)
-       else scenarioManager.addAction(scenarioId, input)
+       val ok = if (editingId != null) scenarioManager.updateAction(scenarioId, editingId, input) else scenarioManager.addAction(scenarioId, input)
        if (ok) { _message.value = UiMessage("scenario_saved"); _screen.value = Screen.SCENARIO_DETAIL }
    }
 
@@ -610,8 +499,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
    fun moveActionUp(scenarioId: String, actionId: String) = scenarioManager.moveAction(scenarioId, actionId, up = true)
    fun moveActionDown(scenarioId: String, actionId: String) = scenarioManager.moveAction(scenarioId, actionId, up = false)
    fun duplicateAction(scenarioId: String, actionId: String) = scenarioManager.duplicateAction(scenarioId, actionId)
-
-   // ---- Simulation --------------------------------------------------------
 
    fun runActiveScenarioSimulation(): Boolean {
        val active = activeScenario()
@@ -633,11 +520,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
 
    fun stopSimulation() { engine.stopSimulation() }
 
-   /**
-    * Emergency stop. Tears down any active real-tap session + pending consent (recording a granular
-    * session-ended event via [RealTapController]) AND resets every SafetyGate prototype flag to its
-    * safe baseline (Step 63).
-    */
    fun emergencyStop() {
        engine.emergencyStop()
        if (_realTapSession.value == RealTapSessionState.ACTIVE) {
@@ -646,30 +528,22 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            currentRealTapSessionId = null
            _realTapConsent.value = null
        }
-       // Step 63: single chokepoint that clears every prototype flag.
        gate.resetPrototypeFlags()
        refreshSafetyGateReasons()
    }
-
-   // ---- Audit -------------------------------------------------------------
 
    fun clearAuditLog() { auditLog.clearEvents() }
    fun clearRunHistory() { _runHistory.value = emptyList() }
    fun auditSummary(): AuditSummary = auditLog.getAuditSummary()
    fun exportAuditLogText(): String = auditLog.exportAsText()
 
-   /**
-    * Shares the audit log as plain text via the Android share sheet (ACTION_SEND, text/plain).
-    * No file, no FileProvider, no permissions. Returns false (and sets a message) on failure.
-    */
    fun shareAuditLog(): Boolean = runCatching {
        val send = Intent(Intent.ACTION_SEND).apply {
            type = "text/plain"
            putExtra(Intent.EXTRA_SUBJECT, "ClickFlow Android Audit Log")
            putExtra(Intent.EXTRA_TEXT, auditLog.exportAsText())
        }
-       val chooser = Intent.createChooser(send, appRef.getString(R.string.share_audit_log))
-           .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+       val chooser = Intent.createChooser(send, appRef.getString(R.string.share_audit_log)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
        appRef.startActivity(chooser)
        _message.value = UiMessage("audit_log_exported")
        true
@@ -678,37 +552,19 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        false
    }
 
-   /**
-    * Legacy bulk chokepoint. Bulk / looped real taps are categorically blocked; this records the
-    * generic SAFETY_REAL_TAP_BLOCKED event and always denies. The Step 64 granular `realtap.*`
-    * events are reserved for the single-tap prototype lifecycle (see [RealTapController]).
-    */
    fun attemptRealTapBlocked(): Boolean {
        auditLog.log(AuditType.SAFETY_REAL_TAP_BLOCKED, AuditSeverity.SAFETY, "Real tap attempt blocked — not implemented")
        return gate.attemptRealTap()
    }
 
-   // ---- Step 62/63/64: Real Tap Prototype API ----------------------------
-
-   /**
-    * Toggles a single safety-review checkbox by index. Out-of-range index is a no-op.
-    * Pushes the resulting `allPassed` into the live SafetyGate flag and records a granular
-    * safety-review passed/failed audit event via [RealTapController].
-    */
    fun toggleSafetyReviewItem(index: Int) {
        val next = _safetyReview.value.toggled(index)
        _safetyReview.value = next
        gate.updateReviewPassed(next.allPassed)
-       if (next.allPassed) realTapController.recordSafetyReviewPassed()
-       else realTapController.recordSafetyReviewFailed(next.checked.count { !it })
+       if (next.allPassed) realTapController.recordSafetyReviewPassed() else realTapController.recordSafetyReviewFailed(next.checked.count { !it })
        refreshSafetyGateReasons()
    }
 
-   /**
-    * Starts a real-tap session. Requires all 10 safety-review items to be checked.
-    * Drives `SafetyGate.updateSession(true)` and records the granular session-started audit event.
-    * SafetyGate still blocks dispatch — the session itself only enables the consent flow.
-    */
    fun startRealTapSession() {
        if (_realTapSession.value == RealTapSessionState.ACTIVE) return
        if (!_safetyReview.value.allPassed) {
@@ -726,10 +582,6 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _message.value = UiMessage("real_tap_audit_session_started")
    }
 
-   /**
-    * Ends the current real-tap session. Idempotent. Drives `SafetyGate.updateSession(false)` +
-    * `updateConsentFresh(false)` and records the granular session-ended audit event.
-    */
    fun endRealTapSession() {
        if (_realTapSession.value == RealTapSessionState.INACTIVE) return
        realTapController.recordSessionEnded(currentRealTapSessionId, "user_ended")
@@ -742,35 +594,19 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _message.value = UiMessage("real_tap_audit_session_ended")
    }
 
-   /**
-    * Requests consent for a single real tap at the current marker position. Creates a 10-second
-    * window during which [confirmRealTap] is accepted and drives `SafetyGate.updateConsentFresh(true)`.
-    * SafetyGate still blocks the dispatch.
-    */
    fun requestRealTap() {
        if (_realTapSession.value != RealTapSessionState.ACTIVE) return
        if (_realTapConsent.value != null) return
        val now = System.currentTimeMillis()
        val x = (_markerX.value * 1000).roundToInt()
        val y = (_markerY.value * 1000).roundToInt()
-       _realTapConsent.value = RealTapConsent(
-           x = x,
-           y = y,
-           requestedAtMs = now,
-           expiresAtMs = now + CONSENT_WINDOW_MS,
-       )
+       _realTapConsent.value = RealTapConsent(x = x, y = y, requestedAtMs = now, expiresAtMs = now + CONSENT_WINDOW_MS)
        gate.updateConsentFresh(true)
        refreshSafetyGateReasons()
        realTapController.recordConsentRequested(currentRealTapSessionId, x, y)
        _message.value = UiMessage("real_tap_audit_consent_requested")
    }
 
-   /**
-    * Confirms the pending consent. Delegates the dispatch decision to [RealTapController.evaluate];
-    * today the bulk gate is hard-coded false so this always surfaces
-    * [RealTapDispatchResult.BLOCKED_BY_GATE]. Enforces the Step 64 marker-only invariant (the
-    * consented point must still equal the live marker) and clears the consent in every outcome.
-    */
    fun confirmRealTap() {
        val consent = _realTapConsent.value ?: run {
            realTapController.recordConsentDeclined(currentRealTapSessionId, "no_pending_consent")
@@ -787,16 +623,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            _message.value = UiMessage("real_tap_audit_consent_expired")
            return
        }
-
-       // Step 64: marker-only invariant. The consent payload is the marker snapshot captured at
-       // request time; reject if the live marker has moved since so a stale (x,y) is never used.
        val curX = (_markerX.value * 1000).roundToInt()
        val curY = (_markerY.value * 1000).roundToInt()
        if (consent.x != curX || consent.y != curY) {
-           realTapController.recordConsentDeclined(
-               currentRealTapSessionId,
-               "marker_drift consent=(${consent.x},${consent.y}) current=($curX,$curY)",
-           )
+           realTapController.recordConsentDeclined(currentRealTapSessionId, "marker_drift consent=(${consent.x},${consent.y}) current=($curX,$curY)")
            _realTapConsent.value = null
            gate.updateConsentFresh(false)
            refreshSafetyGateReasons()
@@ -804,39 +634,21 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
            _message.value = UiMessage("real_tap_audit_dispatch_blocked")
            return
        }
-
-       // Valid, fresh, marker-matched consent → record the user's confirmation.
        realTapController.recordConsentGiven(currentRealTapSessionId, consent.x, consent.y)
-
-       // Single source of truth for the dispatch decision. The controller logs the granular
-       // outcome and pings the centralized denier on a gate block. Bulk canRunRealTap() is still
-       // false, so today this is always BLOCKED_BY_GATE.
-       val decision = realTapController.evaluate(
-           RealTapController.Marker(consent.x, consent.y),
-           currentRealTapSessionId,
-       )
+       val decision = realTapController.evaluate(RealTapController.Marker(consent.x, consent.y), currentRealTapSessionId)
        val result = when (decision) {
            RealTapController.Decision.ALLOWED -> RealTapDispatchResult.DISPATCHED
            RealTapController.Decision.BLOCKED_BY_GATE -> RealTapDispatchResult.BLOCKED_BY_GATE
            RealTapController.Decision.BLOCKED_NO_SERVICE -> RealTapDispatchResult.BLOCKED_NO_SERVICE
            RealTapController.Decision.BLOCKED_INVALID_CONSENT -> RealTapDispatchResult.BLOCKED_INVALID_CONSENT
        }
-
        _realTapConsent.value = null
        gate.updateConsentFresh(false)
        refreshSafetyGateReasons()
        _lastDispatchResult.value = result
-       _message.value = UiMessage(
-           if (result == RealTapDispatchResult.DISPATCHED) "real_tap_audit_consent_confirmed"
-           else "real_tap_audit_dispatch_blocked"
-       )
+       _message.value = UiMessage(if (result == RealTapDispatchResult.DISPATCHED) "real_tap_audit_consent_confirmed" else "real_tap_audit_dispatch_blocked")
    }
 
-   /**
-    * Cancels the pending consent without dispatching. Drives `SafetyGate.updateConsentFresh(false)`,
-    * records a granular consent-declined event, and sets `lastDispatchResult` to
-    * [RealTapDispatchResult.DISPATCH_CANCELLED].
-    */
    fun cancelRealTap() {
        if (_realTapConsent.value == null) return
        realTapController.recordConsentDeclined(currentRealTapSessionId, "user_cancelled")
@@ -846,26 +658,11 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _lastDispatchResult.value = RealTapDispatchResult.DISPATCH_CANCELLED
    }
 
-   /** Step 63: re-reads `gate.getSingleProtoBlockedReasons()` into the StateFlow. */
-   private fun refreshSafetyGateReasons() {
-       _safetyGateReasons.value = gate.getSingleProtoBlockedReasons()
-   }
-
-   /** Step 63: lets the UI clear the chip after the user has acknowledged the last result. */
+   private fun refreshSafetyGateReasons() { _safetyGateReasons.value = gate.getSingleProtoBlockedReasons() }
    fun consumeLastDispatchResult() { _lastDispatchResult.value = null }
 
-   private companion object {
-       const val CONSENT_WINDOW_MS = 10_000L
-   }
-
-   // ---- Backup (export / import) -----------------------------------------
-
-   fun openBackup() {
-       _screen.value = Screen.BACKUP
-   }
-
+   fun openBackup() { _screen.value = Screen.BACKUP }
    fun updateBackupJsonText(text: String) { _backupJsonText.value = text }
-
    fun setReplaceAllConfirmed(value: Boolean) { _replaceAllConfirmed.value = value }
 
    fun clearBackupImportState() {
@@ -875,13 +672,10 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        _replaceAllConfirmed.value = false
    }
 
-   /** Builds backup JSON from current profiles + scenarios (no audit log). */
    fun createBackupJson(): String = backupManager.createBackup(profiles.value, scenarios.value)
 
-   /** Shares the backup JSON as plain text via the share sheet. No file, no permissions. */
    fun shareBackupJson(): Boolean {
-       auditLog.log(AuditType.BACKUP_EXPORT_REQUESTED, AuditSeverity.INFO,
-           "Backup export requested (profiles=${profiles.value.size}, scenarios=${scenarios.value.size})")
+       auditLog.log(AuditType.BACKUP_EXPORT_REQUESTED, AuditSeverity.INFO, "Backup export requested (profiles=${profiles.value.size}, scenarios=${scenarios.value.size})")
        return runCatching {
            val json = createBackupJson()
            val send = Intent(Intent.ACTION_SEND).apply {
@@ -889,8 +683,7 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
                putExtra(Intent.EXTRA_SUBJECT, "ClickFlow Android Backup")
                putExtra(Intent.EXTRA_TEXT, json)
            }
-           val chooser = Intent.createChooser(send, appRef.getString(R.string.export_backup))
-               .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+           val chooser = Intent.createChooser(send, appRef.getString(R.string.export_backup)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
            appRef.startActivity(chooser)
            lastBackupExportAt = System.currentTimeMillis()
            auditLog.log(AuditType.BACKUP_EXPORT_SHARED, AuditSeverity.INFO, "Backup shared as text")
@@ -903,56 +696,35 @@ class ClickFlowViewModel(app: Application) : AndroidViewModel(app) {
        }
    }
 
-   /** Validates the pasted JSON and produces a preview. Does not modify any data. */
    fun validateBackupJson() {
        auditLog.log(AuditType.BACKUP_IMPORT_VALIDATION_STARTED, AuditSeverity.INFO, "Backup validation started")
        val preview = backupManager.previewBackup(_backupJsonText.value)
        _backupPreview.value = preview
        invalidImportItemsLast = preview.invalidItemsCount
-       if (!preview.valid) {
-           auditLog.log(AuditType.BACKUP_IMPORT_VALIDATION_FAILED, AuditSeverity.WARNING,
-               "Backup validation failed (errors=${preview.errors.size})")
-       }
+       if (!preview.valid) auditLog.log(AuditType.BACKUP_IMPORT_VALIDATION_FAILED, AuditSeverity.WARNING, "Backup validation failed (errors=${preview.errors.size})")
    }
 
-   /** Imports the pasted backup using [strategy]. REPLACE_ALL needs prior confirmation. */
    fun importBackup(strategy: ImportStrategy) {
        if (strategy == ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION && !_replaceAllConfirmed.value) {
-           auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_REQUESTED, AuditSeverity.WARNING,
-               "Replace-all requested without confirmation")
+           auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_REQUESTED, AuditSeverity.WARNING, "Replace-all requested without confirmation")
            _message.value = UiMessage("replace_all_requires_confirmation")
            return
        }
-       if (strategy == ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION) {
-           auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_CONFIRMED, AuditSeverity.SAFETY, "Replace-all confirmed")
-       }
-       val result = backupManager.importBackup(
-           json = _backupJsonText.value,
-           strategy = strategy,
-           currentProfiles = profiles.value,
-           currentScenarios = scenarios.value,
-           replaceConfirmed = _replaceAllConfirmed.value,
-       )
+       if (strategy == ImportStrategy.REPLACE_ALL_REQUIRE_CONFIRMATION) auditLog.log(AuditType.BACKUP_IMPORT_REPLACE_ALL_CONFIRMED, AuditSeverity.SAFETY, "Replace-all confirmed")
+       val result = backupManager.importBackup(_backupJsonText.value, strategy, profiles.value, scenarios.value, _replaceAllConfirmed.value)
        _backupImportResult.value = result
        if (!result.success) {
            _message.value = UiMessage("backup_import_failed")
            return
        }
-       // Apply + reload.
        profileManager.applyImported(result.mergedProfiles)
        scenarioManager.applyImported(result.mergedScenarios)
-       if (result.skippedItems > 0) {
-           auditLog.log(AuditType.BACKUP_IMPORT_SKIPPED_INVALID_ITEM, AuditSeverity.WARNING,
-               "Skipped ${result.skippedItems} invalid/conflicting item(s)")
-       }
+       if (result.skippedItems > 0) auditLog.log(AuditType.BACKUP_IMPORT_SKIPPED_INVALID_ITEM, AuditSeverity.WARNING, "Skipped ${result.skippedItems} invalid/conflicting item(s)")
        invalidImportItemsLast = result.skippedItems
        lastBackupImportAt = System.currentTimeMillis()
-       auditLog.log(AuditType.BACKUP_IMPORT_COMPLETED, AuditSeverity.INFO,
-           "Backup import completed (profiles=${result.importedProfiles}, scenarios=${result.importedScenarios}, skipped=${result.skippedItems})")
+       auditLog.log(AuditType.BACKUP_IMPORT_COMPLETED, AuditSeverity.INFO, "Backup import completed (profiles=${result.importedProfiles}, scenarios=${result.importedScenarios}, skipped=${result.skippedItems})")
        _message.value = UiMessage("backup_import_completed")
    }
-
-   // ---- Diagnostics -------------------------------------------------------
 
    fun diagnostics(): DiagnosticsState = diagnosticsManager.build(
        status = engine.getStatus(),
