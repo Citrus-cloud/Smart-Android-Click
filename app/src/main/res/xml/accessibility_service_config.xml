@@ -10,16 +10,19 @@ SAFETY:
   - flagRequestTouchExplorationMode and flagRetrieveInteractiveWindows are NOT set.
   - notificationTimeout is high to minimize event delivery.
   - description points to a localized string that explains, in plain language, that the
-    service performs NO automation at this step — only declares itself for the user.
+    service performs NO automation by default — only declares itself for the user.
+
+NOTE:
+  Do not set android:accessibilityFlags to an empty string. AAPT treats empty
+  enum/flag attributes as invalid during resource linking on CI.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-android:accessibilityEventTypes="typeViewClicked"
-android:accessibilityFeedbackType="feedbackGeneric"
-android:accessibilityFlags=""
-android:canRequestFilterKeyEvents="false"
-android:canRequestTouchExplorationMode="false"
-android:canRetrieveWindowContent="false"
-android:description="@string/accessibility_service_description"
-android:notificationTimeout="1000"
-android:packageNames="com.clickflow.android,com.clickflow.android.debug"
-android:summary="@string/accessibility_service_summary" />
+    android:accessibilityEventTypes="typeViewClicked"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRequestFilterKeyEvents="false"
+    android:canRequestTouchExplorationMode="false"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="1000"
+    android:packageNames="com.clickflow.android,com.clickflow.android.debug"
+    android:summary="@string/accessibility_service_summary" />
