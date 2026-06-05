@@ -1,16 +1,16 @@
 <PLACEHOLDER_EXISTING_CONTENT>
 
 ## Step 61
-Read-only permissions. `PermissionsManager`, `Screen.PERMISSIONS`.
+Read-only permissions.
 
 ## Step 62
-Real Tap Prototype — six prototype ViewModel APIs, SafetyState.
+Real Tap Prototype — six prototype ViewModel APIs.
 
 ## Step 63
-Live SafetyGate flags, `RealTapDispatchResult`, `safetyGateReasons`.
+Live SafetyGate flags, `RealTapDispatchResult`.
 
 ## Step 64
-RealTapController wired, granular audit, marker invariant, build fix.
+RealTapController wired, granular audit, build fix.
 
 ## Step 65
 JVM tests: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
@@ -19,7 +19,7 @@ JVM tests: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
 `ScreenCaptureState` + `ScreenCaptureController` + tests.
 
 ## Step 66 (Part 2)
-`ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`, manifest.
+`ScreenCaptureRepository`, `ScreenCaptureService`, `ScreenCaptureActivity`.
 
 ## Step 67
 `CaptureRegion` + `RegionSelectorController` + tests.
@@ -46,23 +46,18 @@ JVM tests: SafetyGate, RealTapController, RealTapSession, RealTapSafetyReview.
 `ControlledTapSession` + `ControlledTapSessionManager` + 14 JVM tests.
 
 ## Step 75
+`SmartTargetTapRequest` + `SmartTargetTapController` (5-check dispatch chain, 10s consent TTL, 2% drift) + 12 JVM tests.
 
-Smart target → single real tap with explicit consent.
+## Step 76
 
-- `realtap/SmartTargetTapRequest.kt`:
-  - `data class SmartTargetTapRequest(sessionId, targetType, highlightRegion, requestedAtMs)`.
-    `tapX` / `tapY` = `highlightRegion.centerX/Y`. `isValid` = region valid.
-  - `enum SmartTargetType { IMAGE_TARGET, TEXT_TARGET }`.
-  - `sealed SmartTargetTapResult { Dispatched(request, tapNumber), Blocked(request?, reason) }`.
-  - `enum SmartTargetBlockReason { INVALID_REQUEST, NO_ACTIVE_SESSION, SESSION_GATE_CLOSED,
-    CONSENT_MISSING, CONSENT_EXPIRED, MARKER_DRIFT }`.
-- `realtap/SmartTargetTapController.kt`:
-  - `recordConsent(request)`, `clearConsent()`, `consent: SmartTargetConsent?`.
-  - `dispatch(request?)`: 5-check chain (validate → session → evaluateTap → consent present
-    → consent fresh + coords match) → `recordTap` + `clearConsent` → `Dispatched`.
-  - `CONSENT_TTL_MS = 10_000L`, `COORD_TOLERANCE = 0.02f`.
-  - `data class SmartTargetConsent(request, recordedAtMs)`.
-- Test: `SmartTargetTapControllerTest.kt` — 12 JVM tests.
-- `AppInfo.STEP` → Step 75.
-- Invariants: `canRunRealTap()` = `false`; `evaluateTap()` → GATE_CLOSED; `dispatch()` →
-  SESSION_GATE_CLOSED until Step 76. No `dispatchGesture`, no I/O.
+Audit + Emergency Stop for smart tap sessions.
+
+- `realtap/SmartSessionAudit.kt`:
+  - `SmartSessionAuditEvent(type, sessionId?, detail, recordedAtMs)`.
+  - `SmartSessionAuditType` (10 values).
+  - `SmartSessionAuditLog(maxEvents, nowProvider)`: record / eventsOfType / clear / exportText.
+  - `SmartSessionEmergencyStop(sessionManager, tapController, auditLog)`: execute(detail)
+    → clearConsent → emergencyStop → record SESSION_EMERGENCY_STOPPED.
+- Test: `SmartSessionAuditTest.kt` — 13 JVM tests.
+- `AppInfo.STEP` → Step 76.
+- Phase 3 (74–76) complete. Phase 4 starts at Step 77 (repo Mine, desktop).
