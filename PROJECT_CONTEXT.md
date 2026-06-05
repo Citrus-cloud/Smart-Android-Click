@@ -153,3 +153,26 @@ Template Manager — model WHAT the matching engine (Step 69+) will look for, as
 - Test `capture/TemplateManagerTest.kt` — JVM tests across add/validate, ids, rename, threshold, region, remove, clear.
 - `AppInfo.STEP` → Step 68.
 - Invariants: metadata/geometry only — no pixels, no capture/analysis, nothing persisted; `SafetyGate.canRunRealTap()` unchanged (`false`). Reference-bitmap capture, on-device matching, and the management UI land in Step 69+.
+
+## Step 69
+
+Template Matching Engine — pure-Kotlin decision layer that accepts raw float scores from a future image-similarity provider and decides whether each score constitutes a "match" for a given `CaptureTemplate`. No bitmaps, no Android APIs, no tap dispatch.
+
+- `capture/MatchResult.kt` — two data classes:
+  - `MatchCandidate(location: CaptureRegion, rawScore: Float)` — one candidate position + its raw similarity score from the pipeline.
+  - `MatchResult(templateId: String, confidence: Float, matched: Boolean, location: CaptureRegion?, evaluatedAtMs: Long)` — the decision outcome. `confidence` is clamped to `[0, 1]`; `matched` is `true` when `confidence ≥ template.matchThreshold`. Exposes `.highlight: CaptureRegion?` (returns `location` when matched, `null` otherwise) and a companion `noMatch(templateId, evaluatedAtMs)` factory.
+- `capture/TemplateMatcher.kt` — stateless decision layer, injected `nowProvider: () -> Long` for testability:
+  - `evaluate(template: CaptureTemplate, candidate: MatchCandidate): MatchResult` — clamps raw score to `[0, 1]`, compares to `template.matchThreshold`, returns a `MatchResult`.
+  - `evaluateBest(template: CaptureTemplate, candidates: List<MatchCandidate>): MatchResult` — picks the candidate with the highest raw score; returns `MatchResult.noMatch(...)` when the list is empty.
+  - `matchesOnly(evaluations: List<MatchResult>): List<MatchResult>` — filters to matched results, sorted by `confidence` descending. No Android imports.
+- `app/src/test/java/com/clickflow/android/capture/TemplateMatcherTest.kt` — 8 JVM tests:
+  1. match above threshold → `matched=true`, confidence clamped.
+  2. no match below threshold → `matched=false`.
+  3. match exactly at threshold → `matched=true`.
+  4. raw score > 1 clamped to 1.0.
+  5. `evaluateBest` picks the candidate with highest rawScore.
+  6. `evaluateBest` on an empty list returns `noMatch`.
+  7. `evaluatedAtMs` comes from the injected `nowProvider`.
+  8. `matchesOnly` filters non-matched and sorts by confidence descending.
+- `AppInfo.STEP` → Step 69.
+- Invariants: float-score decision only — no pixels held, no capture runs, no tap dispatched; `SafetyGate.canRunRealTap()` unchanged (`false`). The actual image-similarity computation (OpenCV / ML Kit) and the on-screen highlight overlay land in Step 70.

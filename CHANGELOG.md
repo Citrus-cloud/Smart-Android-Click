@@ -5,6 +5,42 @@ This project follows the ClickFlow step-based development model.
 
 ## [Unreleased]
 
+### Step 69 — Template matching engine (decision layer, no pixels, no tap)
+
+Phase 2 continues: a pure-Kotlin decision layer that takes raw candidate scores
+(floats) from a future matcher and decides whether each score constitutes a
+"match" for a given `CaptureTemplate`, with confidence normalization and
+highlighting helpers. No bitmaps, no Android APIs, no tap dispatch.
+
+- New `capture/MatchResult.kt` — two data classes:
+  - `MatchCandidate(location: CaptureRegion, rawScore: Float)` — one candidate
+    position + its raw similarity score.
+  - `MatchResult(templateId, confidence, matched, location?, evaluatedAtMs)` —
+    the decision outcome; `confidence` is clamped to `[0, 1]`, `matched` is
+    `confidence ≥ template.matchThreshold`. Exposes a `.highlight` property
+    (returns `location` when matched, `null` otherwise) and a companion
+    `noMatch(templateId, evaluatedAtMs)` factory.
+- New `capture/TemplateMatcher.kt` — pure-Kotlin decision layer with injected
+  `nowProvider: () -> Long`:
+  - `evaluate(template, candidate)` — scores one candidate against one template;
+    clamps raw score to `[0, 1]`, compares to `matchThreshold`, returns a
+    `MatchResult`.
+  - `evaluateBest(template, candidates)` — picks the candidate with the highest
+    raw score; returns `MatchResult.noMatch(...)` for an empty list.
+  - `matchesOnly(evaluations)` — filters to matched results, sorted by confidence
+    descending. No Android imports.
+- New `app/src/test/java/com/clickflow/android/capture/TemplateMatcherTest.kt`
+  — 8 JVM tests: match above threshold, no match below threshold, match exactly
+  at threshold, confidence clamped to [0,1], `evaluateBest` picks highest score,
+  `evaluateBest` empty list → noMatch, `evaluatedAtMs` from injected provider,
+  `matchesOnly` filters and sorts.
+- `AppInfo.STEP` bumped to Step 69.
+
+Safety / privacy invariants: the matcher operates on raw float scores only — no
+pixels are held, no capture runs, no tap is dispatched; `SafetyGate.canRunRealTap()`
+is untouched and still returns `false`. The actual image-similarity computation
+(OpenCV / ML Kit) and the on-screen highlight overlay land in Step 70.
+
 ### Step 68 — Template Manager (in-memory registry of capture templates)
 
 Phase 2 continues: models WHAT the matching engine (Step 69+) will look for —
