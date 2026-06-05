@@ -19,6 +19,7 @@ class TemplateMatcher(val nowProvider: () -> Long = { System.currentTimeMillis()
      *
      * - Clamps [MatchCandidate.rawScore] to [0, 1].
      * - Sets [MatchResult.matched] when confidence ≥ [CaptureTemplate.matchThreshold].
+     * - Exposes [MatchResult.location] only for matched results; no-match results have null location.
      */
     fun evaluate(template: CaptureTemplate, candidate: MatchCandidate): MatchResult {
         val confidence = candidate.rawScore.coerceIn(0f, 1f)
@@ -27,7 +28,7 @@ class TemplateMatcher(val nowProvider: () -> Long = { System.currentTimeMillis()
             templateId = template.id,
             confidence = confidence,
             matched = matched,
-            location = candidate.location,
+            location = if (matched) candidate.location.clampedToUnit() else null,
             evaluatedAtMs = nowProvider()
         )
     }

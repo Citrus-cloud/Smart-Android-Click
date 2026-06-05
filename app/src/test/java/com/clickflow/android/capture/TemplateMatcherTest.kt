@@ -89,9 +89,9 @@ class TemplateMatcherTest {
 		val t3 = template(0.8f).copy(id = "tpl-3")
 		val results = m.matchesOnly(
 			listOf(
-				t1 to listOf(MatchCandidate(region, 0.85f)),
-				t2 to listOf(MatchCandidate(region, 0.5f)),
-				t3 to listOf(MatchCandidate(region, 0.99f)),
+				m.evaluate(t1, MatchCandidate(region, 0.85f)),
+				m.evaluate(t2, MatchCandidate(region, 0.5f)),
+				m.evaluate(t3, MatchCandidate(region, 0.99f)),
 			),
 		)
 		assertEquals(2, results.size)
