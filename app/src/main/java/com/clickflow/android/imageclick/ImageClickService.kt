@@ -16,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -48,6 +50,7 @@ class ImageClickService : Service() {
                     Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0444\u043e\u0442\u043e")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
@@ -110,21 +113,24 @@ class ImageClickService : Service() {
             while (running) {
                 val bitmap = capture(service)
                 if (bitmap != null) {
-                    val regionLeftPx = (bitmap.width * templateMeta.regionLeft).toInt()
-                    val regionTopPx = (bitmap.height * templateMeta.regionTop).toInt()
-                    val regionRightPx = (bitmap.width * templateMeta.regionRight).toInt()
-                    val regionBottomPx = (bitmap.height * templateMeta.regionBottom).toInt()
-                    val match = BitmapTemplateMatcher.findBest(
-                        screen = bitmap,
-                        template = templateBitmap,
-                        threshold = templateMeta.threshold,
-                        regionLeftPx = regionLeftPx,
-                        regionTopPx = regionTopPx,
-                        regionRightPx = regionRightPx,
-                        regionBottomPx = regionBottomPx,
-                        scaleMin = templateMeta.scaleMin,
-                        scaleMax = templateMeta.scaleMax,
-                    )
+                    // Heavy pixel matching runs off the main thread so the UI never blocks.
+                    val match = withContext(Dispatchers.Default) {
+                        val regionLeftPx = (bitmap.width * templateMeta.regionLeft).toInt()
+                        val regionTopPx = (bitmap.height * templateMeta.regionTop).toInt()
+                        val regionRightPx = (bitmap.width * templateMeta.regionRight).toInt()
+                        val regionBottomPx = (bitmap.height * templateMeta.regionBottom).toInt()
+                        BitmapTemplateMatcher.findBest(
+                            screen = bitmap,
+                            template = templateBitmap,
+                            threshold = templateMeta.threshold,
+                            regionLeftPx = regionLeftPx,
+                            regionTopPx = regionTopPx,
+                            regionRightPx = regionRightPx,
+                            regionBottomPx = regionBottomPx,
+                            scaleMin = templateMeta.scaleMin,
+                            scaleMax = templateMeta.scaleMax,
+                        )
+                    }
                     if (match != null) {
                         val tapX = match.x + (match.width * templateMeta.tapX).toInt()
                         val tapY = match.y + (match.height * templateMeta.tapY).toInt()
@@ -152,6 +158,7 @@ class ImageClickService : Service() {
     override fun onDestroy() {
         running = false
         removeStopChip()
+        ForegroundNotifications.stop(this)
         scope.cancel()
         super.onDestroy()
     }
