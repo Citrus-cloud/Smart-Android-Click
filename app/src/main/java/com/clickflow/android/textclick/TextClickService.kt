@@ -50,11 +50,17 @@ class TextClickService : Service() {
                     Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
-                if (ClickFlowAccessibilityService.liveInstance == null) {
-                    Toast.makeText(this, "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility", Toast.LENGTH_LONG).show()
-                    stopSelf(); return START_NOT_STICKY
+                scope.launch {
+                    val service = ClickFlowAccessibilityService.awaitInstance()
+                    if (service == null) {
+                        val msg = if (ClickFlowAccessibilityService.isEnabledInSettings(this@TextClickService))
+                            "Accessibility \u0435\u0449\u0451 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0435\u0449\u0451 \u0440\u0430\u0437"
+                        else "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445"
+                        Toast.makeText(this@TextClickService, msg, Toast.LENGTH_LONG).show()
+                        stopSelf(); return@launch
+                    }
+                    begin()
                 }
-                begin()
             }
             else -> stopSelf()
         }
