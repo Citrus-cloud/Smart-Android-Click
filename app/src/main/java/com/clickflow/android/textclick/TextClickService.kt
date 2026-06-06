@@ -47,11 +47,11 @@ class TextClickService : Service() {
             ACTION_STOP -> stopSelf()
             ACTION_START -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
                 if (ClickFlowAccessibilityService.liveInstance == null) {
-                    Toast.makeText(this, "Включи Accessibility", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
                 begin()
@@ -67,7 +67,7 @@ class TextClickService : Service() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
             val chip = TextView(this).apply {
-                text = "■ Стоп текст"
+                text = "\u25a0 \u0421\u0442\u043e\u043f \u0442\u0435\u043a\u0441\u0442"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 setPadding(30, 18, 30, 18)
@@ -97,6 +97,10 @@ class TextClickService : Service() {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         running = true
         showStopChip()
+        val infinite = config.infinite || config.continuous
+        val maxTaps = config.repeatCount.coerceAtLeast(1)
+        val scanInterval = maxOf(config.intervalMs, 1100L)
+        var taps = 0
         scope.launch {
             delay(800)
             while (running) {
@@ -106,11 +110,12 @@ class TextClickService : Service() {
                     val box = result?.let { findTextBox(it, config) }
                     if (box != null) {
                         service.performSingleTap(box.centerX(), box.centerY(), 70L)
-                        if (!config.continuous) { running = false; bitmap.recycle(); break }
+                        taps++
+                        if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
                     }
                     bitmap.recycle()
                 }
-                delay(1100)
+                delay(scanInterval)
             }
             recognizer.close()
             stopSelf()
