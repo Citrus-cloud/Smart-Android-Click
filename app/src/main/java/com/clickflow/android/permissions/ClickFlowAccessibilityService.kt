@@ -40,7 +40,7 @@ class ClickFlowAccessibilityService : AccessibilityService() {
            takeScreenshot(
                Display.DEFAULT_DISPLAY,
                mainExecutor,
-               object : TakeScreenshotCallback() {
+               object : TakeScreenshotCallback {
                    override fun onSuccess(screenshotResult: ScreenshotResult) {
                        val bitmap = try {
                            val wrapped = Bitmap.wrapHardwareBuffer(
