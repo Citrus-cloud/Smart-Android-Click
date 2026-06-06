@@ -3,9 +3,24 @@ package com.clickflow.android.imageclick
 import android.graphics.Bitmap
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
+/**
+ * Locates an image template inside a screenshot.
+ *
+ * Strategy: for each candidate scale a light "coarse" grid scan locates the most
+ * promising position, then a dense stride-1 "refine" pass around that position
+ * pinpoints the best match. This is more accurate and more robust to small
+ * offsets than a single coarse pass, while keeping per-frame cost reasonable.
+ *
+ * The public contract (Match and both findBest signatures) is unchanged.
+ */
 object BitmapTemplateMatcher {
+    private const val SCALE_STEP = 0.05f
+    private const val COARSE_SAMPLES = 10
+    private const val MAX_COLOR_DISTANCE = 3f * 255f
+
     data class Match(
         val x: Int,
         val y: Int,
@@ -26,8 +41,8 @@ object BitmapTemplateMatcher {
         regionTopPx: Int,
         regionRightPx: Int,
         regionBottomPx: Int,
-        scaleMin: Float = 0.85f,
-        scaleMax: Float = 1.15f,
+        scaleMin: Float = 0.8f,
+        scaleMax: Float = 1.2f,
     ): Match? {
         if (screen.width <= 0 || screen.height <= 0 || template.width <= 0 || template.height <= 0) return null
 
@@ -69,9 +84,9 @@ object BitmapTemplateMatcher {
         var s = minScale
         while (s <= maxScale + 0.001f) {
             values.add(s)
-            s += 0.10f
+            s += SCALE_STEP
         }
-        if (values.none { abs(it - 1f) < 0.03f } && 1f in minScale..maxScale) values.add(1f)
+        if (1f in minScale..maxScale && values.none { abs(it - 1f) < SCALE_STEP / 2f }) values.add(1f)
         return values.distinctBy { (it * 100).roundToInt() }.sorted()
     }
 
@@ -86,23 +101,65 @@ object BitmapTemplateMatcher {
         scaledHeight: Int,
         scale: Float,
     ): Match? {
-        val stride = max(5, minOf(scaledWidth, scaledHeight) / 12)
-        val sampleX = 8
-        val sampleY = 8
-        var best: Match? = null
+        val maxX = right - scaledWidth
+        val maxY = bottom - scaledHeight
+        if (maxX < left || maxY < top) return null
 
+        val coarseStride = max(4, min(scaledWidth, scaledHeight) / 10)
+
+        // Phase 1: coarse scan with a light sample grid to locate the best region.
+        var coarseX = left
+        var coarseY = top
+        var coarseScore = -1f
         var y = top
-        while (y <= bottom - scaledHeight) {
+        while (y <= maxY) {
             var x = left
-            while (x <= right - scaledWidth) {
-                val score = scoreAt(screen, template, x, y, scaledWidth, scaledHeight, sampleX, sampleY)
-                if (best == null || score > best.confidence) best = Match(x, y, scaledWidth, scaledHeight, scale, score)
-                x += stride
+            while (x <= maxX) {
+                val score = scoreAt(screen, template, x, y, scaledWidth, scaledHeight, COARSE_SAMPLES, COARSE_SAMPLES)
+                if (score > coarseScore) {
+                    coarseScore = score
+                    coarseX = x
+                    coarseY = y
+                }
+                x += coarseStride
             }
-            y += stride
+            y += coarseStride
         }
-        return best
+        if (coarseScore < 0f) return null
+
+        // Phase 2: dense stride-1 refine around the coarse winner.
+        val refineRadius = coarseStride.coerceAtMost(8)
+        val fineSamplesX = sampleCount(scaledWidth)
+        val fineSamplesY = sampleCount(scaledHeight)
+        val rxStart = (coarseX - refineRadius).coerceIn(left, maxX)
+        val rxEnd = (coarseX + refineRadius).coerceIn(left, maxX)
+        val ryStart = (coarseY - refineRadius).coerceIn(top, maxY)
+        val ryEnd = (coarseY + refineRadius).coerceIn(top, maxY)
+
+        var bestX = coarseX
+        var bestY = coarseY
+        var bestScore = scoreAt(screen, template, coarseX, coarseY, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
+        var ry = ryStart
+        while (ry <= ryEnd) {
+            var rx = rxStart
+            while (rx <= rxEnd) {
+                if (rx != coarseX || ry != coarseY) {
+                    val score = scoreAt(screen, template, rx, ry, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
+                    if (score > bestScore) {
+                        bestScore = score
+                        bestX = rx
+                        bestY = ry
+                    }
+                }
+                rx++
+            }
+            ry++
+        }
+        return Match(bestX, bestY, scaledWidth, scaledHeight, scale, bestScore)
     }
+
+    /** Roughly one sample per 5px, clamped so small templates aren't oversampled. */
+    private fun sampleCount(dimension: Int): Int = (dimension / 5).coerceIn(16, 28)
 
     private fun scoreAt(
         screen: Bitmap,
@@ -139,6 +196,6 @@ object BitmapTemplateMatcher {
         val bg = (b shr 8) and 0xFF
         val bb = b and 0xFF
         val diff = abs(ar - br) + abs(ag - bg) + abs(ab - bb)
-        return 1f - (diff / 765f)
+        return 1f - (diff / MAX_COLOR_DISTANCE)
     }
 }

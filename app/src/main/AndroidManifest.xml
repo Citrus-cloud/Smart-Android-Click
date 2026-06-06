@@ -2,12 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 <application
-    android:allowBackup="true"
+    android:allowBackup="false"
+    android:fullBackupContent="false"
     android:icon="@mipmap/ic_launcher"
     android:label="@string/app_name"
     android:roundIcon="@mipmap/ic_launcher_round"
@@ -28,7 +26,6 @@
     <activity android:name=".imageclick.ImageTemplateActivity" android:exported="false" android:label="@string/app_name" android:theme="@style/Theme.ClickFlowAndroid" />
     <activity android:name=".textclick.TextClickActivity" android:exported="false" android:label="@string/app_name" android:theme="@style/Theme.ClickFlowAndroid" />
     <activity android:name=".scenario.ScenarioActivity" android:exported="false" android:label="@string/app_name" android:theme="@style/Theme.ClickFlowAndroid" />
-    <activity android:name=".capture.ScreenCaptureActivity" android:exported="false" android:label="@string/app_name" android:theme="@style/Theme.ClickFlowAndroid" />
 
     <service
         android:name=".permissions.ClickFlowAccessibilityService"
@@ -42,11 +39,9 @@
     </service>
 
     <service android:name=".overlay.FloatingTapperOverlayService" android:exported="false" />
-    <service android:name=".scenario.ScenarioRunnerService" android:exported="false" />
     <service android:name=".scenario.ScenarioEngineService" android:exported="false" />
-    <service android:name=".capture.ScreenCaptureService" android:exported="false" android:foregroundServiceType="mediaProjection" />
-    <service android:name=".imageclick.ImageClickService" android:exported="false" android:foregroundServiceType="mediaProjection" />
-    <service android:name=".textclick.TextClickService" android:exported="false" android:foregroundServiceType="mediaProjection" />
+    <service android:name=".imageclick.ImageClickService" android:exported="false" />
+    <service android:name=".textclick.TextClickService" android:exported="false" />
 
 </application>
 
