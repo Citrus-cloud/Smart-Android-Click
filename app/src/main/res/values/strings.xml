@@ -4,12 +4,12 @@
 
     <!-- Accessibility service -->
     <string name="accessibility_service_label">ClickFlow Accessibility Service</string>
-    <string name="accessibility_service_summary">ClickFlow safety service</string>
-    <string name="accessibility_service_description">ClickFlow declares this accessibility service for safety review and controlled automation. In this build, it does not read screen content, does not process events, and does not perform real taps unless explicitly enabled by the safety gate.</string>
+    <string name="accessibility_service_summary">Controlled taps, screen search, and user-created automation scenarios</string>
+    <string name="accessibility_service_description">ClickFlow uses Accessibility only after the user enables it, to perform user-configured taps, take local screenshots for image/text search, and run user-created automation scenarios. ClickFlow does not collect passwords, payment details, personal messages, or other sensitive text, and does not send screen data to a server.</string>
 
     <!-- Home / common -->
-    <string name="status_badge">Simulation-only mode</string>
-    <string name="drag_to_choose_click_point">Drag the marker to choose a simulated click point.</string>
+    <string name="status_badge">Local automation mode</string>
+    <string name="drag_to_choose_click_point">Drag the marker to choose a click point.</string>
     <string name="interval">Interval</string>
     <string name="count">Count</string>
     <string name="start_clicker">Start clicker</string>
@@ -30,7 +30,7 @@
     <string name="scenario_completed">Scenario completed: %1$s</string>
     <string name="scenario_stopped">Scenario stopped</string>
     <string name="scenario_emergency_stopped">Scenario emergency-stopped</string>
-    <string name="simulated_tap_at">Simulated tap at %1$d, %2$d</string>
+    <string name="simulated_tap_at">Tap at %1$d, %2$d</string>
     <string name="waited_ms">Waited %1$d ms</string>
 
     <!-- Advanced / about -->
@@ -42,10 +42,10 @@
     <string name="btn_safety_center">Safety Center</string>
     <string name="btn_permissions">Permissions</string>
     <string name="btn_diagnostics">Diagnostics</string>
-    <string name="btn_real_tap_prototype">Real tap prototype</string>
+    <string name="btn_real_tap_prototype">Tap prototype</string>
     <string name="about">About</string>
-    <string name="real_taps_disclaimer">Real taps are disabled in this build.</string>
-    <string name="simulation_only_marker">Simulation-only marker. No real tap is dispatched.</string>
+    <string name="real_taps_disclaimer">Taps run only after you enable Accessibility and start them yourself.</string>
+    <string name="simulation_only_marker">Marker preview.</string>
 
     <!-- Messages -->
     <string name="profile_saved">Profile saved</string>
@@ -74,7 +74,7 @@
     <string name="open_scenario">Open</string>
     <string name="select_scenario">Select</string>
     <string name="delete_scenario">Delete</string>
-    <string name="run_simulation">Run simulation</string>
+    <string name="run_simulation">Run scenario</string>
     <string name="reset_scenarios">Reset scenarios</string>
     <string name="edit_scenario">Edit scenario</string>
     <string name="actions">Actions</string>
@@ -85,7 +85,7 @@
     <string name="add_tap_action">Add TAP action</string>
     <string name="add_wait_action">Add WAIT action</string>
     <string name="add_note_action">Add NOTE action</string>
-    <string name="simulation_only_actions">Actions are simulated only.</string>
+    <string name="simulation_only_actions">Actions are configured locally by the user.</string>
     <string name="scenario_name">Scenario name</string>
     <string name="repeat_count">Repeat count</string>
     <string name="interval_ms">Interval, ms</string>
@@ -93,10 +93,10 @@
     <string name="validation_repeat_invalid">Repeat count is invalid</string>
     <string name="validation_interval_invalid">Interval is invalid</string>
     <string name="validation_actions_required">At least one action is required</string>
-    <string name="simulation_only_scenario">This scenario runs in simulation mode only.</string>
+    <string name="simulation_only_scenario">This scenario runs locally on this device.</string>
     <string name="add_action">Add action</string>
     <string name="action_type">Action type</string>
-    <string name="simulated_tap_action">Simulated tap</string>
+    <string name="simulated_tap_action">Tap</string>
     <string name="wait_action">Wait</string>
     <string name="note_action">Note</string>
     <string name="validation_coordinate_invalid">Coordinates are invalid</string>
@@ -105,7 +105,7 @@
     <string name="validation_duration_invalid">Duration is invalid</string>
     <string name="note_message">Note message</string>
     <string name="validation_message_required">Message is required</string>
-    <string name="real_tap_still_disabled">Real taps are still disabled.</string>
+    <string name="real_tap_still_disabled">Enable Accessibility before running taps.</string>
 
     <!-- Profiles -->
     <string name="profiles_are_local">Profiles are stored locally on this device.</string>
@@ -132,7 +132,7 @@
     <!-- Backup -->
     <string name="backup_profiles_count">Profiles</string>
     <string name="backup_scenarios_count">Scenarios</string>
-    <string name="backup_simulation_only">Backup contains simulation data only.</string>
+    <string name="backup_simulation_only">Backup contains local user-created settings only.</string>
     <string name="backup_does_not_include_audit_log">Backup does not include audit log.</string>
     <string name="no_permissions_required">No extra permissions required.</string>
     <string name="export_backup">Export backup</string>
@@ -153,36 +153,36 @@
     <string name="clear_import">Clear import</string>
 
     <!-- Safety / diagnostics / permissions -->
-    <string name="real_taps_disabled">Real taps disabled</string>
+    <string name="real_taps_disabled">Taps not running</string>
     <string name="blocked_reasons_title">Blocked reasons</string>
     <string name="profile_storage_ready">Profile storage ready</string>
     <string name="corrupted_profile_storage_recovered">Corrupted profile storage recovered</string>
-    <string name="permissions_intro">Review optional permissions used by advanced ClickFlow features.</string>
+    <string name="permissions_intro">Review optional permissions used by ClickFlow automation features.</string>
     <string name="permission_overlay">Overlay permission</string>
     <string name="permission_granted">Granted</string>
     <string name="permission_not_granted">Not granted</string>
     <string name="permission_overlay_description">Allows ClickFlow to show a floating control overlay.</string>
     <string name="open_overlay_settings">Open overlay settings</string>
     <string name="permission_accessibility">Accessibility service</string>
-    <string name="permission_accessibility_description">Allows controlled automation through Android Accessibility settings. Real taps remain safety-gated.</string>
+    <string name="permission_accessibility_description">Allows ClickFlow to perform user-configured taps and local screen search after you start automation yourself.</string>
     <string name="open_accessibility_settings">Open accessibility settings</string>
     <string name="refresh_permissions">Refresh permissions</string>
-    <string name="permissions_safety_note">Permissions do not enable real taps by themselves.</string>
+    <string name="permissions_safety_note">Permissions do not start automation by themselves.</string>
 
     <!-- Real tap prototype -->
-    <string name="real_tap_prototype_title">Real tap prototype</string>
-    <string name="real_tap_prototype_intro">A gated prototype for one consented real tap. Bulk taps are blocked.</string>
+    <string name="real_tap_prototype_title">Tap prototype</string>
+    <string name="real_tap_prototype_intro">A gated prototype for one consented tap.</string>
     <string name="real_tap_safety_review">Safety review</string>
     <string name="real_tap_safety_review_passed">Safety review passed</string>
     <string name="real_tap_blocked_by_gate">Blocked by safety gate</string>
-    <string name="real_tap_session_start">Start real tap session</string>
-    <string name="real_tap_session_end">End real tap session</string>
+    <string name="real_tap_session_start">Start tap session</string>
+    <string name="real_tap_session_end">End tap session</string>
     <string name="real_tap_request_consent">Request consent</string>
     <string name="real_tap_consent_pending">Consent pending</string>
     <string name="real_tap_confirm">Confirm</string>
     <string name="real_tap_cancel">Cancel</string>
     <string name="real_tap_why_blocked">Why blocked</string>
-    <string name="real_tap_bulk_still_blocked">Bulk real taps remain blocked.</string>
+    <string name="real_tap_bulk_still_blocked">Bulk taps remain blocked.</string>
     <string name="real_tap_emergency_stop_note">Emergency Stop resets the session and consent.</string>
     <string name="real_tap_result_dispatched">Dispatched</string>
     <string name="real_tap_result_blocked_by_gate">Blocked by gate</string>
@@ -190,8 +190,8 @@
     <string name="real_tap_result_blocked_invalid_consent">Blocked: invalid consent</string>
     <string name="real_tap_result_dispatch_cancelled">Dispatch cancelled</string>
     <string name="real_tap_result_dispatch_failed">Dispatch failed</string>
-    <string name="real_tap_audit_session_started">Real tap session started</string>
-    <string name="real_tap_audit_session_ended">Real tap session ended</string>
+    <string name="real_tap_audit_session_started">Tap session started</string>
+    <string name="real_tap_audit_session_ended">Tap session ended</string>
     <string name="real_tap_audit_consent_requested">Consent requested</string>
     <string name="real_tap_audit_consent_confirmed">Consent confirmed</string>
     <string name="real_tap_audit_consent_expired">Consent expired</string>
