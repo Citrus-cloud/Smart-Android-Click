@@ -99,7 +99,7 @@ class FloatingTapperOverlayService : Service() {
     }
 
     private fun grabber(): View = View(this).apply {
-        background = GradientDrawable().apply { cornerRadius = 8f; setColor(0xFF6E6E6E.toInt()) }
+        background = GradientDrawable().apply { cornerRadius = 17f; setColor(0xFF7A7A7A.toInt()) }
     }
 
     private fun pill(text: String, onClick: () -> Unit): Button = Button(this).apply {
@@ -124,7 +124,7 @@ class FloatingTapperOverlayService : Service() {
         }
 
         val grab = grabber()
-        val grabLp = LinearLayout.LayoutParams(96, 14).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 }
+        val grabLp = LinearLayout.LayoutParams(170, 32).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = 4; bottomMargin = 12 }
 
         val start = pill("\u25b6 \u0421\u0442\u0430\u0440\u0442") { if (running) stopLoop() else startLoop() }
 
