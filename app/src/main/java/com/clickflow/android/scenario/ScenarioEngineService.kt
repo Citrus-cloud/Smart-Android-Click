@@ -22,6 +22,7 @@ import com.clickflow.android.imageclick.ImageClickTemplate
 import com.clickflow.android.imageclick.ImageClickTemplateStore
 import com.clickflow.android.imageclick.normalized
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import com.clickflow.android.textclick.TextClickConfig
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
@@ -37,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -66,6 +68,7 @@ class ScenarioEngineService : Service() {
                     Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_SCENARIO, "ClickFlow: сценарий")
                 val scenarioId = intent.getStringExtra(EXTRA_SCENARIO_ID)
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
@@ -212,21 +215,24 @@ class ScenarioEngineService : Service() {
     ): Boolean {
         val screen = capture(service) ?: return false
         try {
-            val regionLeftPx = (screen.width * template.regionLeft).toInt()
-            val regionTopPx = (screen.height * template.regionTop).toInt()
-            val regionRightPx = (screen.width * template.regionRight).toInt()
-            val regionBottomPx = (screen.height * template.regionBottom).toInt()
-            val match = BitmapTemplateMatcher.findBest(
-                screen = screen,
-                template = templateBitmap,
-                threshold = template.threshold,
-                regionLeftPx = regionLeftPx,
-                regionTopPx = regionTopPx,
-                regionRightPx = regionRightPx,
-                regionBottomPx = regionBottomPx,
-                scaleMin = template.scaleMin,
-                scaleMax = template.scaleMax,
-            ) ?: return false
+            // Heavy pixel matching runs off the main thread so the UI never blocks.
+            val match = withContext(Dispatchers.Default) {
+                val regionLeftPx = (screen.width * template.regionLeft).toInt()
+                val regionTopPx = (screen.height * template.regionTop).toInt()
+                val regionRightPx = (screen.width * template.regionRight).toInt()
+                val regionBottomPx = (screen.height * template.regionBottom).toInt()
+                BitmapTemplateMatcher.findBest(
+                    screen = screen,
+                    template = templateBitmap,
+                    threshold = template.threshold,
+                    regionLeftPx = regionLeftPx,
+                    regionTopPx = regionTopPx,
+                    regionRightPx = regionRightPx,
+                    regionBottomPx = regionBottomPx,
+                    scaleMin = template.scaleMin,
+                    scaleMax = template.scaleMax,
+                )
+            } ?: return false
             val tapX = match.x + (match.width * template.tapX).toInt()
             val tapY = match.y + (match.height * template.tapY).toInt()
             service.performSingleTap(tapX, tapY, 70L)
@@ -356,6 +362,7 @@ class ScenarioEngineService : Service() {
         running = false
         job?.cancel()
         removeControlPanel()
+        ForegroundNotifications.stop(this)
         scope.cancel()
         super.onDestroy()
     }
