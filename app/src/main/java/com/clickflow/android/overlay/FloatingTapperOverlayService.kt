@@ -14,7 +14,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -33,25 +32,19 @@ private const val KEY_INTERVAL_MS = "interval_ms"
 private const val KEY_REPEAT_COUNT = "repeat_count"
 private const val KEY_INFINITE = "infinite"
 private const val KEY_OVERLAY_MARKERS = "overlay_markers"
-
-private const val RING_SIZE = 172
-private const val HANDLE_SIZE = 76
-private const val GAP = 10
-private const val MARKER_W = RING_SIZE
-private const val MARKER_H = HANDLE_SIZE + GAP + RING_SIZE
-private const val RING_CENTER_DX = RING_SIZE / 2
-private const val RING_CENTER_DY = HANDLE_SIZE + GAP + RING_SIZE / 2
+private const val MARKER_SIZE = 160
 
 /**
- * The floating tap marker is the main feature: a target placed over any app with a
- * round grab handle on top for dragging. All controls live in the attached panel
- * (start/stop, add/remove targets, interval, repeat count, infinite).
+ * The floating tap marker is the main feature: a simple round target placed over any
+ * app. Drag it by touching it directly. All controls live in the attached panel
+ * (start/stop, add/remove targets, interval, repeat count, infinite); drag the panel
+ * by its top grab bar.
  *
- * During tapping we do NOT hide the marker (that caused flicker and made Stop hard
- * to press). Each marker window is made touch-transparent so the dispatched gesture
- * passes through to the app below while the marker stays visible. FLAG_NOT_TOUCHABLE
- * is only honored at addView time on many Android builds, so we REMOVE and RE-ADD the
- * window to actually apply it.
+ * During tapping we do NOT hide the marker (that caused flicker). Each marker window
+ * is made touch-transparent so the dispatched gesture passes through to the app
+ * below while the marker stays visible. FLAG_NOT_TOUCHABLE is only honored at addView
+ * time on many Android builds, so we REMOVE and RE-ADD the window to actually apply
+ * it. Keeping the marker a single View (not a container) makes that re-add reliable.
  */
 class FloatingTapperOverlayService : Service() {
 
@@ -101,9 +94,12 @@ class FloatingTapperOverlayService : Service() {
 
     private fun panelBg(): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = 30f
+        cornerRadius = 28f
         setColor(0xF21C1C1C.toInt())
-        setStroke(2, 0x33FFFFFF)
+    }
+
+    private fun grabber(): View = View(this).apply {
+        background = GradientDrawable().apply { cornerRadius = 8f; setColor(0xFF6E6E6E.toInt()) }
     }
 
     private fun pill(text: String, onClick: () -> Unit): Button = Button(this).apply {
@@ -123,16 +119,12 @@ class FloatingTapperOverlayService : Service() {
     private fun showPanel() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(14, 14, 14, 14)
+            setPadding(12, 8, 12, 12)
             background = panelBg()
         }
 
-        val title = TextView(this).apply {
-            text = "\u041c\u0435\u0442\u043a\u0430  \u2630"
-            textSize = 13f
-            setTextColor(0xFFBDBDBD.toInt())
-            gravity = Gravity.CENTER
-        }
+        val grab = grabber()
+        val grabLp = LinearLayout.LayoutParams(96, 14).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = 10 }
 
         val start = pill("\u25b6 \u0421\u0442\u0430\u0440\u0442") { if (running) stopLoop() else startLoop() }
 
@@ -141,38 +133,38 @@ class FloatingTapperOverlayService : Service() {
             if (markers.size < 5) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
         }
         val remove = pill("\u2212 \u0422\u043e\u0447\u043a\u0430") { removeLastMarker(); saveMarkers() }
-        markerRow.addView(add, lp(0, 84, 1f))
+        markerRow.addView(add, lp(0, 70, 1f))
         markerRow.addView(space())
-        markerRow.addView(remove, lp(0, 84, 1f))
+        markerRow.addView(remove, lp(0, 70, 1f))
 
         val intervalRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        intervalRow.addView(pill("\u2212") { setInterval(intervalMs - 100) }, lp(70, 70, 0f))
+        intervalRow.addView(pill("\u2212") { setInterval(intervalMs - 100) }, lp(62, 58, 0f))
         val iLabel = TextView(this).apply { text = "$intervalMs \u043c\u0441"; textSize = 12f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
-        intervalRow.addView(iLabel, lp(0, 70, 1f))
-        intervalRow.addView(pill("+") { setInterval(intervalMs + 100) }, lp(70, 70, 0f))
+        intervalRow.addView(iLabel, lp(0, 58, 1f))
+        intervalRow.addView(pill("+") { setInterval(intervalMs + 100) }, lp(62, 58, 0f))
 
         val countRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        countRow.addView(pill("\u2212") { setRepeat(repeatCount - 5) }, lp(70, 70, 0f))
+        countRow.addView(pill("\u2212") { setRepeat(repeatCount - 5) }, lp(62, 58, 0f))
         val cLabel = TextView(this).apply { text = if (infinite) "\u221e" else "$repeatCount"; textSize = 14f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
-        countRow.addView(cLabel, lp(0, 70, 1f))
-        countRow.addView(pill("+") { setRepeat(repeatCount + 5) }, lp(70, 70, 0f))
+        countRow.addView(cLabel, lp(0, 58, 1f))
+        countRow.addView(pill("+") { setRepeat(repeatCount + 5) }, lp(62, 58, 0f))
         countRow.addView(space())
-        countRow.addView(pill("\u221e") { toggleInfinite() }, lp(70, 70, 0f))
+        countRow.addView(pill("\u221e") { toggleInfinite() }, lp(62, 58, 0f))
 
         val close = pill("\u00d7 \u0417\u0430\u043a\u0440\u044b\u0442\u044c") { stopSelf() }
 
-        root.addView(title, lp(280, 42, 0f))
-        root.addView(start, lp(280, 88, 0f))
+        root.addView(grab, grabLp)
+        root.addView(start, lp(252, 72, 0f))
         root.addView(spaceV())
-        root.addView(markerRow, lp(280, 0, 0f))
+        root.addView(markerRow, lp(252, 0, 0f))
         root.addView(spaceV())
         root.addView(labelText("\u0418\u043d\u0442\u0435\u0440\u0432\u0430\u043b"))
-        root.addView(intervalRow, lp(280, 0, 0f))
+        root.addView(intervalRow, lp(252, 0, 0f))
         root.addView(spaceV())
         root.addView(labelText("\u041f\u043e\u0432\u0442\u043e\u0440\u044b"))
-        root.addView(countRow, lp(280, 0, 0f))
+        root.addView(countRow, lp(252, 0, 0f))
         root.addView(spaceV())
-        root.addView(close, lp(280, 70, 0f))
+        root.addView(close, lp(252, 56, 0f))
 
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -185,7 +177,7 @@ class FloatingTapperOverlayService : Service() {
             x = 20
             y = 80
         }
-        makeDraggable(title, lp, root, saveOnEnd = false)
+        makeDraggable(grab, lp, root, saveOnEnd = false)
         panel = root
         startButton = start
         intervalLabel = iLabel
@@ -207,7 +199,7 @@ class FloatingTapperOverlayService : Service() {
     )
 
     private fun space(): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(10, 1) }
-    private fun spaceV(): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 10) }
+    private fun spaceV(): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 9) }
 
     private fun setInterval(value: Long) {
         intervalMs = value.coerceIn(100L, 5000L)
@@ -228,81 +220,40 @@ class FloatingTapperOverlayService : Service() {
         prefs().edit().putBoolean(KEY_INFINITE, infinite).apply()
     }
 
-    /** Round grab knob (blue with a white center dot) used to drag the marker. */
-    private fun handleDrawable(): LayerDrawable {
-        val knob = GradientDrawable().apply {
+    /** Simple round target: crisp blue ring + translucent fill (see-through) + a small
+     *  white center dot marking the exact tap point. No text glyph, so nothing renders
+     *  as an unknown box. */
+    private fun markerDrawable(): LayerDrawable {
+        val ring = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(0xE62D7DF6.toInt())
-            setStroke(4, 0xFFFFFFFF.toInt())
+            setColor(0x202D7DF6)
+            setStroke(7, 0xE62D7DF6.toInt())
         }
         val dot = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(0xF2FFFFFF.toInt())
+            setColor(0xCCFFFFFF.toInt())
         }
-        val inset = HANDLE_SIZE / 2 - 9
-        return LayerDrawable(arrayOf(knob, dot)).apply {
+        val inset = MARKER_SIZE / 2 - 8
+        return LayerDrawable(arrayOf(ring, dot)).apply {
             setLayerInset(1, inset, inset, inset, inset)
         }
-    }
-
-    /** Target ring: blue outer ring + white inner ring with a very translucent fill so
-     *  you can clearly see what is underneath. */
-    private fun ringDrawable(): LayerDrawable {
-        val outerRing = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Color.TRANSPARENT)
-            setStroke(7, 0xCC2D7DF6.toInt())
-        }
-        val innerRing = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(0x162D7DF6)
-            setStroke(4, 0xB3FFFFFF.toInt())
-        }
-        return LayerDrawable(arrayOf(outerRing, innerRing)).apply {
-            setLayerInset(0, 4, 4, 4, 4)
-            setLayerInset(1, 17, 17, 17, 17)
-        }
-    }
-
-    /** A draggable round knob on top and a crosshair target below. The crosshair is
-     *  drawn with two thin views (no font glyph) so nothing renders as an unknown box.
-     *  Returns the container view to add and the handle view to attach dragging to. */
-    private fun buildMarker(): Pair<View, View> {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
-        val handle = View(this).apply { background = handleDrawable() }
-        container.addView(handle, LinearLayout.LayoutParams(HANDLE_SIZE, HANDLE_SIZE))
-        container.addView(View(this), LinearLayout.LayoutParams(1, GAP))
-
-        val ring = FrameLayout(this).apply { background = ringDrawable() }
-        val lineColor = 0xE6FFFFFF.toInt()
-        val arm = (RING_SIZE * 0.40f).toInt()
-        val hLine = View(this).apply { background = GradientDrawable().apply { cornerRadius = 3f; setColor(lineColor) } }
-        ring.addView(hLine, FrameLayout.LayoutParams(arm, 5, Gravity.CENTER))
-        val vLine = View(this).apply { background = GradientDrawable().apply { cornerRadius = 3f; setColor(lineColor) } }
-        ring.addView(vLine, FrameLayout.LayoutParams(5, arm, Gravity.CENTER))
-        container.addView(ring, LinearLayout.LayoutParams(RING_SIZE, RING_SIZE))
-
-        return container to handle
     }
 
     private fun addMarker(x: Int, y: Int, forcedId: Int? = null) {
         val id = forcedId ?: nextId++
         nextId = maxOf(nextId, id + 1)
-        val (container, handle) = buildMarker()
+        val view = View(this).apply { background = markerDrawable() }
         val dm = resources.displayMetrics
-        val cx = x.coerceIn(0, (dm.widthPixels - MARKER_W).coerceAtLeast(0))
-        val cy = y.coerceIn(0, (dm.heightPixels - MARKER_H).coerceAtLeast(0))
-        val lp = WindowManager.LayoutParams(MARKER_W, MARKER_H, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
+        val cx = x.coerceIn(0, (dm.widthPixels - MARKER_SIZE).coerceAtLeast(0))
+        val cy = y.coerceIn(0, (dm.heightPixels - MARKER_SIZE).coerceAtLeast(0))
+        val lp = WindowManager.LayoutParams(MARKER_SIZE, MARKER_SIZE, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
             this.x = cx
             this.y = cy
         }
-        makeDraggable(handle, lp, container, saveOnEnd = true)
-        windowManager.addView(container, lp)
-        markers.add(FloatingMarker(id, container, lp))
+        makeDraggable(view, lp, view, saveOnEnd = true)
+        windowManager.addView(view, lp)
+        markers.add(FloatingMarker(id, view, lp))
     }
 
     private fun removeLastMarker() {
@@ -321,8 +272,8 @@ class FloatingTapperOverlayService : Service() {
                 MotionEvent.ACTION_DOWN -> { downRawX = event.rawX; downRawY = event.rawY; startX = lp.x; startY = lp.y; true }
                 MotionEvent.ACTION_MOVE -> {
                     val dm = resources.displayMetrics
-                    val w = if (moved.width > 0) moved.width else MARKER_W
-                    val h = if (moved.height > 0) moved.height else MARKER_H
+                    val w = if (moved.width > 0) moved.width else MARKER_SIZE
+                    val h = if (moved.height > 0) moved.height else MARKER_SIZE
                     lp.x = (startX + (event.rawX - downRawX).roundToInt()).coerceIn(0, (dm.widthPixels - w).coerceAtLeast(0))
                     lp.y = (startY + (event.rawY - downRawY).roundToInt()).coerceIn(0, (dm.heightPixels - h).coerceAtLeast(0))
                     runCatching { windowManager.updateViewLayout(moved, lp) }
@@ -345,10 +296,8 @@ class FloatingTapperOverlayService : Service() {
             } else {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
-            runCatching {
-                windowManager.removeViewImmediate(m.view)
-                windowManager.addView(m.view, m.params)
-            }
+            runCatching { windowManager.removeViewImmediate(m.view) }
+            runCatching { windowManager.addView(m.view, m.params) }
         }
     }
 
@@ -374,8 +323,8 @@ class FloatingTapperOverlayService : Service() {
             while (isActive && running && (infinite || cycle < repeatCount)) {
                 for (marker in markers.toList()) {
                     if (!isActive || !running) break
-                    val centerX = marker.params.x + RING_CENTER_DX
-                    val centerY = marker.params.y + RING_CENTER_DY
+                    val centerX = marker.params.x + MARKER_SIZE / 2
+                    val centerY = marker.params.y + MARKER_SIZE / 2
                     service.performSingleTap(centerX, centerY, 60L)
                     delay(intervalMs)
                 }
