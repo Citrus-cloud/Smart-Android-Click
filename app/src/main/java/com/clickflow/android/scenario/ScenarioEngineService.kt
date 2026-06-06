@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -43,14 +44,16 @@ import kotlin.coroutines.resume
  * photo template, finds-and-taps on-screen text via OCR, or waits. Each step has its own
  * repeat count and interval; the whole scenario can loop. Per-step not-found policy decides
  * what happens when a photo/text target is not on screen (skip the step, wait and retry, or
- * stop the scenario). Reuses the same Accessibility screenshot + matcher + OCR pipeline as the
- * standalone photo/text clickers, so there is no screen-recording prompt.
+ * stop the scenario). A floating control panel shows the scenario name, the current loop and
+ * step, and a Stop button. Reuses the same Accessibility screenshot + matcher + OCR pipeline
+ * as the standalone photo/text clickers, so there is no screen-recording prompt.
  */
 class ScenarioEngineService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null
     @Volatile private var running = false
-    private var stopChip: View? = null
+    private var panelView: View? = null
+    private var progressText: TextView? = null
     private var wm: WindowManager? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -91,17 +94,19 @@ class ScenarioEngineService : Service() {
     @RequiresApi(Build.VERSION_CODES.R)
     private fun runScenario(scenario: Scenario, service: ClickFlowAccessibilityService) {
         running = true
-        showStopChip()
+        showControlPanel()
         val recognizer: TextRecognizer? =
             if (scenario.steps.any { it.type == StepType.TEXT })
                 TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             else null
+        val loopLabel = if (scenario.loopInfinite) "∞" else "${scenario.loopCount.coerceAtLeast(1)}"
         job = scope.launch {
             delay(700L) // let the launching UI disappear before the first screenshot
             var loop = 0
             outer@ while (running && (scenario.loopInfinite || loop < scenario.loopCount.coerceAtLeast(1))) {
-                for (step in scenario.steps) {
+                for ((index, step) in scenario.steps.withIndex()) {
                     if (!running) break@outer
+                    updateProgress("▶ ${scenario.name}\nЦикл ${loop + 1}/$loopLabel · шаг ${index + 1}/${scenario.steps.size}\n${step.summary()}")
                     val keepGoing = executeStep(step, service, recognizer)
                     if (!keepGoing) { running = false; break@outer }
                 }
@@ -288,9 +293,9 @@ class ScenarioEngineService : Service() {
     @RequiresApi(Build.VERSION_CODES.R)
     private suspend fun capture(service: ClickFlowAccessibilityService): Bitmap? =
         suspendCancellableCoroutine { cont ->
-            stopChip?.visibility = View.INVISIBLE
+            panelView?.visibility = View.INVISIBLE
             service.captureScreenBitmap { bitmap ->
-                stopChip?.let { chip -> chip.post { chip.visibility = View.VISIBLE } }
+                panelView?.let { v -> v.post { v.visibility = View.VISIBLE } }
                 if (cont.isActive) cont.resume(bitmap)
             }
         }
@@ -299,36 +304,58 @@ class ScenarioEngineService : Service() {
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
     else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
 
-    private fun showStopChip() {
+    private fun updateProgress(text: String) {
+        progressText?.let { tv -> tv.post { tv.text = text } }
+    }
+
+    private fun showControlPanel() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
-            val chip = TextView(this).apply {
-                text = "■ Стоп сценарий"
+            val root = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(30, 22, 30, 22)
+                background = GradientDrawable().apply { cornerRadius = 34f; setColor(0xF21C1C1C.toInt()) }
+            }
+            val progress = TextView(this).apply {
+                text = "▶ Сценарий запускается…"
+                setTextColor(Color.WHITE)
+                textSize = 13f
+            }
+            val stop = TextView(this).apply {
+                text = "■ Стоп"
                 setTextColor(Color.WHITE)
                 textSize = 14f
-                setPadding(30, 18, 30, 18)
-                background = GradientDrawable().apply { cornerRadius = 32f; setColor(0xF2D32F2F.toInt()) }
+                gravity = Gravity.CENTER
+                setPadding(30, 14, 30, 14)
+                background = GradientDrawable().apply { cornerRadius = 26f; setColor(0xF2D32F2F.toInt()) }
                 setOnClickListener { stopSelf() }
             }
+            val stopLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 18 }
+            root.addView(progress)
+            root.addView(stop, stopLp)
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT,
             ).apply { gravity = Gravity.TOP or Gravity.END; x = 24; y = 120 }
-            manager.addView(chip, lp)
-            stopChip = chip
+            manager.addView(root, lp)
+            panelView = root
+            progressText = progress
             wm = manager
         } catch (_: Throwable) {}
     }
 
-    private fun removeStopChip() {
-        stopChip?.let { chip -> runCatching { wm?.removeView(chip) } }
-        stopChip = null
+    private fun removeControlPanel() {
+        panelView?.let { v -> runCatching { wm?.removeView(v) } }
+        panelView = null
+        progressText = null
     }
 
     override fun onDestroy() {
         running = false
         job?.cancel()
-        removeStopChip()
+        removeControlPanel()
         scope.cancel()
         super.onDestroy()
     }
