@@ -36,6 +36,9 @@ import com.clickflow.android.overlay.FloatingTapperOverlayService
 import com.clickflow.android.scenario.ScenarioActivity
 import com.clickflow.android.textclick.TextClickActivity
 
+/** Visible marker so a user can confirm which APK is actually installed. Bump on each fix. */
+private const val BUILD_TAG = "fix-acc-1 \u00b7 06.06"
+
 @Composable
 fun ClickFlowApp(vm: ClickFlowViewModel) {
     val screen by vm.screen.collectAsState()
@@ -130,6 +133,7 @@ private fun PermissionsScreen(vm: ClickFlowViewModel) {
         PlainCard {
             Text("Accessibility: ${if (status.accessibilityEnabled) "\u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e" else "\u043d\u0435 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e"}")
             Text("\u041c\u0435\u0442\u043a\u0430 \u043f\u043e\u0432\u0435\u0440\u0445: ${if (status.overlayGranted) "\u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e" else "\u043d\u0435 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e"}")
+            Text("\u0421\u0431\u043e\u0440\u043a\u0430: $BUILD_TAG", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Button(onClick = { vm.openAccessibilitySettings() }, modifier = Modifier.fillMaxWidth()) { Text("\u041e\u0442\u043a\u0440\u044b\u0442\u044c Accessibility") }
         Button(onClick = { vm.openOverlaySettings() }, modifier = Modifier.fillMaxWidth()) { Text("\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043c\u0435\u0442\u043a\u0443 \u043f\u043e\u0432\u0435\u0440\u0445") }
