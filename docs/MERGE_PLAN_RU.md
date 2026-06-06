@@ -20,11 +20,10 @@
 Оставлен рабочий пользовательский поток:
 
 - `overlay/` — overlay-метки;
-- `permissions/` — Accessibility service;
+- `permissions/` — Accessibility service: реальные тапы и screenshot API Android 11+;
 - `imageclick/` — клик по изображению;
 - `textclick/` — клик по тексту;
 - `scenario/` — реальные пользовательские сценарии;
-- `capture/` — screen capture / OCR / target controllers;
 - `core/`, `ui/` — основной UI и навигация.
 
 ### Алгоритм поиска картинки
@@ -50,6 +49,7 @@
 - Включён resource shrinking.
 - Добавлены базовые ProGuard/R8-правила.
 - Android Backup выключен для локальных данных автоматизации.
+- Из манифеста убран старый MediaProjection-preview поток и лишние foreground-service permissions.
 - Обновлены Accessibility/store-facing тексты.
 - Обновлены privacy/store документы.
 
@@ -70,8 +70,8 @@
 - Overlay включается;
 - overlay-метка отображается поверх стороннего приложения;
 - тап по метке работает;
-- клик по картинке работает;
-- клик по тексту работает;
+- клик по картинке работает на Android 11+;
+- клик по тексту работает на Android 11+;
 - сценарии запускаются;
 - шаги `MARKER`, `PHOTO`, `TEXT`, `WAIT` выполняются;
 - кнопки Stop останавливают режимы;
