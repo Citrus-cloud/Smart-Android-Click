@@ -15,6 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -50,6 +51,7 @@ class TextClickService : Service() {
                     Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_TEXT, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0442\u0435\u043a\u0441\u0442\u0443")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
@@ -157,6 +159,7 @@ class TextClickService : Service() {
     override fun onDestroy() {
         running = false
         removeStopChip()
+        ForegroundNotifications.stop(this)
         scope.cancel()
         super.onDestroy()
     }
