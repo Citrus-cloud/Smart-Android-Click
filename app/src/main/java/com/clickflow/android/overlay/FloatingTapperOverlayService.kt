@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
@@ -15,6 +16,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,7 @@ private const val KEY_INTERVAL_MS = "interval_ms"
 private const val KEY_REPEAT_COUNT = "repeat_count"
 private const val KEY_INFINITE = "infinite"
 private const val KEY_OVERLAY_MARKERS = "overlay_markers"
+private const val MARKER_SIZE = 190
 
 /**
  * The floating tap marker is the main feature: a draggable target placed over any
@@ -37,9 +40,10 @@ private const val KEY_OVERLAY_MARKERS = "overlay_markers"
  * interval, repeat count, infinite).
  *
  * Important: during tapping we do NOT hide the marker (that caused flicker and made
- * Stop hard to press). Instead each marker window becomes touch-transparent
- * (FLAG_NOT_TOUCHABLE) so the dispatched gesture passes through to the app below,
- * while the marker stays visible.
+ * Stop hard to press). Each marker window is made touch-transparent so the
+ * dispatched gesture passes through to the app below while the marker stays
+ * visible. FLAG_NOT_TOUCHABLE is only honored at addView time on many Android
+ * builds, so we REMOVE and RE-ADD the window to actually apply it.
  */
 class FloatingTapperOverlayService : Service() {
 
@@ -116,48 +120,48 @@ class FloatingTapperOverlayService : Service() {
         }
 
         val title = TextView(this).apply {
-            text = "Метка  ☰"
+            text = "\u041c\u0435\u0442\u043a\u0430  \u2630"
             textSize = 13f
             setTextColor(0xFFBDBDBD.toInt())
             gravity = Gravity.CENTER
         }
 
-        val start = pill("▶ Старт") { if (running) stopLoop() else startLoop() }
+        val start = pill("\u25b6 \u0421\u0442\u0430\u0440\u0442") { if (running) stopLoop() else startLoop() }
 
         val markerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val add = pill("+ Точка") {
+        val add = pill("+ \u0422\u043e\u0447\u043a\u0430") {
             if (markers.size < 5) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
         }
-        val remove = pill("− Точка") { removeLastMarker(); saveMarkers() }
+        val remove = pill("\u2212 \u0422\u043e\u0447\u043a\u0430") { removeLastMarker(); saveMarkers() }
         markerRow.addView(add, lp(0, 84, 1f))
         markerRow.addView(space())
         markerRow.addView(remove, lp(0, 84, 1f))
 
         val intervalRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        intervalRow.addView(pill("−") { setInterval(intervalMs - 100) }, lp(70, 70, 0f))
-        val iLabel = TextView(this).apply { text = "$intervalMs мс"; textSize = 12f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
+        intervalRow.addView(pill("\u2212") { setInterval(intervalMs - 100) }, lp(70, 70, 0f))
+        val iLabel = TextView(this).apply { text = "$intervalMs \u043c\u0441"; textSize = 12f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
         intervalRow.addView(iLabel, lp(0, 70, 1f))
         intervalRow.addView(pill("+") { setInterval(intervalMs + 100) }, lp(70, 70, 0f))
 
         val countRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        countRow.addView(pill("−") { setRepeat(repeatCount - 5) }, lp(70, 70, 0f))
-        val cLabel = TextView(this).apply { text = if (infinite) "∞" else "$repeatCount"; textSize = 14f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
+        countRow.addView(pill("\u2212") { setRepeat(repeatCount - 5) }, lp(70, 70, 0f))
+        val cLabel = TextView(this).apply { text = if (infinite) "\u221e" else "$repeatCount"; textSize = 14f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
         countRow.addView(cLabel, lp(0, 70, 1f))
         countRow.addView(pill("+") { setRepeat(repeatCount + 5) }, lp(70, 70, 0f))
         countRow.addView(space())
-        countRow.addView(pill("∞") { toggleInfinite() }, lp(70, 70, 0f))
+        countRow.addView(pill("\u221e") { toggleInfinite() }, lp(70, 70, 0f))
 
-        val close = pill("× Закрыть") { stopSelf() }
+        val close = pill("\u00d7 \u0417\u0430\u043a\u0440\u044b\u0442\u044c") { stopSelf() }
 
         root.addView(title, lp(280, 42, 0f))
         root.addView(start, lp(280, 88, 0f))
         root.addView(spaceV())
         root.addView(markerRow, lp(280, 0, 0f))
         root.addView(spaceV())
-        root.addView(labelText("Интервал"))
+        root.addView(labelText("\u0418\u043d\u0442\u0435\u0440\u0432\u0430\u043b"))
         root.addView(intervalRow, lp(280, 0, 0f))
         root.addView(spaceV())
-        root.addView(labelText("Повторы"))
+        root.addView(labelText("\u041f\u043e\u0432\u0442\u043e\u0440\u044b"))
         root.addView(countRow, lp(280, 0, 0f))
         root.addView(spaceV())
         root.addView(close, lp(280, 70, 0f))
@@ -199,7 +203,7 @@ class FloatingTapperOverlayService : Service() {
 
     private fun setInterval(value: Long) {
         intervalMs = value.coerceIn(100L, 5000L)
-        intervalLabel?.text = "$intervalMs мс"
+        intervalLabel?.text = "$intervalMs \u043c\u0441"
         prefs().edit().putLong(KEY_INTERVAL_MS, intervalMs).apply()
     }
 
@@ -212,24 +216,37 @@ class FloatingTapperOverlayService : Service() {
 
     private fun toggleInfinite() {
         infinite = !infinite
-        countLabel?.text = if (infinite) "∞" else "$repeatCount"
+        countLabel?.text = if (infinite) "\u221e" else "$repeatCount"
         prefs().edit().putBoolean(KEY_INFINITE, infinite).apply()
     }
 
+    /**
+     * Bigger, crisp target: blue outer ring + white inner ring + translucent fill so
+     * you still see what is underneath, with a bold crosshair. Sized to the window so
+     * nothing is clipped at the edges.
+     */
     private fun markerView(): View {
-        // Bigger, semi-transparent target ring with a crosshair center.
-        val ring = GradientDrawable().apply {
+        val outerRing = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.TRANSPARENT)
+            setStroke(7, 0xFF2D7DF6.toInt())
+        }
+        val innerRing = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(0x402D7DF6)
-            setStroke(9, 0xCC2D7DF6.toInt())
+            setStroke(6, 0xFFFFFFFF.toInt())
+        }
+        val layers = LayerDrawable(arrayOf(outerRing, innerRing)).apply {
+            setLayerInset(0, 4, 4, 4, 4)
+            setLayerInset(1, 13, 13, 13, 13)
         }
         return TextView(this).apply {
-            text = "✛"
-            textSize = 34f
+            text = "\u271b"
+            textSize = 40f
             gravity = Gravity.CENTER
-            setTextColor(0xE6FFFFFF.toInt())
-            background = ring
-            elevation = 24f
+            setTextColor(0xFFFFFFFF.toInt())
+            setShadowLayer(8f, 0f, 0f, 0xCC000000.toInt())
+            background = layers
         }
     }
 
@@ -237,10 +254,13 @@ class FloatingTapperOverlayService : Service() {
         val id = forcedId ?: nextId++
         nextId = maxOf(nextId, id + 1)
         val view = markerView()
-        val lp = WindowManager.LayoutParams(150, 150, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
+        val dm = resources.displayMetrics
+        val cx = x.coerceIn(0, (dm.widthPixels - MARKER_SIZE).coerceAtLeast(0))
+        val cy = y.coerceIn(0, (dm.heightPixels - MARKER_SIZE).coerceAtLeast(0))
+        val lp = WindowManager.LayoutParams(MARKER_SIZE, MARKER_SIZE, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
-            this.x = x
-            this.y = y
+            this.x = cx
+            this.y = cy
         }
         makeDraggable(view, lp, view, saveOnEnd = true)
         windowManager.addView(view, lp)
@@ -262,8 +282,11 @@ class FloatingTapperOverlayService : Service() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> { downRawX = event.rawX; downRawY = event.rawY; startX = lp.x; startY = lp.y; true }
                 MotionEvent.ACTION_MOVE -> {
-                    lp.x = startX + (event.rawX - downRawX).roundToInt()
-                    lp.y = startY + (event.rawY - downRawY).roundToInt()
+                    val dm = resources.displayMetrics
+                    val w = if (moved.width > 0) moved.width else MARKER_SIZE
+                    val h = if (moved.height > 0) moved.height else MARKER_SIZE
+                    lp.x = (startX + (event.rawX - downRawX).roundToInt()).coerceIn(0, (dm.widthPixels - w).coerceAtLeast(0))
+                    lp.y = (startY + (event.rawY - downRawY).roundToInt()).coerceIn(0, (dm.heightPixels - h).coerceAtLeast(0))
                     runCatching { windowManager.updateViewLayout(moved, lp) }
                     true
                 }
@@ -273,31 +296,42 @@ class FloatingTapperOverlayService : Service() {
         }
     }
 
-    /** Make markers ignore touches (so taps pass through to the app) or draggable again. */
+    /**
+     * Apply/clear touch-transparency by re-adding each marker window, because the
+     * FLAG_NOT_TOUCHABLE flag is only read when the window is added on most devices.
+     */
     private fun setMarkersTouchable(touchable: Boolean) {
-        markers.forEach {
-            it.params.flags = if (touchable) {
+        markers.forEach { m ->
+            m.params.flags = if (touchable) {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             } else {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
-            runCatching { windowManager.updateViewLayout(it.view, it.params) }
+            runCatching {
+                windowManager.removeViewImmediate(m.view)
+                windowManager.addView(m.view, m.params)
+            }
         }
     }
 
     private fun startLoop() {
-        val service = ClickFlowAccessibilityService.liveInstance ?: return
+        val service = ClickFlowAccessibilityService.liveInstance
+        if (service == null) {
+            Toast.makeText(this, "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u043a\u043b\u044e\u0447\u0438 \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438 (Accessibility)", Toast.LENGTH_LONG).show()
+            return
+        }
         if (markers.isEmpty()) return
         running = true
-        startButton?.text = "■ Стоп"
+        startButton?.text = "\u25a0 \u0421\u0442\u043e\u043f"
         setMarkersTouchable(false)
         tapJob = scope.launch {
+            delay(250) // let the not-touchable flag take effect so taps pass through
             var cycle = 0
             while (isActive && running && (infinite || cycle < repeatCount)) {
                 for (marker in markers.toList()) {
                     if (!isActive || !running) break
-                    val centerX = marker.params.x + marker.view.width / 2
-                    val centerY = marker.params.y + marker.view.height / 2
+                    val centerX = marker.params.x + MARKER_SIZE / 2
+                    val centerY = marker.params.y + MARKER_SIZE / 2
                     service.performSingleTap(centerX, centerY, 60L)
                     delay(intervalMs)
                 }
@@ -311,7 +345,7 @@ class FloatingTapperOverlayService : Service() {
         running = false
         tapJob?.cancel()
         tapJob = null
-        startButton?.text = "▶ Старт"
+        startButton?.text = "\u25b6 \u0421\u0442\u0430\u0440\u0442"
         setMarkersTouchable(true)
     }
 
