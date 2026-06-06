@@ -73,12 +73,50 @@ class ScenarioActivity : ComponentActivity() {
 
 @Composable
 private fun ScenarioRoot(context: Context, onRun: (String) -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
+    var unlocked by remember { mutableStateOf(ScenarioPremium.isUnlocked(context)) }
+    if (!unlocked) {
+        PremiumLockScreen(onUnlock = { ScenarioPremium.startPurchaseFlow(context) { ok -> if (ok) unlocked = true } }, onBack = onBack)
+        return
+    }
     var editingId by remember { mutableStateOf<String?>(null) }
     val id = editingId
     if (id == null) {
         ScenarioListScreen(context, onRun = onRun, onStop = onStop, onEdit = { editingId = it }, onBack = onBack)
     } else {
         ScenarioEditorScreen(context, scenarioId = id, onRun = onRun, onStop = onStop, onBack = { editingId = null })
+    }
+}
+
+@Composable
+private fun PremiumLockScreen(onUnlock: () -> Unit, onBack: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            PremiumHeader()
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("🔒 Премиум-функция", fontWeight = FontWeight.Black, fontSize = 20.sp)
+                    Text("Сценарии — мощный режим автоматизации. Соберите цепочку действий и запускайте её в один тап.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FeatureRow("🎬", "Цепочки шагов: метка, фото, текст, паузы")
+                    FeatureRow("🔁", "Повтор всего сценария: циклы или ∞")
+                    FeatureRow("🧩", "Гибкое «если не найдено» для каждого шага")
+                    FeatureRow("📚", "Своя библиотека сценариев: дублируйте и меняйте")
+                }
+            }
+            Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("✦ Разблокировать Премиум") }
+            Text("Подписка появится позже. Сейчас доступ открывается для тестирования.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
+        }
+    }
+}
+
+@Composable
+private fun FeatureRow(icon: String, text: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(icon, fontSize = 18.sp)
+        Text(text, modifier = Modifier.weight(1f))
     }
 }
 
