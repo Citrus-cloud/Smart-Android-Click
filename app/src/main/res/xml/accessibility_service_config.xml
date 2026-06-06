@@ -1,24 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-Step 61: minimal AccessibilityService configuration for ClickFlowAccessibilityService.
-
-SAFETY:
-  - accessibilityEventTypes is intentionally typeViewClicked only (the lightest possible),
-    but ClickFlowAccessibilityService.onAccessibilityEvent() is a no-op so no event data
-    is processed.
-  - canPerformGestures is NOT set. The service has no gesture-dispatch capability.
-  - flagRequestTouchExplorationMode and flagRetrieveInteractiveWindows are NOT set.
-  - notificationTimeout is high to minimize event delivery.
-  - description points to a localized string that explains, in plain language, that the
-    service performs NO automation by default — only declares itself for the user.
-
-NOTE:
-  Do not set android:accessibilityFlags to an empty string. AAPT treats empty
-  enum/flag attributes as invalid during resource linking on CI.
--->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeViewClicked"
     android:accessibilityFeedbackType="feedbackGeneric"
+    android:canPerformGestures="true"
     android:canRequestFilterKeyEvents="false"
     android:canRequestTouchExplorationMode="false"
     android:canRetrieveWindowContent="false"

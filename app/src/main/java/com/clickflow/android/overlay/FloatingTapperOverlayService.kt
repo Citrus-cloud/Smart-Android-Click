@@ -32,15 +32,12 @@ private const val KEY_INFINITE = "infinite"
 private const val KEY_OVERLAY_MARKERS = "overlay_markers"
 
 class FloatingTapperOverlayService : Service() {
-
     private data class FloatingMarker(val id: Int, val view: TextView, val params: WindowManager.LayoutParams)
 
     private lateinit var windowManager: WindowManager
     private var panel: LinearLayout? = null
-    private var panelStatus: TextView? = null
-    private var panelStartButton: Button? = null
+    private var startButton: Button? = null
     private val markers = mutableListOf<FloatingMarker>()
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var tapJob: Job? = null
     private var running = false
@@ -54,15 +51,14 @@ class FloatingTapperOverlayService : Service() {
         showPanel()
         loadMarkers()
         if (markers.isEmpty()) addMarker(260, 420)
-        updateStatus("${markers.size} меток")
     }
 
     override fun onDestroy() {
         stopLoop()
         saveMarkers()
         markers.toList().forEach { runCatching { windowManager.removeView(it.view) } }
-        markers.clear()
         panel?.let { runCatching { windowManager.removeView(it) } }
+        markers.clear()
         panel = null
         super.onDestroy()
     }
@@ -70,79 +66,64 @@ class FloatingTapperOverlayService : Service() {
     private fun prefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private fun overlayType(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
 
-    private fun roundedBg(color: Int, strokeColor: Int? = null): GradientDrawable = GradientDrawable().apply {
+    private fun rectBg(color: Int, stroke: Int = 0): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = 34f
+        cornerRadius = 30f
         setColor(color)
-        strokeColor?.let { setStroke(3, it) }
+        if (stroke != 0) setStroke(2, stroke)
+    }
+
+    private fun circleBg(fill: Int, stroke: Int): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(fill)
+        setStroke(7, stroke)
     }
 
     private fun showPanel() {
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(14, 12, 14, 12)
-            background = roundedBg(0xF20D0E10.toInt(), 0x55FFFFFF)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(8, 8, 8, 8)
+            background = rectBg(0xE6181818.toInt(), 0x66333333)
         }
-        val title = TextView(this).apply {
-            text = "ClickFlow"
-            textSize = 15f
+        val start = Button(this).apply {
+            text = "▶"
+            textSize = 18f
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        }
-        val status = TextView(this).apply {
-            text = "Готово"
-            textSize = 12f
-            setTextColor(0xFFD9D9D9.toInt())
-            gravity = Gravity.CENTER
-        }
-        val startStop = Button(this).apply {
-            text = "Старт"
-            textSize = 12f
             setOnClickListener { if (running) stopLoop() else startLoop() }
         }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val add = Button(this).apply {
             text = "+"
-            textSize = 14f
+            textSize = 18f
             setOnClickListener {
                 if (markers.size < 5) {
-                    addMarker(260 + markers.size * 55, 420 + markers.size * 55)
+                    addMarker(260 + markers.size * 60, 420 + markers.size * 60)
                     saveMarkers()
-                    updateStatus("${markers.size} меток")
                 }
             }
         }
         val remove = Button(this).apply {
             text = "−"
-            textSize = 14f
-            setOnClickListener {
-                removeLastMarker()
-                saveMarkers()
-                updateStatus("${markers.size} меток")
-            }
+            textSize = 18f
+            setOnClickListener { removeLastMarker(); saveMarkers() }
         }
         val close = Button(this).apply {
             text = "×"
-            textSize = 14f
+            textSize = 18f
             setOnClickListener { stopSelf() }
         }
-        row.addView(add, LinearLayout.LayoutParams(80, 70))
-        row.addView(remove, LinearLayout.LayoutParams(80, 70))
-        row.addView(close, LinearLayout.LayoutParams(80, 70))
-        root.addView(title, LinearLayout.LayoutParams(240, 44))
-        root.addView(status, LinearLayout.LayoutParams(240, 40))
-        root.addView(startStop, LinearLayout.LayoutParams(240, 76))
-        root.addView(row)
-
+        root.addView(start, LinearLayout.LayoutParams(72, 64))
+        root.addView(add, LinearLayout.LayoutParams(72, 64))
+        root.addView(remove, LinearLayout.LayoutParams(72, 64))
+        root.addView(close, LinearLayout.LayoutParams(72, 64))
         val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 28
-            y = 120
+            x = 24
+            y = 110
         }
         makeDraggable(root, lp, saveOnEnd = false)
         panel = root
-        panelStatus = status
-        panelStartButton = startStop
+        startButton = start
         windowManager.addView(root, lp)
     }
 
@@ -150,18 +131,14 @@ class FloatingTapperOverlayService : Service() {
         val id = forcedId ?: nextId++
         nextId = maxOf(nextId, id + 1)
         val marker = TextView(this).apply {
-            text = "$id"
-            textSize = 18f
+            text = "◎"
+            textSize = 34f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xF2111111.toInt())
-                setStroke(6, 0xFFFFFFFF.toInt())
-            }
-            elevation = 16f
+            setTextColor(0xFF111111.toInt())
+            background = circleBg(0xFFFFC542.toInt(), 0xFF111111.toInt())
+            elevation = 20f
         }
-        val lp = WindowManager.LayoutParams(86, 86, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
+        val lp = WindowManager.LayoutParams(92, 92, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
             this.x = x
             this.y = y
@@ -184,64 +161,39 @@ class FloatingTapperOverlayService : Service() {
         var startY = 0
         view.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    downRawX = event.rawX
-                    downRawY = event.rawY
-                    startX = lp.x
-                    startY = lp.y
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    lp.x = startX + (event.rawX - downRawX).roundToInt()
-                    lp.y = startY + (event.rawY - downRawY).roundToInt()
-                    windowManager.updateViewLayout(view, lp)
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (saveOnEnd) saveMarkers()
-                    true
-                }
+                MotionEvent.ACTION_DOWN -> { downRawX = event.rawX; downRawY = event.rawY; startX = lp.x; startY = lp.y; true }
+                MotionEvent.ACTION_MOVE -> { lp.x = startX + (event.rawX - downRawX).roundToInt(); lp.y = startY + (event.rawY - downRawY).roundToInt(); windowManager.updateViewLayout(view, lp); true }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { if (saveOnEnd) saveMarkers(); true }
                 else -> true
             }
         }
     }
 
     private fun startLoop() {
-        val service = ClickFlowAccessibilityService.liveInstance
-        if (service == null) {
-            updateStatus("Включи Accessibility")
-            return
-        }
+        val service = ClickFlowAccessibilityService.liveInstance ?: return
         val p = prefs()
         val intervalMs = p.getLong(KEY_INTERVAL_MS, 500L)
         val repeatCount = p.getInt(KEY_REPEAT_COUNT, 100)
         val infinite = p.getBoolean(KEY_INFINITE, false)
-
         running = true
-        panelStartButton?.text = "Стоп"
-        updateStatus("Работает · ${markers.size} меток")
-
+        startButton?.text = "■"
         tapJob = scope.launch {
             var cycle = 0
             while (isActive && running && (infinite || cycle < repeatCount)) {
-                markers.toList().forEachIndexed { index, marker ->
+                markers.toList().forEach { marker ->
                     if (!isActive || !running) return@launch
                     setAllOverlaysVisible(false)
-                    delay(60)
+                    delay(90)
                     val centerX = marker.params.x + marker.view.width / 2
                     val centerY = marker.params.y + marker.view.height / 2
-                    val ok = service.performSingleTap(centerX, centerY, 70L)
-                    delay(60)
+                    service.performSingleTap(centerX, centerY, 80L)
+                    delay(90)
                     setAllOverlaysVisible(true)
-                    val total = if (infinite) "∞" else repeatCount.toString()
-                    updateStatus(if (ok) "${cycle + 1}/$total · метка ${index + 1}" else "Ошибка")
                     delay(intervalMs)
                 }
                 cycle++
             }
-            running = false
-            panelStartButton?.text = "Старт"
-            updateStatus("Готово")
+            stopLoop()
         }
     }
 
@@ -255,12 +207,9 @@ class FloatingTapperOverlayService : Service() {
         running = false
         tapJob?.cancel()
         tapJob = null
-        panelStartButton?.text = "Старт"
-        updateStatus("Стоп")
+        startButton?.text = "▶"
         setAllOverlaysVisible(true)
     }
-
-    private fun updateStatus(text: String) { panelStatus?.text = text }
 
     private fun saveMarkers() {
         val raw = markers.joinToString(";") { "${it.id},${it.params.x},${it.params.y}" }

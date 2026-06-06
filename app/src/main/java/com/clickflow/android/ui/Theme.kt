@@ -7,52 +7,38 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val Ink = Color(0xFF101114)
-private val Paper = Color(0xFFFAFAF7)
-private val Card = Color(0xFFFFFFFF)
-private val Muted = Color(0xFF6F737A)
-private val Line = Color(0xFFE6E3DD)
-private val Accent = Color(0xFF111111)
-private val AccentSoft = Color(0xFFEDEBE6)
-
 private val LightColors = lightColorScheme(
-    primary = Accent,
+    primary = Color(0xFF151515),
     onPrimary = Color.White,
-    primaryContainer = AccentSoft,
-    onPrimaryContainer = Ink,
-    secondary = Color(0xFF6B6257),
+    primaryContainer = Color(0xFFE1DDD4),
+    onPrimaryContainer = Color(0xFF171717),
+    secondary = Color(0xFF625B51),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF1EAE2),
-    onSecondaryContainer = Ink,
-    background = Paper,
-    onBackground = Ink,
-    surface = Card,
-    onSurface = Ink,
-    surfaceVariant = Color(0xFFF1F0EC),
-    onSurfaceVariant = Muted,
-    outline = Line,
-    error = Color(0xFFD34848),
+    background = Color(0xFFE9E4DA),
+    onBackground = Color(0xFF151515),
+    surface = Color(0xFFF3EFE7),
+    onSurface = Color(0xFF151515),
+    surfaceVariant = Color(0xFFD8D1C5),
+    onSurfaceVariant = Color(0xFF4F4B45),
+    outline = Color(0xFFC3BAAC),
+    error = Color(0xFFC44535),
     onError = Color.White,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color.White,
+    primary = Color(0xFFF1EEE8),
     onPrimary = Color.Black,
-    primaryContainer = Color(0xFF2B2C30),
+    primaryContainer = Color(0xFF302C26),
     onPrimaryContainer = Color.White,
-    secondary = Color(0xFFE0D7C8),
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF33302B),
-    onSecondaryContainer = Color.White,
-    background = Color(0xFF090A0C),
-    onBackground = Color(0xFFF5F3EF),
-    surface = Color(0xFF141519),
-    onSurface = Color(0xFFF5F3EF),
-    surfaceVariant = Color(0xFF202126),
-    onSurfaceVariant = Color(0xFFB9B7B1),
-    outline = Color(0xFF303137),
-    error = Color(0xFFFF9B9B),
-    onError = Color.Black,
+    secondary = Color(0xFFD6CDBE),
+    background = Color(0xFF11100E),
+    onBackground = Color(0xFFF1EEE8),
+    surface = Color(0xFF1A1815),
+    onSurface = Color(0xFFF1EEE8),
+    surfaceVariant = Color(0xFF2A2722),
+    onSurfaceVariant = Color(0xFFC8C0B4),
+    outline = Color(0xFF4D463E),
+    error = Color(0xFFFF8D7D),
 )
 
 @Composable
