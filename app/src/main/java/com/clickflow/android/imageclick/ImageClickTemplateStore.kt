@@ -26,6 +26,9 @@ data class ImageClickTemplate(
     val continuous: Boolean = false,
     val scaleMin: Float = 0.85f,
     val scaleMax: Float = 1.15f,
+    val intervalMs: Long = 1100L,
+    val repeatCount: Int = 50,
+    val infinite: Boolean = false,
 )
 
 object ImageClickTemplateStore {
@@ -42,7 +45,7 @@ object ImageClickTemplateStore {
             BitmapFactory.decodeFile(out.absolutePath, opts)
             ImageClickTemplate(
                 id = id,
-                name = "Шаблон $number",
+                name = "\u0428\u0430\u0431\u043b\u043e\u043d $number",
                 filePath = out.absolutePath,
                 width = opts.outWidth.coerceAtLeast(1),
                 height = opts.outHeight.coerceAtLeast(1),
@@ -73,6 +76,9 @@ object ImageClickTemplateStore {
                 continuous = p.getOrNull(12)?.toBooleanStrictOrNull() ?: false,
                 scaleMin = p.getOrNull(13)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 0.85f,
                 scaleMax = p.getOrNull(14)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1.15f,
+                intervalMs = p.getOrNull(15)?.toLongOrNull() ?: 1100L,
+                repeatCount = p.getOrNull(16)?.toIntOrNull() ?: 50,
+                infinite = p.getOrNull(17)?.toBooleanStrictOrNull() ?: false,
             ).normalized()
         }.filter { File(it.filePath).exists() }
     }
@@ -96,6 +102,9 @@ object ImageClickTemplateStore {
                 t.continuous,
                 t.scaleMin,
                 t.scaleMax,
+                t.intervalMs,
+                t.repeatCount,
+                t.infinite,
             ).joinToString("|")
             Base64.encodeToString(line.toByteArray(), Base64.NO_WRAP)
         }
@@ -122,5 +131,7 @@ fun ImageClickTemplate.normalized(): ImageClickTemplate {
         regionBottom = bottom,
         scaleMin = minScale,
         scaleMax = maxScale,
+        intervalMs = intervalMs.coerceIn(300L, 600000L),
+        repeatCount = repeatCount.coerceIn(1, 100000),
     )
 }

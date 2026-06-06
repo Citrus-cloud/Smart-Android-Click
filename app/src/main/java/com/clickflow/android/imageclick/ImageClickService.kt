@@ -45,11 +45,11 @@ class ImageClickService : Service() {
                 val templateId = intent.getStringExtra(EXTRA_TEMPLATE_ID)
                 if (templateId.isNullOrBlank()) { stopSelf(); return START_NOT_STICKY }
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
                 if (ClickFlowAccessibilityService.liveInstance == null) {
-                    Toast.makeText(this, "Включи Accessibility", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
                 begin(templateId)
@@ -65,7 +65,7 @@ class ImageClickService : Service() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
             val chip = TextView(this).apply {
-                text = "■ Стоп фото"
+                text = "\u25a0 \u0421\u0442\u043e\u043f \u0444\u043e\u0442\u043e"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 setPadding(30, 18, 30, 18)
@@ -95,6 +95,10 @@ class ImageClickService : Service() {
 
         running = true
         showStopChip()
+        val infinite = templateMeta.infinite || templateMeta.continuous
+        val maxTaps = templateMeta.repeatCount.coerceAtLeast(1)
+        val scanInterval = maxOf(templateMeta.intervalMs, 1100L)
+        var taps = 0
         scope.launch {
             delay(800) // let the setup screen disappear before the first screenshot
             while (running) {
@@ -119,11 +123,12 @@ class ImageClickService : Service() {
                         val tapX = match.x + (match.width * templateMeta.tapX).toInt()
                         val tapY = match.y + (match.height * templateMeta.tapY).toInt()
                         service.performSingleTap(tapX, tapY, 70L)
-                        if (!templateMeta.continuous) { running = false; bitmap.recycle(); break }
+                        taps++
+                        if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
                     }
                     bitmap.recycle()
                 }
-                delay(1100) // respect the ~1/sec screenshot limit
+                delay(scanInterval) // respect the ~1/sec screenshot limit
             }
             stopSelf()
         }
