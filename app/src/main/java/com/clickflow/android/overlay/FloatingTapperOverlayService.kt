@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,6 +70,7 @@ class FloatingTapperOverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        ForegroundNotifications.start(this, ForegroundNotifications.ID_OVERLAY, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u043c\u0435\u0442\u043a\u0435")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val p = prefs()
         intervalMs = p.getLong(KEY_INTERVAL_MS, 500L)
@@ -86,6 +88,7 @@ class FloatingTapperOverlayService : Service() {
         panel?.let { runCatching { windowManager.removeView(it) } }
         markers.clear()
         panel = null
+        ForegroundNotifications.stop(this)
         super.onDestroy()
     }
 
