@@ -2,7 +2,6 @@ package com.clickflow.android.imageclick
 
 import android.content.Context
 import android.content.Intent
-import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -38,23 +37,6 @@ import java.io.File
 import kotlin.math.roundToInt
 
 class ImageTemplateActivity : ComponentActivity() {
-    private var pendingTemplateId: String? = null
-
-    private val projectionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val data = result.data
-        val templateId = pendingTemplateId
-        if (result.resultCode == RESULT_OK && data != null && !templateId.isNullOrBlank()) {
-            val svc = Intent(this, ImageClickService::class.java).apply {
-                action = ImageClickService.ACTION_START
-                putExtra(ImageClickService.EXTRA_RESULT_CODE, result.resultCode)
-                putExtra(ImageClickService.EXTRA_DATA, data)
-                putExtra(ImageClickService.EXTRA_TEMPLATE_ID, templateId)
-            }
-            startForegroundService(svc)
-            finish()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -62,13 +44,13 @@ class ImageTemplateActivity : ComponentActivity() {
                 ImageTemplateScreen(
                     context = this,
                     onRun = { templateId ->
-                        pendingTemplateId = templateId
-                        val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                        projectionLauncher.launch(mpm.createScreenCaptureIntent())
+                        startService(Intent(this, ImageClickService::class.java).apply {
+                            action = ImageClickService.ACTION_START
+                            putExtra(ImageClickService.EXTRA_TEMPLATE_ID, templateId)
+                        })
+                        finish()
                     },
-                    onStop = {
-                        startService(Intent(this, ImageClickService::class.java).apply { action = ImageClickService.ACTION_STOP })
-                    },
+                    onStop = { startService(Intent(this, ImageClickService::class.java).apply { action = ImageClickService.ACTION_STOP }) },
                     onBack = { finish() },
                 )
             }
@@ -96,33 +78,28 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onSto
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Клик по картинке", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-            Text("Добавь фото/иконку, выбери область и масштаб поиска. ClickFlow найдёт похожую картинку и тапнет.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            Button(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("+ Добавить фото / иконку") }
-            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Остановить поиск картинки") }
+            Text("Фото", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+            Button(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("+ Фото") }
+            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Стоп") }
 
             templates.forEachIndexed { index, template ->
                 val active = selectedId.value == template.id
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${index + 1}. ${template.name}", fontWeight = FontWeight.Bold)
+                            Text("${index + 1}", fontWeight = FontWeight.Bold)
                             Text("${template.width}×${template.height}")
                         }
-                        Text("Порог: ${(template.threshold * 100).roundToInt()}% · Тап: ${(template.tapX * 100).roundToInt()}%, ${(template.tapY * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Область: ${(template.regionLeft * 100).roundToInt()}-${(template.regionRight * 100).roundToInt()}% X, ${(template.regionTop * 100).roundToInt()}-${(template.regionBottom * 100).roundToInt()}% Y", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Масштаб: ${(template.scaleMin * 100).roundToInt()}-${(template.scaleMax * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(if (template.continuous) "Режим: искать постоянно" else "Режим: один тап и стоп", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${(template.threshold * 100).roundToInt()}% · ${(template.scaleMin * 100).roundToInt()}-${(template.scaleMax * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { selectedId.value = template.id }, modifier = Modifier.weight(1f)) { Text("Настроить") }
-                            Button(onClick = { onRun(template.id) }, modifier = Modifier.weight(1f)) { Text("Запустить") }
+                            OutlinedButton(onClick = { selectedId.value = template.id }, modifier = Modifier.weight(1f)) { Text("Настройки") }
+                            Button(onClick = { onRun(template.id) }, modifier = Modifier.weight(1f)) { Text("Старт") }
                         }
                         OutlinedButton(
                             onClick = {
@@ -138,11 +115,8 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onSto
             }
 
             if (templates.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Шаблонов пока нет", fontWeight = FontWeight.Bold)
-                        Text("Выбери небольшую картинку кнопки/иконки. Чем меньше и точнее шаблон, тем лучше поиск.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                    Column(Modifier.padding(16.dp)) { Text("Добавь фото кнопки или иконки") }
                 }
             }
 
@@ -159,16 +133,6 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onSto
                 )
             }
 
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Как тестировать", fontWeight = FontWeight.Bold)
-                    Text("1. Добавь маленькую картинку кнопки/иконки.")
-                    Text("2. Если не находит — расширь масштаб, например 70–130%.")
-                    Text("3. Если ложные срабатывания — подними порог до 88–95%.")
-                    Text("4. Если знаешь место появления — сузь область поиска.")
-                }
-            }
-
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
         }
     }
@@ -176,38 +140,19 @@ private fun ImageTemplateScreen(context: Context, onRun: (String) -> Unit, onSto
 
 @Composable
 private fun TemplateEditor(template: ImageClickTemplate, onUpdate: (ImageClickTemplate) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Настройка: ${template.name}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Порог похожести: ${(template.threshold * 100).roundToInt()}%")
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Похожесть: ${(template.threshold * 100).roundToInt()}%")
             Slider(value = template.threshold, onValueChange = { onUpdate(template.copy(threshold = it.coerceIn(0.5f, 0.99f))) }, valueRange = 0.5f..0.99f)
-            Text("Точка тапа по X: ${(template.tapX * 100).roundToInt()}%")
+            Text("Тап X: ${(template.tapX * 100).roundToInt()}%")
             Slider(value = template.tapX, onValueChange = { onUpdate(template.copy(tapX = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
-            Text("Точка тапа по Y: ${(template.tapY * 100).roundToInt()}%")
+            Text("Тап Y: ${(template.tapY * 100).roundToInt()}%")
             Slider(value = template.tapY, onValueChange = { onUpdate(template.copy(tapY = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
-
-            Text("Область поиска", fontWeight = FontWeight.Bold)
-            Text("Слева: ${(template.regionLeft * 100).roundToInt()}%")
-            Slider(value = template.regionLeft, onValueChange = { onUpdate(template.copy(regionLeft = it.coerceIn(0f, template.regionRight - 0.05f))) }, valueRange = 0f..0.95f)
-            Text("Справа: ${(template.regionRight * 100).roundToInt()}%")
-            Slider(value = template.regionRight, onValueChange = { onUpdate(template.copy(regionRight = it.coerceIn(template.regionLeft + 0.05f, 1f))) }, valueRange = 0.05f..1f)
-            Text("Сверху: ${(template.regionTop * 100).roundToInt()}%")
-            Slider(value = template.regionTop, onValueChange = { onUpdate(template.copy(regionTop = it.coerceIn(0f, template.regionBottom - 0.05f))) }, valueRange = 0f..0.95f)
-            Text("Снизу: ${(template.regionBottom * 100).roundToInt()}%")
-            Slider(value = template.regionBottom, onValueChange = { onUpdate(template.copy(regionBottom = it.coerceIn(template.regionTop + 0.05f, 1f))) }, valueRange = 0.05f..1f)
-
-            Text("Масштаб поиска", fontWeight = FontWeight.Bold)
-            Text("Минимум: ${(template.scaleMin * 100).roundToInt()}%")
+            Text("Масштаб: ${(template.scaleMin * 100).roundToInt()}-${(template.scaleMax * 100).roundToInt()}%")
             Slider(value = template.scaleMin, onValueChange = { onUpdate(template.copy(scaleMin = it.coerceIn(0.5f, template.scaleMax))) }, valueRange = 0.5f..2f)
-            Text("Максимум: ${(template.scaleMax * 100).roundToInt()}%")
             Slider(value = template.scaleMax, onValueChange = { onUpdate(template.copy(scaleMax = it.coerceIn(template.scaleMin, 2f))) }, valueRange = 0.5f..2f)
-
-            OutlinedButton(onClick = { onUpdate(template.copy(regionLeft = 0f, regionTop = 0f, regionRight = 1f, regionBottom = 1f)) }, modifier = Modifier.fillMaxWidth()) { Text("Искать по всему экрану") }
-            OutlinedButton(onClick = { onUpdate(template.copy(scaleMin = 0.85f, scaleMax = 1.15f)) }, modifier = Modifier.fillMaxWidth()) { Text("Стандартный масштаб 85–115%") }
-            OutlinedButton(onClick = { onUpdate(template.copy(scaleMin = 0.65f, scaleMax = 1.45f)) }, modifier = Modifier.fillMaxWidth()) { Text("Широкий масштаб 65–145%") }
-            OutlinedButton(onClick = { onUpdate(template.copy(continuous = !template.continuous)) }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (template.continuous) "Режим: постоянно ВКЛ" else "Режим: один тап")
-            }
+            OutlinedButton(onClick = { onUpdate(template.copy(scaleMin = 0.65f, scaleMax = 1.45f)) }, modifier = Modifier.fillMaxWidth()) { Text("65–145%") }
+            OutlinedButton(onClick = { onUpdate(template.copy(continuous = !template.continuous)) }, modifier = Modifier.fillMaxWidth()) { Text(if (template.continuous) "Постоянно" else "Один раз") }
         }
     }
 }
