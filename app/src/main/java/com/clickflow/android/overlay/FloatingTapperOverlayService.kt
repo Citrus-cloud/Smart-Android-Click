@@ -326,8 +326,15 @@ class FloatingTapperOverlayService : Service() {
             while (isActive && running && (infinite || cycle < repeatCount)) {
                 for (marker in markers.toList()) {
                     if (!isActive || !running) break
-                    val centerX = marker.params.x + MARKER_SIZE / 2
-                    val centerY = marker.params.y + MARKER_SIZE / 2
+                    // Tap the marker's REAL on-screen center. params.x/y are window coords that
+                    // exclude the status-bar inset on TOP|START overlays, but dispatchGesture wants
+                    // absolute screen coords, so the old (params + size/2) math tapped above the dot.
+                    val loc = IntArray(2)
+                    marker.view.getLocationOnScreen(loc)
+                    val vw = if (marker.view.width > 0) marker.view.width else MARKER_SIZE
+                    val vh = if (marker.view.height > 0) marker.view.height else MARKER_SIZE
+                    val centerX = loc[0] + vw / 2
+                    val centerY = loc[1] + vh / 2
                     service.performSingleTap(centerX, centerY, 60L)
                     delay(intervalMs)
                 }
