@@ -2,18 +2,24 @@ package com.clickflow.android.imageclick
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +38,11 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.clickflow.android.core.Premium
@@ -67,8 +77,7 @@ class ImageTemplateActivity : ComponentActivity() {
 @Composable
 private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
     val templates = remember { mutableStateListOf<ImageClickTemplate>().also { it.addAll(ImageClickTemplateStore.loadTemplates(context)) } }
-    val selectedId = remember { mutableStateOf<String?>(templates.firstOrNull()?.id) }
-    val selected = templates.firstOrNull { it.id == selectedId.value }
+    var expandedId by remember { mutableStateOf<String?>(null) }
     var premium by remember { mutableStateOf(Premium.isPremiumUnlocked(context)) }
     val limit = if (premium) Premium.PREMIUM_TARGET_LIMIT else Premium.FREE_TARGET_LIMIT
     val enabledCount = templates.count { it.enabled }
@@ -80,13 +89,25 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> 
         templates[idx] = templates[idx].copy(enabled = value)
         persist()
     }
+    fun updateTemplate(updated: ImageClickTemplate) {
+        val idx = templates.indexOfFirst { it.id == updated.id }
+        if (idx >= 0) {
+            templates[idx] = updated.normalized()
+            persist()
+        }
+    }
+    fun deleteTemplate(template: ImageClickTemplate) {
+        File(template.filePath).delete()
+        templates.removeAll { it.id == template.id }
+        if (expandedId == template.id) expandedId = null
+        persist()
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val template = ImageClickTemplateStore.copyUriAsTemplate(context, uri, templates.size + 1)
         if (template != null) {
             templates.add(template)
-            selectedId.value = template.id
             persist()
         }
     }
@@ -110,6 +131,10 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> 
                         Text("Premium (тест)")
                         Switch(checked = premium, onCheckedChange = { premium = it; Premium.setPremiumUnlocked(context, it) })
                     }
+                    Text(
+                        "Мультитап нажимает все выбранные фото на ОДНОМ экране за один проход. Для цепочки «нажать иконку → зайти → вкладка» используй Сценарий.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -118,17 +143,23 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> 
             OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Стоп") }
 
             templates.forEachIndexed { index, template ->
-                val active = selectedId.value == template.id
+                val expanded = expandedId == template.id
                 val canEnable = template.enabled || enabledCount < limit
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(containerColor = if (expanded) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(22.dp),
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${index + 1}", fontWeight = FontWeight.Bold)
-                            Text("${template.width}\u00d7${template.height}")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                TemplateThumbnail(template.filePath)
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("Фото №${index + 1}", fontWeight = FontWeight.Bold)
+                                    Text("${template.width}\u00d7${template.height}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            OutlinedButton(onClick = { deleteTemplate(template) }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("\u2715") }
                         }
                         Text("${(template.threshold * 100).roundToInt()}% \u00b7 ${(template.scaleMin * 100).roundToInt()}-${(template.scaleMax * 100).roundToInt()}% \u00b7 " + if (template.infinite) "\u221e" else "${template.repeatCount}х", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -139,18 +170,12 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> 
                             Text("Лимит $limit — включи Premium (тест) для ${Premium.PREMIUM_TARGET_LIMIT}", color = MaterialTheme.colorScheme.error)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { selectedId.value = template.id }, modifier = Modifier.weight(1f)) { Text("Настройки") }
+                            OutlinedButton(onClick = { expandedId = if (expanded) null else template.id }, modifier = Modifier.weight(1f)) { Text(if (expanded) "Скрыть" else "Настройки") }
                             Button(onClick = { onRunMulti(listOf(template.id)) }, modifier = Modifier.weight(1f)) { Text("Старт") }
                         }
-                        OutlinedButton(
-                            onClick = {
-                                File(template.filePath).delete()
-                                templates.removeAll { it.id == template.id }
-                                selectedId.value = templates.firstOrNull()?.id
-                                persist()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Удалить") }
+                        if (expanded) {
+                            TemplateEditor(template = template, onUpdate = { updateTemplate(it) })
+                        }
                     }
                 }
             }
@@ -161,21 +186,29 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>) -> 
                 }
             }
 
-            if (selected != null) {
-                TemplateEditor(
-                    template = selected,
-                    onUpdate = { updated ->
-                        val idx = templates.indexOfFirst { it.id == updated.id }
-                        if (idx >= 0) {
-                            templates[idx] = updated.normalized()
-                            persist()
-                        }
-                    },
-                )
-            }
-
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
         }
+    }
+}
+
+@Composable
+private fun TemplateThumbnail(filePath: String) {
+    val image = remember(filePath) {
+        runCatching { BitmapFactory.decodeFile(filePath)?.asImageBitmap() }.getOrNull()
+    }
+    val shape = RoundedCornerShape(12.dp)
+    if (image != null) {
+        Image(
+            bitmap = image,
+            contentDescription = null,
+            modifier = Modifier.size(54.dp).clip(shape),
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Box(
+            modifier = Modifier.size(54.dp).clip(shape).background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) { Text("?", color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
