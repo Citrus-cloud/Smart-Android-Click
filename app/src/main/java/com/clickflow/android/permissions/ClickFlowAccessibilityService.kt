@@ -1,6 +1,7 @@
 package com.clickflow.android.permissions
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityService.GestureResultCallback
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,6 +12,8 @@ import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 class ClickFlowAccessibilityService : AccessibilityService() {
 
@@ -35,6 +38,41 @@ class ClickFlowAccessibilityService : AccessibilityService() {
         val stroke = GestureDescription.StrokeDescription(path, 0L, safeDuration)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         return try { dispatchGesture(gesture, null, null) } catch (_: Throwable) { false }
+    }
+
+    /**
+     * Like [performSingleTap] but suspends until the gesture actually finishes. Only one gesture
+     * can be in flight at a time: if several taps are dispatched back-to-back the framework drops
+     * all but one (and on aggressive OEMs sometimes even that one). Awaiting completion lets a
+     * caller tap several points within the same scan cycle (multitap) reliably, one after another.
+     */
+    @RequiresApi(Build.VERSION_CODES.N)
+    suspend fun performSingleTapAwait(x: Int, y: Int, durationMs: Long): Boolean {
+        if (x < 0 || y < 0) return false
+        val safeDuration = durationMs.coerceIn(50L, 250L)
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val stroke = GestureDescription.StrokeDescription(path, 0L, safeDuration)
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        return suspendCancellableCoroutine { cont ->
+            val dispatched = try {
+                dispatchGesture(
+                    gesture,
+                    object : GestureResultCallback() {
+                        override fun onCompleted(gestureDescription: GestureDescription?) {
+                            if (cont.isActive) cont.resume(true)
+                        }
+
+                        override fun onCancelled(gestureDescription: GestureDescription?) {
+                            if (cont.isActive) cont.resume(false)
+                        }
+                    },
+                    null,
+                )
+            } catch (_: Throwable) {
+                false
+            }
+            if (!dispatched && cont.isActive) cont.resume(false)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
