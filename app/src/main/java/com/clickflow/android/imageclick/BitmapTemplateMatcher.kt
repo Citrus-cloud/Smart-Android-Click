@@ -14,6 +14,12 @@ import kotlin.math.roundToInt
  * pinpoints the best match. This is more accurate and more robust to small
  * offsets than a single coarse pass, while keeping per-frame cost reasonable.
  *
+ * Performance: both the screenshot and the template are read into plain int
+ * arrays once via Bitmap.getPixels. Per-sample lookups then index those arrays
+ * instead of calling Bitmap.getPixel (a JNI hop) millions of times per frame.
+ * On a full-screen scan that is the difference between tens of milliseconds and
+ * several seconds, so this is what keeps the scan loop from appearing frozen.
+ *
  * The public contract (Match and both findBest signatures) is unchanged.
  */
 object BitmapTemplateMatcher {
@@ -44,25 +50,40 @@ object BitmapTemplateMatcher {
         scaleMin: Float = 0.8f,
         scaleMax: Float = 1.2f,
     ): Match? {
-        if (screen.width <= 0 || screen.height <= 0 || template.width <= 0 || template.height <= 0) return null
+        val screenW = screen.width
+        val screenH = screen.height
+        val templateW = template.width
+        val templateH = template.height
+        if (screenW <= 0 || screenH <= 0 || templateW <= 0 || templateH <= 0) return null
 
-        val left = regionLeftPx.coerceIn(0, screen.width - 1)
-        val top = regionTopPx.coerceIn(0, screen.height - 1)
-        val right = regionRightPx.coerceIn(left + 1, screen.width)
-        val bottom = regionBottomPx.coerceIn(top + 1, screen.height)
+        // Read both bitmaps once. Per-pixel Bitmap.getPixel calls during the scan
+        // are far too slow for a full-screen multi-scale search.
+        val screenPixels = IntArray(screenW * screenH)
+        screen.getPixels(screenPixels, 0, screenW, 0, 0, screenW, screenH)
+        val templatePixels = IntArray(templateW * templateH)
+        template.getPixels(templatePixels, 0, templateW, 0, 0, templateW, templateH)
+
+        val left = regionLeftPx.coerceIn(0, screenW - 1)
+        val top = regionTopPx.coerceIn(0, screenH - 1)
+        val right = regionRightPx.coerceIn(left + 1, screenW)
+        val bottom = regionBottomPx.coerceIn(top + 1, screenH)
         val minScale = scaleMin.coerceIn(0.5f, 2f)
         val maxScale = scaleMax.coerceIn(minScale, 2f)
         val scales = buildScales(minScale, maxScale)
 
         var best: Match? = null
         for (scale in scales) {
-            val scaledWidth = (template.width * scale).roundToInt().coerceAtLeast(1)
-            val scaledHeight = (template.height * scale).roundToInt().coerceAtLeast(1)
+            val scaledWidth = (templateW * scale).roundToInt().coerceAtLeast(1)
+            val scaledHeight = (templateH * scale).roundToInt().coerceAtLeast(1)
             if (scaledWidth > right - left || scaledHeight > bottom - top) continue
 
             val candidate = findBestAtScale(
-                screen = screen,
-                template = template,
+                screenPixels = screenPixels,
+                screenW = screenW,
+                screenH = screenH,
+                templatePixels = templatePixels,
+                templateW = templateW,
+                templateH = templateH,
                 left = left,
                 top = top,
                 right = right,
@@ -91,8 +112,12 @@ object BitmapTemplateMatcher {
     }
 
     private fun findBestAtScale(
-        screen: Bitmap,
-        template: Bitmap,
+        screenPixels: IntArray,
+        screenW: Int,
+        screenH: Int,
+        templatePixels: IntArray,
+        templateW: Int,
+        templateH: Int,
         left: Int,
         top: Int,
         right: Int,
@@ -115,7 +140,7 @@ object BitmapTemplateMatcher {
         while (y <= maxY) {
             var x = left
             while (x <= maxX) {
-                val score = scoreAt(screen, template, x, y, scaledWidth, scaledHeight, COARSE_SAMPLES, COARSE_SAMPLES)
+                val score = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, x, y, scaledWidth, scaledHeight, COARSE_SAMPLES, COARSE_SAMPLES)
                 if (score > coarseScore) {
                     coarseScore = score
                     coarseX = x
@@ -138,13 +163,13 @@ object BitmapTemplateMatcher {
 
         var bestX = coarseX
         var bestY = coarseY
-        var bestScore = scoreAt(screen, template, coarseX, coarseY, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
+        var bestScore = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, coarseX, coarseY, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
         var ry = ryStart
         while (ry <= ryEnd) {
             var rx = rxStart
             while (rx <= rxEnd) {
                 if (rx != coarseX || ry != coarseY) {
-                    val score = scoreAt(screen, template, rx, ry, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
+                    val score = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, rx, ry, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
                     if (score > bestScore) {
                         bestScore = score
                         bestX = rx
@@ -162,8 +187,12 @@ object BitmapTemplateMatcher {
     private fun sampleCount(dimension: Int): Int = (dimension / 5).coerceIn(16, 28)
 
     private fun scoreAt(
-        screen: Bitmap,
-        template: Bitmap,
+        screenPixels: IntArray,
+        screenW: Int,
+        screenH: Int,
+        templatePixels: IntArray,
+        templateW: Int,
+        templateH: Int,
         originX: Int,
         originY: Int,
         scaledWidth: Int,
@@ -175,13 +204,13 @@ object BitmapTemplateMatcher {
         var count = 0
         for (sy in 0 until sampleY) {
             val scaledY = ((sy + 0.5f) / sampleY * scaledHeight).toInt().coerceIn(0, scaledHeight - 1)
-            val ty = ((scaledY.toFloat() / scaledHeight) * template.height).toInt().coerceIn(0, template.height - 1)
-            val py = (originY + scaledY).coerceIn(0, screen.height - 1)
+            val ty = ((scaledY.toFloat() / scaledHeight) * templateH).toInt().coerceIn(0, templateH - 1)
+            val py = (originY + scaledY).coerceIn(0, screenH - 1)
             for (sx in 0 until sampleX) {
                 val scaledX = ((sx + 0.5f) / sampleX * scaledWidth).toInt().coerceIn(0, scaledWidth - 1)
-                val tx = ((scaledX.toFloat() / scaledWidth) * template.width).toInt().coerceIn(0, template.width - 1)
-                val px = (originX + scaledX).coerceIn(0, screen.width - 1)
-                total += pixelSimilarity(screen.getPixel(px, py), template.getPixel(tx, ty))
+                val tx = ((scaledX.toFloat() / scaledWidth) * templateW).toInt().coerceIn(0, templateW - 1)
+                val px = (originX + scaledX).coerceIn(0, screenW - 1)
+                total += pixelSimilarity(screenPixels[py * screenW + px], templatePixels[ty * templateW + tx])
                 count++
             }
         }
