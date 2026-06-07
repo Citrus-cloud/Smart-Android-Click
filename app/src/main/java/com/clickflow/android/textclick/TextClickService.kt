@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import com.clickflow.android.core.Premium
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import com.clickflow.android.service.ForegroundNotifications
 import com.google.mlkit.vision.common.InputImage
@@ -32,8 +33,10 @@ import kotlin.coroutines.resume
 
 /**
  * Reads on-screen text via the Accessibility screenshot + ML Kit OCR and taps the
- * matching word/line. No screen-recording prompt. Screenshots are throttled by
- * Android to ~1/sec, so the scan interval stays above that.
+ * matching word/line. Supports several texts at once ("multitap"): one OCR pass per
+ * scan, then every configured text found in it is tapped, each with its own repeat
+ * counter. No screen-recording prompt. Screenshots are throttled by Android to ~1/sec,
+ * so the scan interval stays above that.
  */
 class TextClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -48,16 +51,16 @@ class TextClickService : Service() {
             ACTION_STOP -> stopSelf()
             ACTION_START -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
-                ForegroundNotifications.start(this, ForegroundNotifications.ID_TEXT, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0442\u0435\u043a\u0441\u0442\u0443")
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_TEXT, "ClickFlow: автотап по тексту")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
                         val msg = if (ClickFlowAccessibilityService.isEnabledInSettings(this@TextClickService))
-                            "Accessibility \u0435\u0449\u0451 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0435\u0449\u0451 \u0440\u0430\u0437"
-                        else "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445"
+                            "ClickFlow включён, но служба не запущена. Выключи и снова включи ClickFlow в спец. возможностях."
+                        else "Включи Accessibility в настройках"
                         Toast.makeText(this@TextClickService, msg, Toast.LENGTH_LONG).show()
                         stopSelf(); return@launch
                     }
@@ -75,7 +78,7 @@ class TextClickService : Service() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
             val chip = TextView(this).apply {
-                text = "\u25a0 \u0421\u0442\u043e\u043f \u0442\u0435\u043a\u0441\u0442"
+                text = "\u25a0 Стоп текст"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 setPadding(30, 18, 30, 18)
@@ -100,7 +103,8 @@ class TextClickService : Service() {
     @RequiresApi(Build.VERSION_CODES.R)
     private fun begin() {
         val config = TextClickStore.load(this)
-        if (config.query.isBlank()) { stopSelf(); return }
+        val queries = config.queries.filter { it.isNotBlank() }.take(Premium.targetLimit(this))
+        if (queries.isEmpty()) { stopSelf(); return }
         val service = ClickFlowAccessibilityService.liveInstance ?: run { stopSelf(); return }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         running = true
@@ -108,7 +112,8 @@ class TextClickService : Service() {
         val infinite = config.infinite || config.continuous
         val maxTaps = config.repeatCount.coerceAtLeast(1)
         val scanInterval = maxOf(config.intervalMs, 1100L)
-        var taps = 0
+        val taps = HashMap<String, Int>()
+        val remaining = queries.toMutableList()
         scope.launch {
             delay(800)
             var captureFails = 0
@@ -119,7 +124,7 @@ class TextClickService : Service() {
                     // failing the feature would otherwise loop forever doing nothing, so tell the user.
                     captureFails++
                     if (captureFails >= 5) {
-                        Toast.makeText(this@TextClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438 (Accessibility) \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@TextClickService, "Не удаётся сделать скриншот экрана. Проверь спец. возможности (Accessibility) и попробуй снова.", Toast.LENGTH_LONG).show()
                         running = false
                         break
                     }
@@ -128,13 +133,19 @@ class TextClickService : Service() {
                 }
                 captureFails = 0
                 val result = runCatching { recognizer.process(InputImage.fromBitmap(bitmap, 0)).await() }.getOrNull()
-                val box = result?.let { findTextBox(it, config) }
-                if (box != null) {
-                    service.performSingleTap(box.centerX(), box.centerY(), 70L)
-                    taps++
-                    if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
+                if (result != null) {
+                    val finished = mutableListOf<String>()
+                    for (q in remaining) {
+                        val box = findTextBox(result, q, config) ?: continue
+                        service.performSingleTap(box.centerX(), box.centerY(), 70L)
+                        val n = (taps[q] ?: 0) + 1
+                        taps[q] = n
+                        if (!infinite && n >= maxTaps) finished.add(q)
+                    }
+                    remaining.removeAll(finished.toSet())
                 }
                 bitmap.recycle()
+                if (remaining.isEmpty()) { running = false; break }
                 delay(scanInterval)
             }
             recognizer.close()
@@ -142,8 +153,8 @@ class TextClickService : Service() {
         }
     }
 
-    private fun findTextBox(text: Text, config: TextClickConfig): android.graphics.Rect? {
-        val query = if (config.ignoreCase) config.query.lowercase() else config.query
+    private fun findTextBox(text: Text, rawQuery: String, config: TextClickConfig): android.graphics.Rect? {
+        val query = if (config.ignoreCase) rawQuery.lowercase() else rawQuery
         for (block in text.textBlocks) {
             for (line in block.lines) {
                 val value = if (config.ignoreCase) line.text.lowercase() else line.text
