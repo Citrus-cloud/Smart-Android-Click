@@ -110,36 +110,48 @@ class ImageClickService : Service() {
         var taps = 0
         scope.launch {
             delay(800) // let the setup screen disappear before the first screenshot
+            var captureFails = 0
             while (running) {
                 val bitmap = capture(service)
-                if (bitmap != null) {
-                    // Heavy pixel matching runs off the main thread so the UI never blocks.
-                    val match = withContext(Dispatchers.Default) {
-                        val regionLeftPx = (bitmap.width * templateMeta.regionLeft).toInt()
-                        val regionTopPx = (bitmap.height * templateMeta.regionTop).toInt()
-                        val regionRightPx = (bitmap.width * templateMeta.regionRight).toInt()
-                        val regionBottomPx = (bitmap.height * templateMeta.regionBottom).toInt()
-                        BitmapTemplateMatcher.findBest(
-                            screen = bitmap,
-                            template = templateBitmap,
-                            threshold = templateMeta.threshold,
-                            regionLeftPx = regionLeftPx,
-                            regionTopPx = regionTopPx,
-                            regionRightPx = regionRightPx,
-                            regionBottomPx = regionBottomPx,
-                            scaleMin = templateMeta.scaleMin,
-                            scaleMax = templateMeta.scaleMax,
-                        )
+                if (bitmap == null) {
+                    // takeScreenshot can transiently fail (rate limit) but should recover; if it keeps
+                    // failing the feature would otherwise loop forever doing nothing, so tell the user.
+                    captureFails++
+                    if (captureFails >= 5) {
+                        Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438 (Accessibility) \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
+                        running = false
+                        break
                     }
-                    if (match != null) {
-                        val tapX = match.x + (match.width * templateMeta.tapX).toInt()
-                        val tapY = match.y + (match.height * templateMeta.tapY).toInt()
-                        service.performSingleTap(tapX, tapY, 70L)
-                        taps++
-                        if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
-                    }
-                    bitmap.recycle()
+                    delay(scanInterval)
+                    continue
                 }
+                captureFails = 0
+                // Heavy pixel matching runs off the main thread so the UI never blocks.
+                val match = withContext(Dispatchers.Default) {
+                    val regionLeftPx = (bitmap.width * templateMeta.regionLeft).toInt()
+                    val regionTopPx = (bitmap.height * templateMeta.regionTop).toInt()
+                    val regionRightPx = (bitmap.width * templateMeta.regionRight).toInt()
+                    val regionBottomPx = (bitmap.height * templateMeta.regionBottom).toInt()
+                    BitmapTemplateMatcher.findBest(
+                        screen = bitmap,
+                        template = templateBitmap,
+                        threshold = templateMeta.threshold,
+                        regionLeftPx = regionLeftPx,
+                        regionTopPx = regionTopPx,
+                        regionRightPx = regionRightPx,
+                        regionBottomPx = regionBottomPx,
+                        scaleMin = templateMeta.scaleMin,
+                        scaleMax = templateMeta.scaleMax,
+                    )
+                }
+                if (match != null) {
+                    val tapX = match.x + (match.width * templateMeta.tapX).toInt()
+                    val tapY = match.y + (match.height * templateMeta.tapY).toInt()
+                    service.performSingleTap(tapX, tapY, 70L)
+                    taps++
+                    if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
+                }
+                bitmap.recycle()
                 delay(scanInterval) // respect the ~1/sec screenshot limit
             }
             stopSelf()
