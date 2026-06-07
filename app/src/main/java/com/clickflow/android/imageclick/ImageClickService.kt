@@ -172,10 +172,14 @@ class ImageClickService : Service() {
                         }
                     }
                 }
-                // Tap each found target on the main thread and advance its own counter.
+                // Tap each found target one at a time, WAITING for each gesture to finish before the
+                // next. Only one gesture can be in flight at a time, so firing several taps back-to-back
+                // made the framework drop all but one (and on some OEMs even that one) — which is why
+                // multi-target (and rapid repeat) taps in a single cycle could do nothing at all.
                 for ((t, tapX, tapY) in hits) {
-                    service.performSingleTap(tapX, tapY, 70L)
+                    service.performSingleTapAwait(tapX, tapY, 70L)
                     t.taps++
+                    if (hits.size > 1) delay(120) // small gap so consecutive gestures don't collide
                 }
                 // Retire targets that have reached their own repeat count.
                 val finished = targets.filter { !it.infinite && it.taps >= it.maxTaps }
