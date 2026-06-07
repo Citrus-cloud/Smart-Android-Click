@@ -17,6 +17,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.clickflow.android.core.Premium
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
@@ -133,7 +134,7 @@ class FloatingTapperOverlayService : Service() {
 
         val markerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val add = pill("+ \u0422\u043e\u0447\u043a\u0430") {
-            if (markers.size < 5) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
+            if (markers.size < Premium.MARKER_LIMIT) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
         }
         val remove = pill("\u2212 \u0422\u043e\u0447\u043a\u0430") { removeLastMarker(); saveMarkers() }
         markerRow.addView(add, lp(0, 70, 1f))
@@ -359,7 +360,7 @@ class FloatingTapperOverlayService : Service() {
 
     private fun loadMarkers() {
         val raw = prefs().getString(KEY_OVERLAY_MARKERS, null).orEmpty()
-        raw.split(";").filter { it.isNotBlank() }.take(5).forEach { part ->
+        raw.split(";").filter { it.isNotBlank() }.take(Premium.MARKER_LIMIT).forEach { part ->
             val pieces = part.split(",")
             if (pieces.size == 3) {
                 val id = pieces[0].toIntOrNull()
