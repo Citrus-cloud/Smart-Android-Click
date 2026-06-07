@@ -157,7 +157,7 @@ class ScenarioEngineService : Service() {
             StepType.TEXT -> {
                 if (step.text.isBlank() || recognizer == null) return true
                 val config = TextClickConfig(
-                    query = step.text,
+                    queries = listOf(step.text),
                     contains = step.textContains,
                     ignoreCase = step.textIgnoreCase,
                 )
@@ -260,7 +260,8 @@ class ScenarioEngineService : Service() {
     }
 
     private fun findTextBox(text: Text, config: TextClickConfig): Rect? {
-        val query = if (config.ignoreCase) config.query.lowercase() else config.query
+        val rawQuery = config.queries.firstOrNull().orEmpty()
+        val query = if (config.ignoreCase) rawQuery.lowercase() else rawQuery
         for (block in text.textBlocks) {
             for (line in block.lines) {
                 val value = if (config.ignoreCase) line.text.lowercase() else line.text
