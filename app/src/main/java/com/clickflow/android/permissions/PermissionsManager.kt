@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
-import android.view.accessibility.AccessibilityManager
 
 /**
  * Read-only checker for the two real-input gates Android exposes:
@@ -33,7 +32,8 @@ class PermissionsManager(
     fun read(): PermissionStatus = try {
         PermissionStatus(
             overlayGranted = readOverlayGranted(),
-            accessibilityEnabled = readAccessibilityEnabled(),
+            accessibilityEnabledInSettings = readAccessibilityEnabledInSettings(),
+            accessibilityRunning = ClickFlowAccessibilityService.isConnected(),
             readError = false,
         )
     } catch (t: Throwable) {
@@ -45,8 +45,7 @@ class PermissionsManager(
 
     /**
      * Intent that opens the system "Display over other apps" / overlay-permission settings
-     * page for THIS package. Falls back to the generic overlay-management list if the
-     * package-specific page is unavailable.
+     * page for THIS package.
      */
     fun overlaySettingsIntent(): Intent = Intent(
         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -63,15 +62,11 @@ class PermissionsManager(
     private fun readOverlayGranted(): Boolean = Settings.canDrawOverlays(context)
 
     /**
-     * Reads the system-wide list of enabled Accessibility Services and checks if ours is in it.
-     * Uses `enabled_accessibility_services` (Settings.Secure) which is the canonical list.
+     * Reads the canonical system list of enabled Accessibility Services and checks if ours
+     * is in it. This mirrors the toggle in Android Settings. It can read ON here while the
+     * service is not actually bound yet — see [PermissionStatus.accessibilityRunning].
      */
-    private fun readAccessibilityEnabled(): Boolean {
-        val accessibilityManager =
-            context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-                ?: return false
-        if (!accessibilityManager.isEnabled) return false
-
+    private fun readAccessibilityEnabledInSettings(): Boolean {
         val enabledServices: String = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,

@@ -60,6 +60,7 @@ class ScenarioActivity : ComponentActivity() {
                             action = ScenarioEngineService.ACTION_START
                             putExtra(ScenarioEngineService.EXTRA_SCENARIO_ID, id)
                         })
+                        finish() // get our own UI off-screen before the engine's first screenshot
                     },
                     onStop = {
                         startService(Intent(this, ScenarioEngineService::class.java).apply { action = ScenarioEngineService.ACTION_STOP })

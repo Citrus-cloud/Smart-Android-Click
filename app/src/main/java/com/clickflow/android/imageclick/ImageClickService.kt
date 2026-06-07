@@ -16,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,12 +24,15 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
  * Looks at the screen via the Accessibility screenshot API and taps where the saved
- * picture is found. No screen-recording prompt. Android limits screenshots to about
- * one per second, so the scan interval is kept above that to stay reliable.
+ * picture(s) are found. Supports several templates at once ("multitap"): every active
+ * template is searched for in the SAME screenshot and tapped within the same scan cycle,
+ * each with its own repeat counter. No screen-recording prompt. Android limits screenshots
+ * to about one per second, so the scan interval is kept above that to stay reliable.
  */
 class ImageClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -42,27 +46,36 @@ class ImageClickService : Service() {
         when (intent?.action) {
             ACTION_STOP -> stopSelf()
             ACTION_START -> {
-                val templateId = intent.getStringExtra(EXTRA_TEMPLATE_ID)
-                if (templateId.isNullOrBlank()) { stopSelf(); return START_NOT_STICKY }
+                val ids = parseTemplateIds(intent)
+                if (ids.isEmpty()) { stopSelf(); return START_NOT_STICKY }
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: автотап по фото")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
                         val msg = if (ClickFlowAccessibilityService.isEnabledInSettings(this@ImageClickService))
-                            "Accessibility \u0435\u0449\u0451 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0435\u0449\u0451 \u0440\u0430\u0437"
-                        else "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445"
+                            "ClickFlow включён, но служба не запущена. Выключи и снова включи ClickFlow в спец. возможностях."
+                        else "Включи Accessibility в настройках"
                         Toast.makeText(this@ImageClickService, msg, Toast.LENGTH_LONG).show()
                         stopSelf(); return@launch
                     }
-                    begin(templateId)
+                    begin(ids)
                 }
             }
             else -> stopSelf()
         }
         return START_STICKY
+    }
+
+    private fun parseTemplateIds(intent: Intent): List<String> {
+        intent.getStringExtra(EXTRA_TEMPLATE_IDS)?.let { joined ->
+            return joined.split(",").map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        }
+        val single = intent.getStringExtra(EXTRA_TEMPLATE_ID)
+        return if (single.isNullOrBlank()) emptyList() else listOf(single)
     }
 
     private fun overlayType(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
@@ -71,7 +84,7 @@ class ImageClickService : Service() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
             val chip = TextView(this).apply {
-                text = "\u25a0 \u0421\u0442\u043e\u043f \u0444\u043e\u0442\u043e"
+                text = "\u25a0 Стоп фото"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 setPadding(30, 18, 30, 18)
@@ -94,48 +107,85 @@ class ImageClickService : Service() {
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
-    private fun begin(templateId: String) {
-        val templateMeta = ImageClickTemplateStore.loadTemplates(this).firstOrNull { it.id == templateId }?.normalized() ?: run { stopSelf(); return }
-        val templateBitmap = BitmapFactory.decodeFile(templateMeta.filePath) ?: run { stopSelf(); return }
-        val service = ClickFlowAccessibilityService.liveInstance ?: run { stopSelf(); return }
+    private fun begin(templateIds: List<String>) {
+        val all = ImageClickTemplateStore.loadTemplates(this)
+        val targets = templateIds
+            .mapNotNull { id -> all.firstOrNull { it.id == id }?.normalized() }
+            .mapNotNull { meta ->
+                val bmp = BitmapFactory.decodeFile(meta.filePath) ?: return@mapNotNull null
+                ImageTarget(meta, bmp)
+            }
+            .toMutableList()
+        if (targets.isEmpty()) { stopSelf(); return }
+        val service = ClickFlowAccessibilityService.liveInstance ?: run {
+            targets.forEach { it.bitmap.recycle() }
+            stopSelf(); return
+        }
 
         running = true
         showStopChip()
-        val infinite = templateMeta.infinite || templateMeta.continuous
-        val maxTaps = templateMeta.repeatCount.coerceAtLeast(1)
-        val scanInterval = maxOf(templateMeta.intervalMs, 1100L)
-        var taps = 0
+        // Scan as fast as the fastest target wants, but never faster than the screenshot limit.
+        val scanInterval = maxOf(targets.minOf { it.meta.intervalMs }, 1100L)
         scope.launch {
             delay(800) // let the setup screen disappear before the first screenshot
+            var captureFails = 0
             while (running) {
                 val bitmap = capture(service)
-                if (bitmap != null) {
-                    val regionLeftPx = (bitmap.width * templateMeta.regionLeft).toInt()
-                    val regionTopPx = (bitmap.height * templateMeta.regionTop).toInt()
-                    val regionRightPx = (bitmap.width * templateMeta.regionRight).toInt()
-                    val regionBottomPx = (bitmap.height * templateMeta.regionBottom).toInt()
-                    val match = BitmapTemplateMatcher.findBest(
-                        screen = bitmap,
-                        template = templateBitmap,
-                        threshold = templateMeta.threshold,
-                        regionLeftPx = regionLeftPx,
-                        regionTopPx = regionTopPx,
-                        regionRightPx = regionRightPx,
-                        regionBottomPx = regionBottomPx,
-                        scaleMin = templateMeta.scaleMin,
-                        scaleMax = templateMeta.scaleMax,
-                    )
-                    if (match != null) {
-                        val tapX = match.x + (match.width * templateMeta.tapX).toInt()
-                        val tapY = match.y + (match.height * templateMeta.tapY).toInt()
-                        service.performSingleTap(tapX, tapY, 70L)
-                        taps++
-                        if (!infinite && taps >= maxTaps) { running = false; bitmap.recycle(); break }
+                if (bitmap == null) {
+                    // takeScreenshot can transiently fail (rate limit) but should recover; if it keeps
+                    // failing the feature would otherwise loop forever doing nothing, so tell the user.
+                    captureFails++
+                    if (captureFails >= 5) {
+                        Toast.makeText(this@ImageClickService, "Не удаётся сделать скриншот экрана. Проверь спец. возможности (Accessibility) и попробуй снова.", Toast.LENGTH_LONG).show()
+                        running = false
+                        break
                     }
-                    bitmap.recycle()
+                    delay(scanInterval)
+                    continue
                 }
+                captureFails = 0
+                // Heavy pixel matching runs off the main thread so the UI never blocks. Every active
+                // target is searched for in this one screenshot; we collect the tap points first.
+                val hits = withContext(Dispatchers.Default) {
+                    targets.mapNotNull { t ->
+                        val regionLeftPx = (bitmap.width * t.meta.regionLeft).toInt()
+                        val regionTopPx = (bitmap.height * t.meta.regionTop).toInt()
+                        val regionRightPx = (bitmap.width * t.meta.regionRight).toInt()
+                        val regionBottomPx = (bitmap.height * t.meta.regionBottom).toInt()
+                        val match = BitmapTemplateMatcher.findBest(
+                            screen = bitmap,
+                            template = t.bitmap,
+                            threshold = t.meta.threshold,
+                            regionLeftPx = regionLeftPx,
+                            regionTopPx = regionTopPx,
+                            regionRightPx = regionRightPx,
+                            regionBottomPx = regionBottomPx,
+                            scaleMin = t.meta.scaleMin,
+                            scaleMax = t.meta.scaleMax,
+                        )
+                        if (match == null) {
+                            null
+                        } else {
+                            val tapX = match.x + (match.width * t.meta.tapX).toInt()
+                            val tapY = match.y + (match.height * t.meta.tapY).toInt()
+                            Triple(t, tapX, tapY)
+                        }
+                    }
+                }
+                // Tap each found target on the main thread and advance its own counter.
+                for ((t, tapX, tapY) in hits) {
+                    service.performSingleTap(tapX, tapY, 70L)
+                    t.taps++
+                }
+                // Retire targets that have reached their own repeat count.
+                val finished = targets.filter { !it.infinite && it.taps >= it.maxTaps }
+                finished.forEach { it.bitmap.recycle() }
+                targets.removeAll(finished.toSet())
+                bitmap.recycle()
+                if (targets.isEmpty()) { running = false; break }
                 delay(scanInterval) // respect the ~1/sec screenshot limit
             }
+            targets.forEach { it.bitmap.recycle() }
             stopSelf()
         }
     }
@@ -152,6 +202,7 @@ class ImageClickService : Service() {
     override fun onDestroy() {
         running = false
         removeStopChip()
+        ForegroundNotifications.stop(this)
         scope.cancel()
         super.onDestroy()
     }
@@ -160,5 +211,16 @@ class ImageClickService : Service() {
         const val ACTION_START = "com.clickflow.android.imageclick.START"
         const val ACTION_STOP = "com.clickflow.android.imageclick.STOP"
         const val EXTRA_TEMPLATE_ID = "template_id"
+        const val EXTRA_TEMPLATE_IDS = "template_ids"
     }
+}
+
+/** Runtime state for one template inside a multi-target run. */
+private class ImageTarget(
+    val meta: ImageClickTemplate,
+    val bitmap: Bitmap,
+) {
+    val infinite: Boolean = meta.infinite || meta.continuous
+    val maxTaps: Int = meta.repeatCount.coerceAtLeast(1)
+    var taps: Int = 0
 }

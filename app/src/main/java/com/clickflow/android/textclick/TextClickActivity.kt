@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.clickflow.android.core.Premium
 import com.clickflow.android.ui.ClickFlowTheme
 
 class TextClickActivity : ComponentActivity() {
@@ -54,6 +55,11 @@ class TextClickActivity : ComponentActivity() {
 @Composable
 private fun TextClickScreen(context: Context, onRun: () -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
     var config by remember { mutableStateOf(TextClickStore.load(context)) }
+    var premium by remember { mutableStateOf(Premium.isPremiumUnlocked(context)) }
+    val limit = if (premium) Premium.PREMIUM_TARGET_LIMIT else Premium.FREE_TARGET_LIMIT
+    val canAdd = config.queries.size < limit
+    val activeCount = config.queries.count { it.isNotBlank() }
+    val runCount = minOf(activeCount, limit)
     fun save(updated: TextClickConfig) {
         config = updated
         TextClickStore.save(context, updated)
@@ -64,31 +70,73 @@ private fun TextClickScreen(context: Context, onRun: () -> Unit, onStop: () -> U
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("\u0422\u0435\u043a\u0441\u0442", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+            Text("Текст", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Мультитап: ${config.queries.size} / $limit", fontWeight = FontWeight.Bold)
+                    Text(
+                        if (premium) "Premium активен — до ${Premium.PREMIUM_TARGET_LIMIT} текстов одновременно"
+                        else "Бесплатно — ${Premium.FREE_TARGET_LIMIT} текста. Premium — до ${Premium.PREMIUM_TARGET_LIMIT}.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Premium (тест)")
+                        Switch(checked = premium, onCheckedChange = { premium = it; Premium.setPremiumUnlocked(context, it) })
+                    }
+                }
+            }
+
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TextField(value = config.query, onValueChange = { save(config.copy(query = it)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    ToggleRow("\u0427\u0430\u0441\u0442\u044c \u0441\u0442\u0440\u043e\u043a\u0438", config.contains) { save(config.copy(contains = it)) }
-                    ToggleRow("\u0420\u0435\u0433\u0438\u0441\u0442\u0440", config.ignoreCase) { save(config.copy(ignoreCase = it)) }
+                    config.queries.forEachIndexed { i, q ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextField(
+                                value = q,
+                                onValueChange = { v ->
+                                    val list = config.queries.toMutableList()
+                                    list[i] = v
+                                    save(config.copy(queries = list))
+                                },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                            )
+                            if (config.queries.size > 1) {
+                                OutlinedButton(onClick = {
+                                    val list = config.queries.toMutableList()
+                                    list.removeAt(i)
+                                    save(config.copy(queries = list))
+                                }) { Text("\u2715") }
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = { if (canAdd) save(config.copy(queries = config.queries + "")) }, modifier = Modifier.fillMaxWidth(), enabled = canAdd) { Text("+ Текст") }
+                    if (!canAdd && !premium) {
+                        Text("Лимит $limit — включи Premium (тест) для ${Premium.PREMIUM_TARGET_LIMIT}", color = MaterialTheme.colorScheme.error)
+                    }
 
-                    Text("\u041f\u043e\u0432\u0442\u043e\u0440\u044b: " + if (config.infinite) "\u221e" else "${config.repeatCount}", fontWeight = FontWeight.Bold)
+                    ToggleRow("Часть строки", config.contains) { save(config.copy(contains = it)) }
+                    ToggleRow("Регистр", config.ignoreCase) { save(config.copy(ignoreCase = it)) }
+
+                    Text("Повторы: " + if (config.infinite) "\u221e" else "${config.repeatCount}", fontWeight = FontWeight.Bold)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { save(config.copy(repeatCount = (config.repeatCount - 5).coerceAtLeast(1), infinite = false)) }, modifier = Modifier.weight(1f)) { Text("\u22125") }
                         OutlinedButton(onClick = { save(config.copy(repeatCount = (config.repeatCount + 5).coerceAtMost(100000), infinite = false)) }, modifier = Modifier.weight(1f)) { Text("+5") }
-                        OutlinedButton(onClick = { save(config.copy(infinite = !config.infinite)) }, modifier = Modifier.weight(1f)) { Text(if (config.infinite) "\u221e \u0412\u041a\u041b" else "\u221e") }
+                        OutlinedButton(onClick = { save(config.copy(infinite = !config.infinite)) }, modifier = Modifier.weight(1f)) { Text(if (config.infinite) "\u221e ВКЛ" else "\u221e") }
                     }
 
-                    Text("\u0418\u043d\u0442\u0435\u0440\u0432\u0430\u043b: ${config.intervalMs} \u043c\u0441")
+                    Text("Интервал: ${config.intervalMs} мс")
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { save(config.copy(intervalMs = (config.intervalMs - 200).coerceAtLeast(300))) }, modifier = Modifier.weight(1f)) { Text("\u2212200") }
                         OutlinedButton(onClick = { save(config.copy(intervalMs = (config.intervalMs + 200).coerceAtMost(600000))) }, modifier = Modifier.weight(1f)) { Text("+200") }
                     }
-                    Text("\u041c\u0438\u043d\u0438\u043c\u0443\u043c ~1 \u0441\u0435\u043a: \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0438\u0432\u0430\u0435\u0442 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Минимум ~1 сек: система ограничивает скриншоты", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Button(onClick = onRun, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), enabled = config.query.isNotBlank()) { Text("\u0421\u0442\u0430\u0440\u0442") }
-            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("\u0421\u0442\u043e\u043f") }
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("\u041d\u0430\u0437\u0430\u0434") }
+
+            Button(onClick = onRun, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), enabled = runCount > 0) { Text("\u25b6 Старт мультитап ($runCount)") }
+            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Стоп") }
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
         }
     }
 }

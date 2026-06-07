@@ -9,5 +9,4 @@
     android:canRetrieveWindowContent="false"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="1000"
-    android:packageNames="com.clickflow.android,com.clickflow.android.debug"
     android:summary="@string/accessibility_service_summary" />

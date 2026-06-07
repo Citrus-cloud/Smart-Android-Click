@@ -35,6 +35,8 @@ data class ImageClickTemplate(
     val intervalMs: Long = DEFAULT_INTERVAL_MS,
     val repeatCount: Int = DEFAULT_REPEAT_COUNT,
     val infinite: Boolean = false,
+    /** Whether this template participates in a multi-target ("multitap") run. */
+    val enabled: Boolean = true,
 )
 
 object ImageClickTemplateStore {
@@ -110,6 +112,7 @@ object ImageClickTemplateStore {
             intervalMs = p.getOrNull(15)?.toLongOrNull() ?: DEFAULT_INTERVAL_MS,
             repeatCount = p.getOrNull(16)?.toIntOrNull() ?: DEFAULT_REPEAT_COUNT,
             infinite = p.getOrNull(17)?.toBooleanStrictOrNull() ?: false,
+            enabled = p.getOrNull(18)?.toBooleanStrictOrNull() ?: true,
         ).takeIf { it.id.isNotBlank() && it.filePath.isNotBlank() }
     }.getOrNull()
 
@@ -134,6 +137,7 @@ object ImageClickTemplateStore {
             t.intervalMs,
             t.repeatCount,
             t.infinite,
+            t.enabled,
         ).joinToString("|")
         Base64.encodeToString(line.toByteArray(), Base64.NO_WRAP)
     }

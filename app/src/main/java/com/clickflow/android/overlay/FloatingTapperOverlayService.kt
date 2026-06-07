@@ -17,7 +17,9 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.clickflow.android.core.Premium
 import com.clickflow.android.permissions.ClickFlowAccessibilityService
+import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,6 +71,7 @@ class FloatingTapperOverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        ForegroundNotifications.start(this, ForegroundNotifications.ID_OVERLAY, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u043c\u0435\u0442\u043a\u0435")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val p = prefs()
         intervalMs = p.getLong(KEY_INTERVAL_MS, 500L)
@@ -86,6 +89,7 @@ class FloatingTapperOverlayService : Service() {
         panel?.let { runCatching { windowManager.removeView(it) } }
         markers.clear()
         panel = null
+        ForegroundNotifications.stop(this)
         super.onDestroy()
     }
 
@@ -130,7 +134,7 @@ class FloatingTapperOverlayService : Service() {
 
         val markerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val add = pill("+ \u0422\u043e\u0447\u043a\u0430") {
-            if (markers.size < 5) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
+            if (markers.size < Premium.MARKER_LIMIT) { addMarker(280 + markers.size * 70, 520 + markers.size * 70); saveMarkers() }
         }
         val remove = pill("\u2212 \u0422\u043e\u0447\u043a\u0430") { removeLastMarker(); saveMarkers() }
         markerRow.addView(add, lp(0, 70, 1f))
@@ -323,8 +327,15 @@ class FloatingTapperOverlayService : Service() {
             while (isActive && running && (infinite || cycle < repeatCount)) {
                 for (marker in markers.toList()) {
                     if (!isActive || !running) break
-                    val centerX = marker.params.x + MARKER_SIZE / 2
-                    val centerY = marker.params.y + MARKER_SIZE / 2
+                    // Tap the marker's REAL on-screen center. params.x/y are window coords that
+                    // exclude the status-bar inset on TOP|START overlays, but dispatchGesture wants
+                    // absolute screen coords, so the old (params + size/2) math tapped above the dot.
+                    val loc = IntArray(2)
+                    marker.view.getLocationOnScreen(loc)
+                    val vw = if (marker.view.width > 0) marker.view.width else MARKER_SIZE
+                    val vh = if (marker.view.height > 0) marker.view.height else MARKER_SIZE
+                    val centerX = loc[0] + vw / 2
+                    val centerY = loc[1] + vh / 2
                     service.performSingleTap(centerX, centerY, 60L)
                     delay(intervalMs)
                 }
@@ -349,7 +360,7 @@ class FloatingTapperOverlayService : Service() {
 
     private fun loadMarkers() {
         val raw = prefs().getString(KEY_OVERLAY_MARKERS, null).orEmpty()
-        raw.split(";").filter { it.isNotBlank() }.take(5).forEach { part ->
+        raw.split(";").filter { it.isNotBlank() }.take(Premium.MARKER_LIMIT).forEach { part ->
             val pieces = part.split(",")
             if (pieces.size == 3) {
                 val id = pieces[0].toIntOrNull()
