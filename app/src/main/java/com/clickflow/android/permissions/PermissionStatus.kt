@@ -1,10 +1,10 @@
 package com.clickflow.android.permissions
 
 /**
-* Step 61: Read-only snapshot of Android permission states relevant to the (still-disabled)
-* real-input pathways. The app NEVER enables real taps based on these flags — they are surfaced
-* for diagnostics and the Permissions screen only. SafetyGate.canRunRealTap() remains false
-* regardless of any value here.
+* Read-only snapshot of the Android permission states relevant to ClickFlow automation.
+* These flags are surfaced for diagnostics and the Permissions screen only. Granting a
+* permission never starts automation by itself — the user still has to enable the
+* Accessibility service and start taps manually.
 */
 data class PermissionStatus(
    /** SYSTEM_ALERT_WINDOW granted by the user (Settings.canDrawOverlays). */
