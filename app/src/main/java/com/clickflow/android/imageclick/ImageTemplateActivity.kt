@@ -188,4 +188,25 @@ private fun TemplateEditor(template: ImageClickTemplate, onUpdate: (ImageClickTe
             Text("Тап X: ${(template.tapX * 100).roundToInt()}%")
             Slider(value = template.tapX, onValueChange = { onUpdate(template.copy(tapX = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
             Text("Тап Y: ${(template.tapY * 100).roundToInt()}%")
-            Slider(value = template.tapY, onValueChange = { onUp
+            Slider(value = template.tapY, onValueChange = { onUpdate(template.copy(tapY = it.coerceIn(0f, 1f))) }, valueRange = 0f..1f)
+            Text("Масштаб: ${(template.scaleMin * 100).roundToInt()}-${(template.scaleMax * 100).roundToInt()}%")
+            Slider(value = template.scaleMin, onValueChange = { onUpdate(template.copy(scaleMin = it.coerceIn(0.5f, template.scaleMax))) }, valueRange = 0.5f..2f)
+            Slider(value = template.scaleMax, onValueChange = { onUpdate(template.copy(scaleMax = it.coerceIn(template.scaleMin, 2f))) }, valueRange = 0.5f..2f)
+            OutlinedButton(onClick = { onUpdate(template.copy(scaleMin = 0.65f, scaleMax = 1.45f)) }, modifier = Modifier.fillMaxWidth()) { Text("65\u2013145%") }
+
+            Text("Повторы: " + if (template.infinite) "\u221e" else "${template.repeatCount}", fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { onUpdate(template.copy(repeatCount = (template.repeatCount - 5).coerceAtLeast(1), infinite = false)) }, modifier = Modifier.weight(1f)) { Text("\u22125") }
+                OutlinedButton(onClick = { onUpdate(template.copy(repeatCount = (template.repeatCount + 5).coerceAtMost(100000), infinite = false)) }, modifier = Modifier.weight(1f)) { Text("+5") }
+                OutlinedButton(onClick = { onUpdate(template.copy(infinite = !template.infinite)) }, modifier = Modifier.weight(1f)) { Text(if (template.infinite) "\u221e ВКЛ" else "\u221e") }
+            }
+
+            Text("Интервал: ${template.intervalMs} мс")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { onUpdate(template.copy(intervalMs = (template.intervalMs - 200).coerceAtLeast(300))) }, modifier = Modifier.weight(1f)) { Text("\u2212200") }
+                OutlinedButton(onClick = { onUpdate(template.copy(intervalMs = (template.intervalMs + 200).coerceAtMost(600000))) }, modifier = Modifier.weight(1f)) { Text("+200") }
+            }
+            Text("Минимум ~1 сек: система ограничивает скриншоты", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
