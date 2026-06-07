@@ -87,14 +87,15 @@ class ClickFlowAccessibilityService : AccessibilityService() {
             return flat.split(':').any { it.equals(expected, ignoreCase = true) }
         }
 
-        /** Wait briefly for the service to (re)connect. The app process can be killed in the
+        /** Wait for the service to (re)connect. The app process can be killed in the
          *  background; when it restarts the accessibility service reconnects a moment later,
-         *  so we poll instead of failing immediately with a false "not enabled" message. */
-        suspend fun awaitInstance(timeoutMs: Long = 4000L): ClickFlowAccessibilityService? {
+         *  and on aggressive OEMs (MIUI/EMUI) that rebind can take several seconds, so we
+         *  poll generously instead of failing early with a false "not enabled" message. */
+        suspend fun awaitInstance(timeoutMs: Long = 12000L): ClickFlowAccessibilityService? {
             var waited = 0L
             while (liveInstance == null && waited < timeoutMs) {
-                delay(120L)
-                waited += 120L
+                delay(100L)
+                waited += 100L
             }
             return liveInstance
         }
