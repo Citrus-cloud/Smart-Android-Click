@@ -37,7 +37,7 @@ import com.clickflow.android.scenario.ScenarioActivity
 import com.clickflow.android.textclick.TextClickActivity
 
 /** Visible marker so a user can confirm which APK is actually installed. Bump on each fix. */
-private const val BUILD_TAG = "fix-acc-1 \u00b7 06.06"
+private const val BUILD_TAG = "fix-acc-2 \u00b7 07.06"
 
 @Composable
 fun ClickFlowApp(vm: ClickFlowViewModel) {
@@ -106,8 +106,10 @@ private fun HomeScreen(vm: ClickFlowViewModel) {
 
         OutlinedButton(onClick = { vm.navigateTo(Screen.ADVANCED) }, modifier = Modifier.fillMaxWidth()) { Text("\u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u043d\u044b\u0435") }
 
-        if (!permissionStatus.accessibilityEnabled) {
-            OutlinedButton(onClick = { vm.openAccessibilitySettings() }, modifier = Modifier.fillMaxWidth()) { Text("\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c Accessibility") }
+        if (!permissionStatus.accessibilityReady) {
+            OutlinedButton(onClick = { vm.openAccessibilitySettings() }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (permissionStatus.accessibilityNeedsRestart) "Перезапустить Accessibility" else "Включить Accessibility")
+            }
         }
     }
 }
@@ -131,7 +133,12 @@ private fun PermissionsScreen(vm: ClickFlowViewModel) {
     Page {
         Text("\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043d\u0438\u044f", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
         PlainCard {
-            Text("Accessibility: ${if (status.accessibilityEnabled) "\u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e" else "\u043d\u0435 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e"}")
+            val accessibilityLine = when {
+                status.accessibilityReady -> "Accessibility: включено и работает"
+                status.accessibilityNeedsRestart -> "Accessibility: включено в настройках, но служба не запущена — выключите и снова включите ClickFlow в спец. возможностях"
+                else -> "Accessibility: не включено"
+            }
+            Text(accessibilityLine)
             Text("\u041c\u0435\u0442\u043a\u0430 \u043f\u043e\u0432\u0435\u0440\u0445: ${if (status.overlayGranted) "\u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e" else "\u043d\u0435 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e"}")
             Text("\u0421\u0431\u043e\u0440\u043a\u0430: $BUILD_TAG", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
