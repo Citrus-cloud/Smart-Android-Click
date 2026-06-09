@@ -65,6 +65,11 @@ class ImageTemplateActivity : ComponentActivity() {
                                 action = ImageClickService.ACTION_START
                                 putExtra(ImageClickService.EXTRA_TEMPLATE_IDS, ids.joinToString(","))
                                 putExtra(ImageClickService.EXTRA_SEQUENTIAL, sequential)
+                                // Looping only applies to the ordered (sequential) chain.
+                                if (sequential) {
+                                    putExtra(ImageClickService.EXTRA_LOOP, ImageClickTemplateStore.loadLoop(this@ImageTemplateActivity))
+                                    putExtra(ImageClickService.EXTRA_LOOP_COUNT, ImageClickTemplateStore.loadLoopCount(this@ImageTemplateActivity))
+                                }
                             })
                             finish()
                         }
@@ -85,6 +90,8 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>, Boo
     var expandedId by remember { mutableStateOf<String?>(null) }
     var premium by remember { mutableStateOf(Premium.isPremiumUnlocked(context)) }
     var sequential by remember { mutableStateOf(ImageClickTemplateStore.loadSequential(context)) }
+    var loop by remember { mutableStateOf(ImageClickTemplateStore.loadLoop(context)) }
+    var loopCount by remember { mutableStateOf(ImageClickTemplateStore.loadLoopCount(context)) }
     val limit = if (premium) Premium.PREMIUM_TARGET_LIMIT else Premium.FREE_TARGET_LIMIT
     val enabledCount = templates.count { it.enabled }
     val runCount = minOf(enabledCount, limit)
@@ -153,11 +160,32 @@ private fun ImageTemplateScreen(context: Context, onRunMulti: (List<String>, Boo
                     }
                     Text(
                         if (sequential)
-                            "\u0422\u0430\u043f\u0430\u0435\u0442 \u0444\u043e\u0442\u043e \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443: \u21161 \u2192 \u21162 \u2192 \u21163, \u043a\u0430\u0436\u0434\u043e\u0435 \u043f\u043e \u043e\u0434\u043d\u043e\u043c\u0443 \u0440\u0430\u0437\u0443, \u0438 \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f. \u0414\u043b\u044f \u0446\u0435\u043f\u043e\u0447\u043a\u0438 \u00ab\u0438\u043a\u043e\u043d\u043a\u0430 \u2192 \u0437\u0430\u0439\u0442\u0438 \u2192 \u0432\u044b\u0431\u043e\u0440\u00bb."
+                            "\u0422\u0430\u043f\u0430\u0435\u0442 \u0444\u043e\u0442\u043e \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443: \u21161 \u2192 \u21162 \u2192 \u21163, \u043a\u0430\u0436\u0434\u043e\u0435 \u043f\u043e \u043e\u0434\u043d\u043e\u043c\u0443 \u0440\u0430\u0437\u0443. \u0414\u043b\u044f \u0446\u0435\u043f\u043e\u0447\u043a\u0438 \u00ab\u0438\u043a\u043e\u043d\u043a\u0430 \u2192 \u0437\u0430\u0439\u0442\u0438 \u2192 \u0432\u044b\u0431\u043e\u0440\u00bb."
                         else
                             "\u041d\u0430\u0436\u0438\u043c\u0430\u0435\u0442 \u0432\u0441\u0435 \u0432\u043a\u043b\u044e\u0447\u0451\u043d\u043d\u044b\u0435 \u0444\u043e\u0442\u043e \u043d\u0430 \u043e\u0434\u043d\u043e\u043c \u044d\u043a\u0440\u0430\u043d\u0435, \u043a\u0430\u0436\u0434\u043e\u0435 \u043f\u043e \u0441\u0432\u043e\u0438\u043c \u043f\u043e\u0432\u0442\u043e\u0440\u0430\u043c.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
                     )
+                    if (sequential) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("\u0417\u0430\u0446\u0438\u043a\u043b\u0438\u0442\u044c (\u043d\u0435 \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0442\u044c)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Switch(checked = loop, onCheckedChange = { loop = it; ImageClickTemplateStore.saveLoop(context, it) })
+                        }
+                        if (loop) {
+                            Text(
+                                "\u0426\u0438\u043a\u043b\u043e\u0432: " + if (loopCount <= 0) "\u221e (\u0431\u0435\u0437 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438)" else "$loopCount",
+                                fontSize = 12.sp,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { val v = (loopCount - 1).coerceAtLeast(0); loopCount = v; ImageClickTemplateStore.saveLoopCount(context, v) }, modifier = Modifier.weight(1f), contentPadding = SmallPad) { Text("\u22121") }
+                                OutlinedButton(onClick = { val v = (loopCount + 1).coerceAtMost(100000); loopCount = v; ImageClickTemplateStore.saveLoopCount(context, v) }, modifier = Modifier.weight(1f), contentPadding = SmallPad) { Text("+1") }
+                                OutlinedButton(onClick = { loopCount = 0; ImageClickTemplateStore.saveLoopCount(context, 0) }, modifier = Modifier.weight(1f), contentPadding = SmallPad) { Text("\u221e") }
+                            }
+                            Text(
+                                "\u041f\u043e\u0441\u043b\u0435 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0433\u043e \u0444\u043e\u0442\u043e \u043d\u0430\u0447\u043d\u0451\u0442 \u0441\u043d\u043e\u0432\u0430 \u0441 \u21161. \u041f\u0440\u0438 \u221e \u043d\u0435 \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0435\u0442\u0441\u044f \u0438 \u0436\u0434\u0451\u0442 \u0444\u043e\u0442\u043e \u0431\u0435\u0441\u043a\u043e\u043d\u0435\u0447\u043d\u043e \u2014 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043d\u0430\u0436\u043c\u0451\u0448\u044c \u00ab\u0421\u0442\u043e\u043f\u00bb.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp,
+                            )
+                        }
+                    }
                     Text(
                         "\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e ${Premium.FREE_TARGET_LIMIT}, Premium \u0434\u043e ${Premium.PREMIUM_TARGET_LIMIT}.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp,
