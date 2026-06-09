@@ -42,6 +42,11 @@ import kotlin.math.roundToInt
  * A small debug log sits under the red stop chip and shows, every cycle, the match
  * confidence per picture and where it tapped (or that nothing matched), so it is obvious
  * what the clicker is doing.
+ *
+ * The control panel is NOT hidden during each screenshot: toggling its visibility every
+ * cycle made it (and the system's floating-window indicator) blink on and off, which was
+ * distracting. The panel sits in the top-right corner; keep tap targets out of that corner
+ * so the panel never covers them in the captured image.
  */
 class ImageClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -61,16 +66,16 @@ class ImageClickService : Service() {
                 val ids = parseTemplateIds(intent)
                 if (ids.isEmpty()) { stopSelf(); return START_NOT_STICKY }
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    Toast.makeText(this, "Нужен Android 11+", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
-                ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: автотап по фото")
+                ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0444\u043e\u0442\u043e")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
                         val msg = if (ClickFlowAccessibilityService.isEnabledInSettings(this@ImageClickService))
-                            "ClickFlow включён, но служба не запущена. Выключи и снова включи ClickFlow в спец. возможностях."
-                        else "Включи Accessibility в настройках"
+                            "ClickFlow \u0432\u043a\u043b\u044e\u0447\u0451\u043d, \u043d\u043e \u0441\u043b\u0443\u0436\u0431\u0430 \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u0430. \u0412\u044b\u043a\u043b\u044e\u0447\u0438 \u0438 \u0441\u043d\u043e\u0432\u0430 \u0432\u043a\u043b\u044e\u0447\u0438 ClickFlow \u0432 \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u044f\u0445."
+                        else "\u0412\u043a\u043b\u044e\u0447\u0438 Accessibility \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445"
                         Toast.makeText(this@ImageClickService, msg, Toast.LENGTH_LONG).show()
                         stopSelf(); return@launch
                     }
@@ -100,7 +105,7 @@ class ImageClickService : Service() {
                 gravity = Gravity.END
             }
             val chip = TextView(this).apply {
-                text = "\u25a0 Стоп фото"
+                text = "\u25a0 \u0421\u0442\u043e\u043f \u0444\u043e\u0442\u043e"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 setPadding(30, 18, 30, 18)
@@ -108,7 +113,7 @@ class ImageClickService : Service() {
                 setOnClickListener { stopSelf() }
             }
             val debug = TextView(this).apply {
-                text = "журнал кликов\u2026"
+                text = "\u0436\u0443\u0440\u043d\u0430\u043b \u043a\u043b\u0438\u043a\u043e\u0432\u2026"
                 setTextColor(0xFFEAEAEA.toInt())
                 textSize = 10f
                 maxWidth = 560
@@ -177,9 +182,9 @@ class ImageClickService : Service() {
                     // takeScreenshot can transiently fail (rate limit) but should recover; if it keeps
                     // failing the feature would otherwise loop forever doing nothing, so tell the user.
                     captureFails++
-                    pushDebug(listOf("\u2717 скриншот не получен ($captureFails/5)"))
+                    pushDebug(listOf("\u2717 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d ($captureFails/5)"))
                     if (captureFails >= 5) {
-                        Toast.makeText(this@ImageClickService, "Не удаётся сделать скриншот экрана. Проверь спец. возможности (Accessibility) и попробуй снова.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438 (Accessibility) \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
                         running = false
                         break
                     }
@@ -220,7 +225,7 @@ class ImageClickService : Service() {
                         lines.add("$label \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY")
                     } else {
                         val c = if (match == null) "\u2014" else pct(match.confidence)
-                        lines.add("$label \u2717 $c (порог ${pct(t.meta.threshold)})")
+                        lines.add("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)})")
                     }
                 }
                 pushDebug(lines)
@@ -247,9 +252,9 @@ class ImageClickService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     private suspend fun capture(service: ClickFlowAccessibilityService): Bitmap? = suspendCancellableCoroutine { cont ->
-        panelView?.let { v -> v.post { v.visibility = View.INVISIBLE } }
+        // The panel is intentionally left visible: hiding/showing it every screenshot made it
+        // blink. It lives in the top-right corner — keep targets away from there.
         service.captureScreenBitmap { bitmap ->
-            panelView?.let { v -> v.post { v.visibility = View.VISIBLE } }
             if (cont.isActive) cont.resume(bitmap)
         }
     }
