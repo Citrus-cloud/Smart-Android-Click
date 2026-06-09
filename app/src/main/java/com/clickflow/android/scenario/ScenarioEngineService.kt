@@ -39,7 +39,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.coroutines.resume
+import kotlin.math.roundToInt
 
 /**
  * Runs a saved [Scenario] step by step: taps a marker point, finds-and-taps a saved/inline
@@ -47,8 +51,8 @@ import kotlin.coroutines.resume
  * repeat count and interval; the whole scenario can loop. Per-step not-found policy decides
  * what happens when a photo/text target is not on screen (skip the step, wait and retry, or
  * stop the scenario). A floating control panel shows the scenario name, the current loop and
- * step, and a Stop button. Reuses the same Accessibility screenshot + matcher + OCR pipeline
- * as the standalone photo/text clickers, so there is no screen-recording prompt.
+ * step, a Stop button, and a small debug log of recent match confidences. Reuses the same
+ * Accessibility screenshot + matcher + OCR pipeline as the standalone photo/text clickers.
  */
 class ScenarioEngineService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -56,7 +60,10 @@ class ScenarioEngineService : Service() {
     @Volatile private var running = false
     private var panelView: View? = null
     private var progressText: TextView? = null
+    private var debugText: TextView? = null
     private var wm: WindowManager? = null
+    private val debugLines = mutableListOf<String>()
+    private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -102,14 +109,14 @@ class ScenarioEngineService : Service() {
             if (scenario.steps.any { it.type == StepType.TEXT })
                 TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             else null
-        val loopLabel = if (scenario.loopInfinite) "∞" else "${scenario.loopCount.coerceAtLeast(1)}"
+        val loopLabel = if (scenario.loopInfinite) "\u221e" else "${scenario.loopCount.coerceAtLeast(1)}"
         job = scope.launch {
             delay(700L) // let the launching UI disappear before the first screenshot
             var loop = 0
             outer@ while (running && (scenario.loopInfinite || loop < scenario.loopCount.coerceAtLeast(1))) {
                 for ((index, step) in scenario.steps.withIndex()) {
                     if (!running) break@outer
-                    updateProgress("▶ ${scenario.name}\nЦикл ${loop + 1}/$loopLabel · шаг ${index + 1}/${scenario.steps.size}\n${step.summary()}")
+                    updateProgress("\u25b6 ${scenario.name}\nЦикл ${loop + 1}/$loopLabel \u00b7 шаг ${index + 1}/${scenario.steps.size}\n${step.summary()}")
                     val keepGoing = executeStep(step, service, recognizer)
                     if (!keepGoing) { running = false; break@outer }
                 }
@@ -221,10 +228,9 @@ class ScenarioEngineService : Service() {
                 val regionTopPx = (screen.height * template.regionTop).toInt()
                 val regionRightPx = (screen.width * template.regionRight).toInt()
                 val regionBottomPx = (screen.height * template.regionBottom).toInt()
-                BitmapTemplateMatcher.findBest(
+                BitmapTemplateMatcher.findBestMatch(
                     screen = screen,
                     template = templateBitmap,
-                    threshold = template.threshold,
                     regionLeftPx = regionLeftPx,
                     regionTopPx = regionTopPx,
                     regionRightPx = regionRightPx,
@@ -232,11 +238,19 @@ class ScenarioEngineService : Service() {
                     scaleMin = template.scaleMin,
                     scaleMax = template.scaleMax,
                 )
-            } ?: return false
-            val tapX = match.x + (match.width * template.tapX).toInt()
-            val tapY = match.y + (match.height * template.tapY).toInt()
-            service.performSingleTap(tapX, tapY, 70L)
-            return true
+            }
+            // Only tap when the best match actually clears the template's threshold; otherwise the
+            // target is not on screen and tapping would land on a random spot.
+            if (match != null && match.confidence >= template.threshold) {
+                val tapX = match.x + (match.width * template.tapX).toInt()
+                val tapY = match.y + (match.height * template.tapY).toInt()
+                service.performSingleTap(tapX, tapY, 70L)
+                pushDebug("фото \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY")
+                return true
+            }
+            val c = if (match == null) "\u2014" else pct(match.confidence)
+            pushDebug("фото \u2717 $c (порог ${pct(template.threshold)})")
+            return false
         } finally {
             screen.recycle()
         }
@@ -251,9 +265,14 @@ class ScenarioEngineService : Service() {
         val screen = capture(service) ?: return false
         try {
             val result = runCatching { recognizer.process(InputImage.fromBitmap(screen, 0)).await() }.getOrNull()
-            val box = result?.let { findTextBox(it, config) } ?: return false
-            service.performSingleTap(box.centerX(), box.centerY(), 70L)
-            return true
+            val box = result?.let { findTextBox(it, config) }
+            if (box != null) {
+                service.performSingleTap(box.centerX(), box.centerY(), 70L)
+                pushDebug("текст \u2713 \u2192 ${box.centerX()},${box.centerY()}")
+                return true
+            }
+            pushDebug("текст \u2717 не найден")
+            return false
         } finally {
             screen.recycle()
         }
@@ -315,6 +334,15 @@ class ScenarioEngineService : Service() {
         progressText?.let { tv -> tv.post { tv.text = text } }
     }
 
+    private fun pushDebug(line: String) {
+        debugLines.add("${timeFmt.format(Date())}  $line")
+        while (debugLines.size > 7) debugLines.removeAt(0)
+        val text = debugLines.joinToString("\n")
+        debugText?.let { tv -> tv.post { tv.text = text } }
+    }
+
+    private fun pct(confidence: Float): String = "${(confidence * 100).roundToInt()}%"
+
     private fun showControlPanel() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -324,12 +352,12 @@ class ScenarioEngineService : Service() {
                 background = GradientDrawable().apply { cornerRadius = 34f; setColor(0xF21C1C1C.toInt()) }
             }
             val progress = TextView(this).apply {
-                text = "▶ Сценарий запускается…"
+                text = "\u25b6 Сценарий запускается\u2026"
                 setTextColor(Color.WHITE)
                 textSize = 13f
             }
             val stop = TextView(this).apply {
-                text = "■ Стоп"
+                text = "\u25a0 Стоп"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 gravity = Gravity.CENTER
@@ -340,8 +368,18 @@ class ScenarioEngineService : Service() {
             val stopLp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = 18 }
+            val debug = TextView(this).apply {
+                text = "журнал кликов\u2026"
+                setTextColor(0xFFEAEAEA.toInt())
+                textSize = 10f
+                maxWidth = 560
+            }
+            val debugLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 16 }
             root.addView(progress)
             root.addView(stop, stopLp)
+            root.addView(debug, debugLp)
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT,
@@ -349,6 +387,7 @@ class ScenarioEngineService : Service() {
             manager.addView(root, lp)
             panelView = root
             progressText = progress
+            debugText = debug
             wm = manager
         } catch (_: Throwable) {}
     }
@@ -357,6 +396,7 @@ class ScenarioEngineService : Service() {
         panelView?.let { v -> runCatching { wm?.removeView(v) } }
         panelView = null
         progressText = null
+        debugText = null
     }
 
     override fun onDestroy() {
