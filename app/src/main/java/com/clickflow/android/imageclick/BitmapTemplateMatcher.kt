@@ -5,27 +5,31 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Locates an image template inside a screenshot.
  *
+ * Matching uses zero-normalized cross-correlation (ZNCC) over a sampled grid of
+ * luminance values. ZNCC measures how well the STRUCTURE of the template matches
+ * the screen, independent of overall brightness, and — crucially — it does not
+ * reward flat/empty regions. The previous average-color-distance score returned
+ * ~0.8 even on an unrelated or mostly-blank screen, so the clicker kept "finding"
+ * the picture after the real target was gone and tapped random spots. ZNCC
+ * collapses toward 0 when the screen region has little structure or does not
+ * correlate with the template, which removes those false taps.
+ *
  * Strategy: for each candidate scale a light "coarse" grid scan locates the most
  * promising position, then a dense stride-1 "refine" pass around that position
- * pinpoints the best match. This is more accurate and more robust to small
- * offsets than a single coarse pass, while keeping per-frame cost reasonable.
+ * pinpoints the best match.
  *
  * Performance: both the screenshot and the template are read into plain int
  * arrays once via Bitmap.getPixels. Per-sample lookups then index those arrays
  * instead of calling Bitmap.getPixel (a JNI hop) millions of times per frame.
- * On a full-screen scan that is the difference between tens of milliseconds and
- * several seconds, so this is what keeps the scan loop from appearing frozen.
- *
- * The public contract (Match and both findBest signatures) is unchanged.
  */
 object BitmapTemplateMatcher {
     private const val SCALE_STEP = 0.05f
     private const val COARSE_SAMPLES = 10
-    private const val MAX_COLOR_DISTANCE = 3f * 255f
 
     data class Match(
         val x: Int,
@@ -36,6 +40,7 @@ object BitmapTemplateMatcher {
         val confidence: Float,
     )
 
+    /** Best match at or above [threshold], or null. */
     fun findBest(screen: Bitmap, template: Bitmap, threshold: Float): Match? =
         findBest(screen, template, threshold, 0, 0, screen.width, screen.height, 1f, 1f)
 
@@ -49,6 +54,24 @@ object BitmapTemplateMatcher {
         regionBottomPx: Int,
         scaleMin: Float = 0.8f,
         scaleMax: Float = 1.2f,
+    ): Match? = findBestMatch(
+        screen, template, regionLeftPx, regionTopPx, regionRightPx, regionBottomPx, scaleMin, scaleMax,
+    )?.takeIf { it.confidence >= threshold }
+
+    /**
+     * Returns the single best-scoring match regardless of threshold (or null only when the
+     * inputs are unusable). Callers that want to show a confidence read-out — even for a
+     * "no match" — use this and compare against the threshold themselves.
+     */
+    fun findBestMatch(
+        screen: Bitmap,
+        template: Bitmap,
+        regionLeftPx: Int,
+        regionTopPx: Int,
+        regionRightPx: Int,
+        regionBottomPx: Int,
+        scaleMin: Float = 0.8f,
+        scaleMax: Float = 1.2f,
     ): Match? {
         val screenW = screen.width
         val screenH = screen.height
@@ -56,8 +79,6 @@ object BitmapTemplateMatcher {
         val templateH = template.height
         if (screenW <= 0 || screenH <= 0 || templateW <= 0 || templateH <= 0) return null
 
-        // Read both bitmaps once. Per-pixel Bitmap.getPixel calls during the scan
-        // are far too slow for a full-screen multi-scale search.
         val screenPixels = IntArray(screenW * screenH)
         screen.getPixels(screenPixels, 0, screenW, 0, 0, screenW, screenH)
         val templatePixels = IntArray(templateW * templateH)
@@ -78,25 +99,16 @@ object BitmapTemplateMatcher {
             if (scaledWidth > right - left || scaledHeight > bottom - top) continue
 
             val candidate = findBestAtScale(
-                screenPixels = screenPixels,
-                screenW = screenW,
-                screenH = screenH,
-                templatePixels = templatePixels,
-                templateW = templateW,
-                templateH = templateH,
-                left = left,
-                top = top,
-                right = right,
-                bottom = bottom,
-                scaledWidth = scaledWidth,
-                scaledHeight = scaledHeight,
-                scale = scale,
+                screenPixels, screenW, screenH,
+                templatePixels, templateW, templateH,
+                left, top, right, bottom,
+                scaledWidth, scaledHeight, scale,
             )
             if (candidate != null && (best == null || candidate.confidence > best.confidence)) {
                 best = candidate
             }
         }
-        return best?.takeIf { it.confidence >= threshold }
+        return best
     }
 
     private fun buildScales(minScale: Float, maxScale: Float): List<Float> {
@@ -135,7 +147,7 @@ object BitmapTemplateMatcher {
         // Phase 1: coarse scan with a light sample grid to locate the best region.
         var coarseX = left
         var coarseY = top
-        var coarseScore = -1f
+        var coarseScore = -2f
         var y = top
         while (y <= maxY) {
             var x = left
@@ -150,7 +162,7 @@ object BitmapTemplateMatcher {
             }
             y += coarseStride
         }
-        if (coarseScore < 0f) return null
+        if (coarseScore <= -2f) return null
 
         // Phase 2: dense stride-1 refine around the coarse winner.
         val refineRadius = coarseStride.coerceAtMost(8)
@@ -180,12 +192,19 @@ object BitmapTemplateMatcher {
             }
             ry++
         }
-        return Match(bestX, bestY, scaledWidth, scaledHeight, scale, bestScore)
+        // ZNCC is in [-1, 1]; map to [0, 1] so existing 0..1 thresholds keep working.
+        val confidence = ((bestScore + 1f) / 2f).coerceIn(0f, 1f)
+        return Match(bestX, bestY, scaledWidth, scaledHeight, scale, confidence)
     }
 
     /** Roughly one sample per 5px, clamped so small templates aren't oversampled. */
     private fun sampleCount(dimension: Int): Int = (dimension / 5).coerceIn(16, 28)
 
+    /**
+     * Zero-normalized cross-correlation over a sampled grid, in [-1, 1]. Returns -1 (no
+     * correlation) when either the template patch or the screen patch is essentially flat,
+     * which is what stops blank/uniform screen areas from being reported as matches.
+     */
     private fun scoreAt(
         screenPixels: IntArray,
         screenW: Int,
@@ -200,8 +219,12 @@ object BitmapTemplateMatcher {
         sampleX: Int,
         sampleY: Int,
     ): Float {
-        var total = 0f
-        var count = 0
+        var sumS = 0f
+        var sumT = 0f
+        var sumSS = 0f
+        var sumTT = 0f
+        var sumST = 0f
+        var n = 0
         for (sy in 0 until sampleY) {
             val scaledY = ((sy + 0.5f) / sampleY * scaledHeight).toInt().coerceIn(0, scaledHeight - 1)
             val ty = ((scaledY.toFloat() / scaledHeight) * templateH).toInt().coerceIn(0, templateH - 1)
@@ -210,21 +233,33 @@ object BitmapTemplateMatcher {
                 val scaledX = ((sx + 0.5f) / sampleX * scaledWidth).toInt().coerceIn(0, scaledWidth - 1)
                 val tx = ((scaledX.toFloat() / scaledWidth) * templateW).toInt().coerceIn(0, templateW - 1)
                 val px = (originX + scaledX).coerceIn(0, screenW - 1)
-                total += pixelSimilarity(screenPixels[py * screenW + px], templatePixels[ty * templateW + tx])
-                count++
+                val s = luminance(screenPixels[py * screenW + px])
+                val t = luminance(templatePixels[ty * templateW + tx])
+                sumS += s
+                sumT += t
+                sumSS += s * s
+                sumTT += t * t
+                sumST += s * t
+                n++
             }
         }
-        return if (count == 0) 0f else total / count
+        if (n == 0) return -1f
+        val nf = n.toFloat()
+        val varS = sumSS - sumS * sumS / nf
+        val varT = sumTT - sumT * sumT / nf
+        // A flat template patch or a flat screen patch has no structure to correlate; treat as
+        // "no match" so uniform/empty screen areas never score high.
+        if (varS <= 1f || varT <= 1f) return -1f
+        val cov = sumST - sumS * sumT / nf
+        val denom = sqrt(varS * varT)
+        if (denom <= 0f) return -1f
+        return (cov / denom).coerceIn(-1f, 1f)
     }
 
-    private fun pixelSimilarity(a: Int, b: Int): Float {
-        val ar = (a shr 16) and 0xFF
-        val ag = (a shr 8) and 0xFF
-        val ab = a and 0xFF
-        val br = (b shr 16) and 0xFF
-        val bg = (b shr 8) and 0xFF
-        val bb = b and 0xFF
-        val diff = abs(ar - br) + abs(ag - bg) + abs(ab - bb)
-        return 1f - (diff / MAX_COLOR_DISTANCE)
+    private fun luminance(pixel: Int): Float {
+        val r = (pixel shr 16) and 0xFF
+        val g = (pixel shr 8) and 0xFF
+        val b = pixel and 0xFF
+        return r * 0.299f + g * 0.587f + b * 0.114f
     }
 }
