@@ -34,19 +34,25 @@ import kotlin.math.roundToInt
 
 /**
  * Looks at the screen via the Accessibility screenshot API and taps where the saved
- * picture(s) are found. Supports several templates at once ("multitap"): every active
- * template is searched for in the SAME screenshot and tapped within the same scan cycle,
- * each with its own repeat counter. No screen-recording prompt. Android limits screenshots
- * to about one per second, so the scan interval is kept above that to stay reliable.
+ * picture(s) are found. Two run modes:
  *
- * A small debug log sits under the red stop chip and shows, every cycle, the match
- * confidence per picture and where it tapped (or that nothing matched), so it is obvious
- * what the clicker is doing.
+ *  - SEQUENTIAL (default): photos are tapped strictly in order — it waits for photo 1 to
+ *    appear and taps it once, then waits for photo 2, then photo 3, then STOPS. This matches
+ *    cross-screen chains like "open game icon → open map list → pick a map" and never keeps
+ *    tapping random spots after the chain is done.
+ *  - SIMULTANEOUS ("multitap"): every active photo is searched in the SAME screenshot and
+ *    tapped within the same scan cycle, each with its own repeat counter — good for hitting
+ *    several buttons on one screen.
  *
- * The control panel is NOT hidden during each screenshot: toggling its visibility every
- * cycle made it (and the system's floating-window indicator) blink on and off, which was
- * distracting. The panel sits in the top-right corner; keep tap targets out of that corner
- * so the panel never covers them in the captured image.
+ * No screen-recording prompt. Android limits screenshots to about one per second, so the scan
+ * interval is kept above that to stay reliable.
+ *
+ * A small debug log sits under the red stop chip and shows, every cycle, the match confidence
+ * per picture and where it tapped (or that nothing matched), so it is obvious what is happening.
+ *
+ * The control panel is NOT hidden during each screenshot: toggling its visibility every cycle
+ * made it (and the system's floating-window indicator) blink on and off. The panel sits in the
+ * top-right corner; keep tap targets out of that corner so it never covers them in the capture.
  */
 class ImageClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -69,6 +75,7 @@ class ImageClickService : Service() {
                     Toast.makeText(this, "\u041d\u0443\u0436\u0435\u043d Android 11+", Toast.LENGTH_LONG).show()
                     stopSelf(); return START_NOT_STICKY
                 }
+                val sequential = intent.getBooleanExtra(EXTRA_SEQUENTIAL, true)
                 ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0444\u043e\u0442\u043e")
                 scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
@@ -79,7 +86,7 @@ class ImageClickService : Service() {
                         Toast.makeText(this@ImageClickService, msg, Toast.LENGTH_LONG).show()
                         stopSelf(); return@launch
                     }
-                    begin(ids)
+                    begin(ids, sequential)
                 }
             }
             else -> stopSelf()
@@ -153,9 +160,27 @@ class ImageClickService : Service() {
 
     private fun pct(confidence: Float): String = "${(confidence * 100).roundToInt()}%"
 
+    private fun matchTarget(bitmap: Bitmap, t: ImageTarget): BitmapTemplateMatcher.Match? {
+        val regionLeftPx = (bitmap.width * t.meta.regionLeft).toInt()
+        val regionTopPx = (bitmap.height * t.meta.regionTop).toInt()
+        val regionRightPx = (bitmap.width * t.meta.regionRight).toInt()
+        val regionBottomPx = (bitmap.height * t.meta.regionBottom).toInt()
+        return BitmapTemplateMatcher.findBestMatch(
+            screen = bitmap,
+            template = t.bitmap,
+            regionLeftPx = regionLeftPx,
+            regionTopPx = regionTopPx,
+            regionRightPx = regionRightPx,
+            regionBottomPx = regionBottomPx,
+            scaleMin = t.meta.scaleMin,
+            scaleMax = t.meta.scaleMax,
+        )
+    }
+
     @RequiresApi(Build.VERSION_CODES.R)
-    private fun begin(templateIds: List<String>) {
+    private fun begin(templateIds: List<String>, sequential: Boolean) {
         val all = ImageClickTemplateStore.loadTemplates(this)
+        // Keep the order the user arranged the photos in — that defines the sequence.
         val targets = templateIds
             .mapNotNull { id -> all.firstOrNull { it.id == id }?.normalized() }
             .mapNotNull { meta ->
@@ -175,78 +200,114 @@ class ImageClickService : Service() {
         val scanInterval = maxOf(targets.minOf { it.meta.intervalMs }, 1100L)
         scope.launch {
             delay(800) // let the setup screen disappear before the first screenshot
-            var captureFails = 0
-            while (running) {
-                val bitmap = capture(service)
-                if (bitmap == null) {
-                    // takeScreenshot can transiently fail (rate limit) but should recover; if it keeps
-                    // failing the feature would otherwise loop forever doing nothing, so tell the user.
-                    captureFails++
-                    pushDebug(listOf("\u2717 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d ($captureFails/5)"))
-                    if (captureFails >= 5) {
-                        Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0441\u043f\u0435\u0446. \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438 (Accessibility) \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
-                        running = false
-                        break
-                    }
-                    delay(scanInterval)
-                    continue
-                }
-                captureFails = 0
-                // Heavy pixel matching runs off the main thread so the UI never blocks. Every active
-                // target is searched for in this one screenshot; we get the best match for each and
-                // only tap the ones whose confidence clears their threshold.
-                val scan = withContext(Dispatchers.Default) {
-                    targets.map { t ->
-                        val regionLeftPx = (bitmap.width * t.meta.regionLeft).toInt()
-                        val regionTopPx = (bitmap.height * t.meta.regionTop).toInt()
-                        val regionRightPx = (bitmap.width * t.meta.regionRight).toInt()
-                        val regionBottomPx = (bitmap.height * t.meta.regionBottom).toInt()
-                        val match = BitmapTemplateMatcher.findBestMatch(
-                            screen = bitmap,
-                            template = t.bitmap,
-                            regionLeftPx = regionLeftPx,
-                            regionTopPx = regionTopPx,
-                            regionRightPx = regionRightPx,
-                            regionBottomPx = regionBottomPx,
-                            scaleMin = t.meta.scaleMin,
-                            scaleMax = t.meta.scaleMax,
-                        )
-                        t to match
-                    }
-                }
-                val hits = mutableListOf<Triple<ImageTarget, Int, Int>>()
-                val lines = mutableListOf<String>()
-                scan.forEachIndexed { i, (t, match) ->
-                    val label = "#${i + 1}"
-                    if (match != null && match.confidence >= t.meta.threshold) {
-                        val tapX = match.x + (match.width * t.meta.tapX).toInt()
-                        val tapY = match.y + (match.height * t.meta.tapY).toInt()
-                        hits.add(Triple(t, tapX, tapY))
-                        lines.add("$label \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY")
-                    } else {
-                        val c = if (match == null) "\u2014" else pct(match.confidence)
-                        lines.add("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)})")
-                    }
-                }
-                pushDebug(lines)
-                // Tap each found target one at a time, WAITING for each gesture to finish before the
-                // next. Only one gesture can be in flight at a time, so firing several taps back-to-back
-                // made the framework drop all but one (and on some OEMs even that one).
-                for ((t, tapX, tapY) in hits) {
-                    service.performSingleTapAwait(tapX, tapY, 70L)
-                    t.taps++
-                    if (hits.size > 1) delay(120) // small gap so consecutive gestures don't collide
-                }
-                // Retire targets that have reached their own repeat count.
-                val finished = targets.filter { !it.infinite && it.taps >= it.maxTaps }
-                finished.forEach { it.bitmap.recycle() }
-                targets.removeAll(finished.toSet())
-                bitmap.recycle()
-                if (targets.isEmpty()) { running = false; break }
-                delay(scanInterval) // respect the ~1/sec screenshot limit
-            }
-            targets.forEach { it.bitmap.recycle() }
+            if (sequential) sequentialLoop(targets, service, scanInterval)
+            else simultaneousLoop(targets, service, scanInterval)
+            targets.forEach { runCatching { it.bitmap.recycle() } }
             stopSelf()
+        }
+    }
+
+    /**
+     * Tap photos strictly in order: wait for the current photo, tap it once, advance to the next,
+     * and stop after the last. A photo that never shows up within [MAX_MISSES] scans stops the run
+     * with a clear message instead of hanging forever.
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private suspend fun sequentialLoop(targets: List<ImageTarget>, service: ClickFlowAccessibilityService, scanInterval: Long) {
+        pushDebug(listOf("\u25b6 \u043f\u043e \u043e\u0447\u0435\u0440\u0435\u0434\u0438: ${targets.size} \u0448\u0430\u0433(\u043e\u0432)"))
+        var idx = 0
+        var misses = 0
+        var captureFails = 0
+        while (running && idx < targets.size) {
+            val bitmap = capture(service)
+            if (bitmap == null) {
+                captureFails++
+                pushDebug(listOf("\u2717 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d ($captureFails/5)"))
+                if (captureFails >= 5) {
+                    Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c Accessibility \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
+                    running = false
+                    break
+                }
+                delay(scanInterval)
+                continue
+            }
+            captureFails = 0
+            val t = targets[idx]
+            val match = withContext(Dispatchers.Default) { matchTarget(bitmap, t) }
+            val label = "#${idx + 1}"
+            if (match != null && match.confidence >= t.meta.threshold) {
+                val tapX = match.x + (match.width * t.meta.tapX).toInt()
+                val tapY = match.y + (match.height * t.meta.tapY).toInt()
+                pushDebug(listOf("$label \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY"))
+                bitmap.recycle()
+                service.performSingleTapAwait(tapX, tapY, 70L)
+                idx++
+                misses = 0
+                delay(SETTLE_MS) // let the screen change before looking for the next photo
+            } else {
+                misses++
+                val c = if (match == null) "\u2014" else pct(match.confidence)
+                pushDebug(listOf("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)}) \u0436\u0434\u0443\u2026 $misses/$MAX_MISSES"))
+                bitmap.recycle()
+                if (misses >= MAX_MISSES) {
+                    Toast.makeText(this@ImageClickService, "\u041d\u0435 \u043d\u0430\u0448\u0451\u043b \u0444\u043e\u0442\u043e \u2116${idx + 1}. \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e.", Toast.LENGTH_LONG).show()
+                    running = false
+                    break
+                }
+                delay(scanInterval)
+            }
+        }
+        if (running && idx >= targets.size) {
+            pushDebug(listOf("\u2713 \u0433\u043e\u0442\u043e\u0432\u043e \u2014 \u0432\u0441\u0435 \u0448\u0430\u0433\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b")) 
+        }
+        running = false
+    }
+
+    /** The original "multitap": search every active photo in one screenshot and tap each that clears its threshold. */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private suspend fun simultaneousLoop(targets: MutableList<ImageTarget>, service: ClickFlowAccessibilityService, scanInterval: Long) {
+        var captureFails = 0
+        while (running) {
+            val bitmap = capture(service)
+            if (bitmap == null) {
+                captureFails++
+                pushDebug(listOf("\u2717 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d ($captureFails/5)"))
+                if (captureFails >= 5) {
+                    Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c Accessibility \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
+                    running = false
+                    break
+                }
+                delay(scanInterval)
+                continue
+            }
+            captureFails = 0
+            val scan = withContext(Dispatchers.Default) { targets.map { t -> t to matchTarget(bitmap, t) } }
+            val hits = mutableListOf<Triple<ImageTarget, Int, Int>>()
+            val lines = mutableListOf<String>()
+            scan.forEachIndexed { i, (t, match) ->
+                val label = "#${i + 1}"
+                if (match != null && match.confidence >= t.meta.threshold) {
+                    val tapX = match.x + (match.width * t.meta.tapX).toInt()
+                    val tapY = match.y + (match.height * t.meta.tapY).toInt()
+                    hits.add(Triple(t, tapX, tapY))
+                    lines.add("$label \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY")
+                } else {
+                    val c = if (match == null) "\u2014" else pct(match.confidence)
+                    lines.add("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)})")
+                }
+            }
+            pushDebug(lines)
+            for ((t, tapX, tapY) in hits) {
+                service.performSingleTapAwait(tapX, tapY, 70L)
+                t.taps++
+                if (hits.size > 1) delay(120)
+            }
+            val finished = targets.filter { !it.infinite && it.taps >= it.maxTaps }
+            finished.forEach { it.bitmap.recycle() }
+            targets.removeAll(finished.toSet())
+            bitmap.recycle()
+            if (targets.isEmpty()) { running = false; break }
+            delay(scanInterval)
         }
     }
 
@@ -272,6 +333,9 @@ class ImageClickService : Service() {
         const val ACTION_STOP = "com.clickflow.android.imageclick.STOP"
         const val EXTRA_TEMPLATE_ID = "template_id"
         const val EXTRA_TEMPLATE_IDS = "template_ids"
+        const val EXTRA_SEQUENTIAL = "sequential"
+        private const val SETTLE_MS = 700L
+        private const val MAX_MISSES = 60
     }
 }
 
