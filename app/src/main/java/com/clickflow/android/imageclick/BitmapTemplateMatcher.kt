@@ -26,8 +26,12 @@ import kotlin.math.sqrt
  * match" (-1), which stops blank screen areas from being reported as matches.
  *
  * Strategy: for each candidate scale a light "coarse" grid scan locates the most
- * promising position, then a dense stride-1 "refine" pass around that position
- * pinpoints the best match.
+ * promising positions, then a dense stride-1 "refine" pass around them pinpoints
+ * the best match. The refine window spans a FULL coarse stride in every direction,
+ * so neighbouring windows overlap and the true peak can never hide in a gap
+ * between coarse samples — historically the refine window was capped far below the
+ * coarse stride, which left a real on-screen match misaligned by several pixels and
+ * dragged its confidence down to ~20-60%.
  *
  * Performance: both the screenshot and the template are read into plain int
  * arrays once via Bitmap.getPixels. Per-sample lookups then index those arrays
@@ -36,6 +40,7 @@ import kotlin.math.sqrt
 object BitmapTemplateMatcher {
     private const val SCALE_STEP = 0.05f
     private const val COARSE_SAMPLES = 10
+    private const val CANDIDATES = 3
 
     data class Match(
         val x: Int,
@@ -148,61 +153,110 @@ object BitmapTemplateMatcher {
         val maxY = bottom - scaledHeight
         if (maxX < left || maxY < top) return null
 
-        val coarseStride = max(4, min(scaledWidth, scaledHeight) / 10)
+        // Coarse scan stride. Kept small enough that the dense refine window below — which spans a
+        // FULL stride in every direction — overlaps its neighbours, so the true peak can never
+        // fall into an unsearched gap between coarse samples.
+        val coarseStride = max(2, min(scaledWidth, scaledHeight) / 14)
 
-        // Phase 1: coarse scan with a light sample grid to locate the best region.
-        var coarseX = left
-        var coarseY = top
-        var coarseScore = -2f
+        // Phase 1: coarse scan. Remember the best few SPATIALLY-SEPARATED candidate positions, not
+        // just the single best: the global-best coarse sample can be a near-miss whose real peak
+        // sits beside a different, slightly lower coarse sample.
+        val candX = IntArray(CANDIDATES) { left }
+        val candY = IntArray(CANDIDATES) { top }
+        val candScore = FloatArray(CANDIDATES) { -2f }
+        val separation = coarseStride * 3
         var y = top
         while (y <= maxY) {
             var x = left
             while (x <= maxX) {
                 val score = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, x, y, scaledWidth, scaledHeight, COARSE_SAMPLES, COARSE_SAMPLES)
-                if (score > coarseScore) {
-                    coarseScore = score
-                    coarseX = x
-                    coarseY = y
-                }
+                considerCandidate(candX, candY, candScore, x, y, score, separation)
                 x += coarseStride
             }
             y += coarseStride
         }
-        if (coarseScore <= -2f) return null
+        if (candScore.all { it <= -2f }) return null
 
-        // Phase 2: dense stride-1 refine around the coarse winner.
-        val refineRadius = coarseStride.coerceAtMost(8)
+        // Phase 2: dense stride-1 refine around each candidate; keep the global best.
+        val refineRadius = coarseStride
         val fineSamplesX = sampleCount(scaledWidth)
         val fineSamplesY = sampleCount(scaledHeight)
-        val rxStart = (coarseX - refineRadius).coerceIn(left, maxX)
-        val rxEnd = (coarseX + refineRadius).coerceIn(left, maxX)
-        val ryStart = (coarseY - refineRadius).coerceIn(top, maxY)
-        val ryEnd = (coarseY + refineRadius).coerceIn(top, maxY)
-
-        var bestX = coarseX
-        var bestY = coarseY
-        var bestScore = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, coarseX, coarseY, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
-        var ry = ryStart
-        while (ry <= ryEnd) {
-            var rx = rxStart
-            while (rx <= rxEnd) {
-                if (rx != coarseX || ry != coarseY) {
+        var bestX = candX[0]
+        var bestY = candY[0]
+        var bestScore = -2f
+        for (i in 0 until CANDIDATES) {
+            if (candScore[i] <= -2f) continue
+            val cx = candX[i]
+            val cy = candY[i]
+            val rxStart = (cx - refineRadius).coerceIn(left, maxX)
+            val rxEnd = (cx + refineRadius).coerceIn(left, maxX)
+            val ryStart = (cy - refineRadius).coerceIn(top, maxY)
+            val ryEnd = (cy + refineRadius).coerceIn(top, maxY)
+            var ry = ryStart
+            while (ry <= ryEnd) {
+                var rx = rxStart
+                while (rx <= rxEnd) {
                     val score = scoreAt(screenPixels, screenW, screenH, templatePixels, templateW, templateH, rx, ry, scaledWidth, scaledHeight, fineSamplesX, fineSamplesY)
                     if (score > bestScore) {
                         bestScore = score
                         bestX = rx
                         bestY = ry
                     }
+                    rx++
                 }
-                rx++
+                ry++
             }
-            ry++
         }
         // ZNCC is in [-1, 1]. Negative/zero correlation means "not a match", so clamp to [0, 1]
         // and use the correlation directly as the confidence. This keeps the numbers intuitive:
         // a strong match reads ~0.85-0.98, while unrelated/empty screen areas read near 0.
         val confidence = bestScore.coerceIn(0f, 1f)
         return Match(bestX, bestY, scaledWidth, scaledHeight, scale, confidence)
+    }
+
+    /**
+     * Keeps up to [CANDIDATES] spatially-separated coarse candidates, best score first. If the
+     * new point is within [separation] of an existing candidate it only upgrades that slot;
+     * otherwise it replaces the weakest slot when stronger. This keeps the candidate set spread
+     * across the search region instead of clustering on one peak.
+     */
+    private fun considerCandidate(
+        xs: IntArray,
+        ys: IntArray,
+        scores: FloatArray,
+        x: Int,
+        y: Int,
+        score: Float,
+        separation: Int,
+    ) {
+        for (i in 0 until CANDIDATES) {
+            if (scores[i] > -2f && abs(xs[i] - x) <= separation && abs(ys[i] - y) <= separation) {
+                if (score > scores[i]) {
+                    xs[i] = x; ys[i] = y; scores[i] = score
+                    sortCandidates(xs, ys, scores)
+                }
+                return
+            }
+        }
+        var weakest = 0
+        for (i in 1 until CANDIDATES) if (scores[i] < scores[weakest]) weakest = i
+        if (score > scores[weakest]) {
+            xs[weakest] = x; ys[weakest] = y; scores[weakest] = score
+            sortCandidates(xs, ys, scores)
+        }
+    }
+
+    /** Tiny insertion sort over the fixed candidate arrays, highest score first. */
+    private fun sortCandidates(xs: IntArray, ys: IntArray, scores: FloatArray) {
+        for (i in 1 until CANDIDATES) {
+            val s = scores[i]; val xi = xs[i]; val yi = ys[i]
+            var j = i - 1
+            while (j >= 0 && scores[j] < s) {
+                scores[j + 1] = scores[j]; xs[j + 1] = xs[j]; ys[j + 1] = ys[j]
+                j--
+            }
+            scores[j + 1] = s; xs[j + 1] = xi; ys[j + 1] = yi
+        }
     }
 
     /** Roughly one sample per 5px, clamped so small templates aren't oversampled. */
