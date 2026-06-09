@@ -10,18 +10,20 @@ import kotlin.math.sqrt
 /**
  * Locates an image template inside a screenshot.
  *
- * Matching uses zero-normalized cross-correlation (ZNCC) over a sampled grid of
- * luminance values. ZNCC measures how well the STRUCTURE of the template matches
- * the screen, independent of overall brightness, and — crucially — it does not
- * reward flat/empty regions. The previous average-color-distance score returned
- * ~0.8 even on an unrelated or mostly-blank screen, so the clicker kept "finding"
- * the picture after the real target was gone and tapped random spots. ZNCC
- * collapses toward 0 when the screen region has little structure or does not
- * correlate with the template, which removes those false taps.
+ * Matching uses zero-normalized cross-correlation (ZNCC) over a sampled grid,
+ * computed PER COLOR CHANNEL (red, green, blue) and averaged. ZNCC measures how
+ * well the STRUCTURE of the template matches the screen, independent of overall
+ * brightness, and — crucially — it does not reward flat/empty regions. Using the
+ * three color channels instead of luminance alone matters a lot for app icons and
+ * buttons, which are strongly colored: a luminance-only score throws away most of
+ * what makes an icon recognizable and reads low even on a real match.
  *
- * Confidence is the correlation clamped to [0, 1]: a strong real match reads about
- * 0.85-0.98, an unrelated/empty area reads near 0. That keeps the saved 0..1
- * thresholds intuitive (e.g. 0.8 means "80% correlation").
+ * Confidence is the averaged correlation clamped to [0, 1]: a strong real match
+ * reads about 0.85-0.98, an unrelated/empty area reads near 0. That keeps the saved
+ * 0..1 thresholds intuitive (e.g. 0.8 means "80% correlation").
+ *
+ * A patch with no structure in ANY channel (uniform/flat area) is treated as "no
+ * match" (-1), which stops blank screen areas from being reported as matches.
  *
  * Strategy: for each candidate scale a light "coarse" grid scan locates the most
  * promising position, then a dense stride-1 "refine" pass around that position
@@ -207,8 +209,9 @@ object BitmapTemplateMatcher {
     private fun sampleCount(dimension: Int): Int = (dimension / 5).coerceIn(16, 28)
 
     /**
-     * Zero-normalized cross-correlation over a sampled grid, in [-1, 1]. Returns -1 (no
-     * correlation) when either the template patch or the screen patch is essentially flat,
+     * Per-channel zero-normalized cross-correlation over a sampled grid, averaged across the
+     * R/G/B channels that actually carry structure, in [-1, 1]. Returns -1 (no correlation)
+     * when every channel of either the template patch or the screen patch is essentially flat,
      * which is what stops blank/uniform screen areas from being reported as matches.
      */
     private fun scoreAt(
@@ -225,11 +228,9 @@ object BitmapTemplateMatcher {
         sampleX: Int,
         sampleY: Int,
     ): Float {
-        var sumS = 0f
-        var sumT = 0f
-        var sumSS = 0f
-        var sumTT = 0f
-        var sumST = 0f
+        var sumSr = 0f; var sumTr = 0f; var sumSSr = 0f; var sumTTr = 0f; var sumSTr = 0f
+        var sumSg = 0f; var sumTg = 0f; var sumSSg = 0f; var sumTTg = 0f; var sumSTg = 0f
+        var sumSb = 0f; var sumTb = 0f; var sumSSb = 0f; var sumTTb = 0f; var sumSTb = 0f
         var n = 0
         for (sy in 0 until sampleY) {
             val scaledY = ((sy + 0.5f) / sampleY * scaledHeight).toInt().coerceIn(0, scaledHeight - 1)
@@ -239,33 +240,49 @@ object BitmapTemplateMatcher {
                 val scaledX = ((sx + 0.5f) / sampleX * scaledWidth).toInt().coerceIn(0, scaledWidth - 1)
                 val tx = ((scaledX.toFloat() / scaledWidth) * templateW).toInt().coerceIn(0, templateW - 1)
                 val px = (originX + scaledX).coerceIn(0, screenW - 1)
-                val s = luminance(screenPixels[py * screenW + px])
-                val t = luminance(templatePixels[ty * templateW + tx])
-                sumS += s
-                sumT += t
-                sumSS += s * s
-                sumTT += t * t
-                sumST += s * t
+                val sp = screenPixels[py * screenW + px]
+                val tp = templatePixels[ty * templateW + tx]
+                val sr = ((sp shr 16) and 0xFF).toFloat()
+                val sg = ((sp shr 8) and 0xFF).toFloat()
+                val sb = (sp and 0xFF).toFloat()
+                val tr = ((tp shr 16) and 0xFF).toFloat()
+                val tg = ((tp shr 8) and 0xFF).toFloat()
+                val tb = (tp and 0xFF).toFloat()
+                sumSr += sr; sumTr += tr; sumSSr += sr * sr; sumTTr += tr * tr; sumSTr += sr * tr
+                sumSg += sg; sumTg += tg; sumSSg += sg * sg; sumTTg += tg * tg; sumSTg += sg * tg
+                sumSb += sb; sumTb += tb; sumSSb += sb * sb; sumTTb += tb * tb; sumSTb += sb * tb
                 n++
             }
         }
         if (n == 0) return -1f
         val nf = n.toFloat()
-        val varS = sumSS - sumS * sumS / nf
-        val varT = sumTT - sumT * sumT / nf
-        // A flat template patch or a flat screen patch has no structure to correlate; treat as
-        // "no match" so uniform/empty screen areas never score high.
-        if (varS <= 1f || varT <= 1f) return -1f
-        val cov = sumST - sumS * sumT / nf
-        val denom = sqrt(varS * varT)
-        if (denom <= 0f) return -1f
-        return (cov / denom).coerceIn(-1f, 1f)
+        var sum = 0f
+        var channels = 0
+        channelCorrelation(sumSr, sumTr, sumSSr, sumTTr, sumSTr, nf)?.let { sum += it; channels++ }
+        channelCorrelation(sumSg, sumTg, sumSSg, sumTTg, sumSTg, nf)?.let { sum += it; channels++ }
+        channelCorrelation(sumSb, sumTb, sumSSb, sumTTb, sumSTb, nf)?.let { sum += it; channels++ }
+        // No channel had structure in both patches → flat/uniform area → not a match.
+        if (channels == 0) return -1f
+        return (sum / channels).coerceIn(-1f, 1f)
     }
 
-    private fun luminance(pixel: Int): Float {
-        val r = (pixel shr 16) and 0xFF
-        val g = (pixel shr 8) and 0xFF
-        val b = pixel and 0xFF
-        return r * 0.299f + g * 0.587f + b * 0.114f
+    /**
+     * ZNCC for a single channel, or null when either patch is essentially flat in this channel
+     * (no structure to correlate). Variance threshold of 1f ignores tiny sensor/compression noise.
+     */
+    private fun channelCorrelation(
+        sumS: Float,
+        sumT: Float,
+        sumSS: Float,
+        sumTT: Float,
+        sumST: Float,
+        nf: Float,
+    ): Float? {
+        val varS = sumSS - sumS * sumS / nf
+        val varT = sumTT - sumT * sumT / nf
+        if (varS <= 1f || varT <= 1f) return null
+        val denom = sqrt(varS * varT)
+        if (denom <= 0f) return null
+        return ((sumST - sumS * sumT / nf) / denom).coerceIn(-1f, 1f)
     }
 }
