@@ -19,6 +19,10 @@ import kotlin.math.sqrt
  * collapses toward 0 when the screen region has little structure or does not
  * correlate with the template, which removes those false taps.
  *
+ * Confidence is the correlation clamped to [0, 1]: a strong real match reads about
+ * 0.85-0.98, an unrelated/empty area reads near 0. That keeps the saved 0..1
+ * thresholds intuitive (e.g. 0.8 means "80% correlation").
+ *
  * Strategy: for each candidate scale a light "coarse" grid scan locates the most
  * promising position, then a dense stride-1 "refine" pass around that position
  * pinpoints the best match.
@@ -192,8 +196,10 @@ object BitmapTemplateMatcher {
             }
             ry++
         }
-        // ZNCC is in [-1, 1]; map to [0, 1] so existing 0..1 thresholds keep working.
-        val confidence = ((bestScore + 1f) / 2f).coerceIn(0f, 1f)
+        // ZNCC is in [-1, 1]. Negative/zero correlation means "not a match", so clamp to [0, 1]
+        // and use the correlation directly as the confidence. This keeps the numbers intuitive:
+        // a strong match reads ~0.85-0.98, while unrelated/empty screen areas read near 0.
+        val confidence = bestScore.coerceIn(0f, 1f)
         return Match(bestX, bestY, scaledWidth, scaledHeight, scale, confidence)
     }
 
