@@ -60,7 +60,7 @@ class ScenarioActivity : ComponentActivity() {
                             action = ScenarioEngineService.ACTION_START
                             putExtra(ScenarioEngineService.EXTRA_SCENARIO_ID, id)
                         })
-                        finish() // get our own UI off-screen before the engine's first screenshot
+                        finish()
                     },
                     onStop = {
                         startService(Intent(this, ScenarioEngineService::class.java).apply { action = ScenarioEngineService.ACTION_STOP })
@@ -71,6 +71,9 @@ class ScenarioActivity : ComponentActivity() {
         }
     }
 }
+
+private val Compact = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+private val Tiny = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
 
 @Composable
 private fun ScenarioRoot(context: Context, onRun: (String) -> Unit, onStop: () -> Unit, onBack: () -> Unit) {
@@ -92,32 +95,31 @@ private fun ScenarioRoot(context: Context, onRun: (String) -> Unit, onStop: () -
 private fun PremiumLockScreen(onUnlock: () -> Unit, onBack: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PremiumHeader()
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("🔒 Премиум-функция", fontWeight = FontWeight.Black, fontSize = 20.sp)
-                    Text("Сценарии — мощный режим автоматизации. Соберите цепочку действий и запускайте её в один тап.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FeatureRow("🎬", "Цепочки шагов: метка, фото, текст, паузы")
-                    FeatureRow("🔁", "Повтор всего сценария: циклы или ∞")
-                    FeatureRow("🧩", "Гибкое «если не найдено» для каждого шага")
-                    FeatureRow("📚", "Своя библиотека сценариев: дублируйте и меняйте")
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("\uD83D\uDD12 Премиум-функция", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text("Сценарии — цепочка действий в один тап.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    FeatureRow("\uD83C\uDFAC", "Шаги: метка, фото, текст, паузы")
+                    FeatureRow("\uD83D\uDD01", "Повтор всего сценария: циклы или \u221e")
+                    FeatureRow("\uD83E\uDDE9", "Гибкое «если не найдено»")
                 }
             }
-            Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("✦ Разблокировать Премиум") }
-            Text("Подписка появится позже. Сейчас доступ открывается для тестирования.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
+            Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("\u2726 Разблокировать Премиум") }
+            Text("Сейчас доступ открывается для тестирования.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("Назад") }
         }
     }
 }
 
 @Composable
 private fun FeatureRow(icon: String, text: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(icon, fontSize = 18.sp)
-        Text(text, modifier = Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(icon, fontSize = 16.sp)
+        Text(text, modifier = Modifier.weight(1f), fontSize = 13.sp)
     }
 }
 
@@ -135,21 +137,23 @@ private fun ScenarioListScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             PremiumHeader()
-            Button(onClick = {
-                val created = ScenarioLibraryStore.create(context, "Новый сценарий")
-                refresh++
-                onEdit(created.id)
-            }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text("+ Новый сценарий") }
-            OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("■ Остановить") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    val created = ScenarioLibraryStore.create(context, "Новый сценарий")
+                    refresh++
+                    onEdit(created.id)
+                }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), contentPadding = Compact) { Text("+ Сценарий") }
+                OutlinedButton(onClick = onStop, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\u25a0 Стоп") }
+            }
 
             if (scenarios.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Создай свой первый сценарий и добавь в него шаги: метка, фото, текст, пауза.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text("Создай свой первый сценарий и добавь шаги.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
                 }
             }
@@ -158,31 +162,33 @@ private fun ScenarioListScreen(
                 val active = s.id == activeId
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(16.dp),
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("${s.icon}  ${s.name}", fontWeight = FontWeight.Black, fontSize = 17.sp)
-                            if (active) Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF2D7DF6)).padding(horizontal = 10.dp, vertical = 3.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${s.icon}  ${s.name}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("${s.steps.size} шагов \u00b7 " + if (s.loopInfinite) "\u221e" else "${s.loopCount}\u00d7", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                            }
+                            if (active) Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF2D7DF6)).padding(horizontal = 9.dp, vertical = 3.dp)) {
                                 Text("Активный", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                        Text("${s.steps.size} шагов · " + if (s.loopInfinite) "∞" else "${s.loopCount}×", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { ScenarioLibraryStore.setActive(context, s.id); refresh++; onRun(s.id) }, modifier = Modifier.weight(1f), enabled = s.steps.isNotEmpty()) { Text("▶ Старт") }
-                            OutlinedButton(onClick = { onEdit(s.id) }, modifier = Modifier.weight(1f)) { Text("Изменить") }
+                            Button(onClick = { ScenarioLibraryStore.setActive(context, s.id); refresh++; onRun(s.id) }, modifier = Modifier.weight(1f), enabled = s.steps.isNotEmpty(), contentPadding = Compact) { Text("\u25b6 Старт") }
+                            OutlinedButton(onClick = { onEdit(s.id) }, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("Изменить") }
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { ScenarioLibraryStore.setActive(context, s.id); refresh++ }, modifier = Modifier.weight(1f), enabled = !active) { Text(if (active) "✓ Активный" else "Активный") }
-                            OutlinedButton(onClick = { ScenarioLibraryStore.duplicate(context, s.id); refresh++ }, modifier = Modifier.weight(1f)) { Text("Дублировать") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(onClick = { ScenarioLibraryStore.setActive(context, s.id); refresh++ }, modifier = Modifier.weight(1f), enabled = !active, contentPadding = Tiny) { Text(if (active) "\u2713 Активный" else "Активный", fontSize = 12.sp) }
+                            OutlinedButton(onClick = { ScenarioLibraryStore.duplicate(context, s.id); refresh++ }, modifier = Modifier.weight(1f), contentPadding = Tiny) { Text("Дубль", fontSize = 12.sp) }
+                            OutlinedButton(onClick = { ScenarioLibraryStore.delete(context, s.id); refresh++ }, modifier = Modifier.weight(1f), contentPadding = Tiny, colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить", fontSize = 12.sp) }
                         }
-                        OutlinedButton(onClick = { ScenarioLibraryStore.delete(context, s.id); refresh++ }, modifier = Modifier.fillMaxWidth()) { Text("Удалить") }
                     }
                 }
             }
 
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("Назад") }
         }
     }
 }
@@ -238,31 +244,25 @@ private fun ScenarioEditorScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            PremiumHeader()
-            TextField(value = working.name, onValueChange = { save(working.copy(name = it.take(60))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название сценария") })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Сценарий", fontWeight = FontWeight.Black, fontSize = 22.sp)
+                Text("${working.steps.size}/50 шагов", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            }
+            TextField(value = working.name, onValueChange = { save(working.copy(name = it.take(60))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название") })
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = { ScenarioLibraryStore.setActive(context, working.id); onRun(working.id) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp), enabled = working.steps.isNotEmpty()) { Text("▶ Старт") }
-                OutlinedButton(onClick = onStop, modifier = Modifier.weight(1f)) { Text("■ Стоп") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { ScenarioLibraryStore.setActive(context, working.id); onRun(working.id) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), enabled = working.steps.isNotEmpty(), contentPadding = Compact) { Text("\u25b6 Старт") }
+                OutlinedButton(onClick = onStop, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\u25a0 Стоп") }
             }
 
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Повтор всего сценария", fontWeight = FontWeight.Bold)
-                    NumberRow("Циклов", if (working.loopInfinite) "∞" else "${working.loopCount}×",
-                        onMinus = { save(working.copy(loopCount = (working.loopCount - 1).coerceAtLeast(1), loopInfinite = false)) },
-                        onPlus = { save(working.copy(loopCount = (working.loopCount + 1).coerceAtMost(100000), loopInfinite = false)) })
-                    ToggleRow("Бесконечно", working.loopInfinite) { save(working.copy(loopInfinite = it)) }
-                }
-            }
+            LoopRow(working, ::save)
 
-            Text("Шаги (${working.steps.size}/50)", fontWeight = FontWeight.Black, fontSize = 18.sp)
             if (working.steps.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(16.dp)) { Text("Пока нет шагов. Добавьте первый шаг ниже.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.padding(14.dp)) { Text("Пока нет шагов. Добавь ниже.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
                 }
             }
             working.steps.forEachIndexed { i, step ->
@@ -280,17 +280,27 @@ private fun ScenarioEditorScreen(
                 )
             }
 
-            Text("Добавить шаг", fontWeight = FontWeight.Bold)
+            Text("Добавить шаг", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { addStep(StepType.MARKER) }, modifier = Modifier.weight(1f)) { Text("◎ Метка") }
-                OutlinedButton(onClick = { addStep(StepType.PHOTO) }, modifier = Modifier.weight(1f)) { Text("🖼 Фото") }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { addStep(StepType.TEXT) }, modifier = Modifier.weight(1f)) { Text("🔤 Текст") }
-                OutlinedButton(onClick = { addStep(StepType.WAIT) }, modifier = Modifier.weight(1f)) { Text("⏱ Пауза") }
+                OutlinedButton(onClick = { addStep(StepType.MARKER) }, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\u25ce Метка") }
+                OutlinedButton(onClick = { addStep(StepType.PHOTO) }, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\uD83D\uDDBC Фото") }
+                OutlinedButton(onClick = { addStep(StepType.TEXT) }, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\uD83D\uDD24 Текст") }
+                OutlinedButton(onClick = { addStep(StepType.WAIT) }, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("\u23f1 Пауза") }
             }
 
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("Назад") }
+        }
+    }
+}
+
+@Composable
+private fun LoopRow(working: Scenario, save: (Scenario) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            NumberRow("Повтор сценария", if (working.loopInfinite) "\u221e" else "${working.loopCount}\u00d7",
+                onMinus = { save(working.copy(loopCount = (working.loopCount - 1).coerceAtLeast(1), loopInfinite = false)) },
+                onPlus = { save(working.copy(loopCount = (working.loopCount + 1).coerceAtMost(100000), loopInfinite = false)) })
+            ToggleRow("Бесконечно", working.loopInfinite) { save(working.copy(loopInfinite = it)) }
         }
     }
 }
@@ -308,65 +318,76 @@ private fun StepCard(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var expanded by remember(step.id) { mutableStateOf(false) }
     val typeLabel = when (step.type) {
-        StepType.MARKER -> "◎ Метка"
-        StepType.PHOTO -> "🖼 Фото"
-        StepType.TEXT -> "🔤 Текст"
-        StepType.WAIT -> "⏱ Пауза"
+        StepType.MARKER -> "\u25ce Метка"
+        StepType.PHOTO -> "\uD83D\uDDBC Фото"
+        StepType.TEXT -> "\uD83D\uDD24 Текст"
+        StepType.WAIT -> "\u23f1 Пауза"
     }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("${index + 1}. $typeLabel", fontWeight = FontWeight.Black, fontSize = 16.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedButton(onClick = onMoveUp, enabled = index > 0, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) { Text("↑") }
-                    OutlinedButton(onClick = onMoveDown, enabled = index < total - 1, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) { Text("↓") }
+    val summary = when (step.type) {
+        StepType.MARKER -> "тап ${step.x},${step.y} \u00b7 ${step.repeat}\u00d7"
+        StepType.PHOTO -> {
+            val ti = templates.indexOfFirst { it.id == step.photoTemplateId }
+            (if (ti >= 0) "фото №${ti + 1}" else "фото не выбрано") + " \u00b7 ${step.repeat}\u00d7"
+        }
+        StepType.TEXT -> (if (step.text.isBlank()) "текст не задан" else "\u00ab${step.text.take(18)}\u00bb") + " \u00b7 ${step.repeat}\u00d7"
+        StepType.WAIT -> "${step.waitMs} мс"
+    }
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = if (expanded) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${index + 1}. $typeLabel", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    if (step.label.isNotBlank()) Text(step.label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Text(summary, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                OutlinedButton(onClick = onMoveUp, enabled = index > 0, contentPadding = Tiny) { Text("\u2191") }
+                OutlinedButton(onClick = onMoveDown, enabled = index < total - 1, contentPadding = Tiny) { Text("\u2193") }
+                OutlinedButton(onClick = { expanded = !expanded }, contentPadding = Tiny) { Text(if (expanded) "\u2715" else "\u270e") }
             }
-            TextField(value = step.label, onValueChange = { onUpdate(step.copy(label = it.take(60))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название шага (необязательно)") })
 
-            when (step.type) {
-                StepType.MARKER -> {
-                    Text("Координаты тапа", fontWeight = FontWeight.Bold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        TextField(value = if (step.x == 0) "" else step.x.toString(), onValueChange = { onUpdate(step.copy(x = it.filter { c -> c.isDigit() }.take(6).toIntOrNull() ?: 0)) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("X") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                        TextField(value = if (step.y == 0) "" else step.y.toString(), onValueChange = { onUpdate(step.copy(y = it.filter { c -> c.isDigit() }.take(6).toIntOrNull() ?: 0)) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("Y") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    }
-                    Text("Координаты можно подобрать в режиме метки.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    RepeatIntervalControls(step, onUpdate)
-                }
-                StepType.PHOTO -> {
-                    if (templates.isNotEmpty()) {
-                        Text("Выбери фото", fontWeight = FontWeight.Bold)
-                        templates.forEachIndexed { i, t ->
-                            val active = t.id == step.photoTemplateId
-                            if (active) Button(onClick = { onUpdate(step.copy(photoTemplateId = t.id, photoPath = "")) }, modifier = Modifier.fillMaxWidth()) { Text("✓ Фото №${i + 1} · ${t.width}×${t.height}") }
-                            else OutlinedButton(onClick = { onUpdate(step.copy(photoTemplateId = t.id, photoPath = "")) }, modifier = Modifier.fillMaxWidth()) { Text("Фото №${i + 1} · ${t.width}×${t.height}") }
+            if (expanded) {
+                TextField(value = step.label, onValueChange = { onUpdate(step.copy(label = it.take(60))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название шага (необязательно)") })
+                when (step.type) {
+                    StepType.MARKER -> {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            TextField(value = if (step.x == 0) "" else step.x.toString(), onValueChange = { onUpdate(step.copy(x = it.filter { c -> c.isDigit() }.take(6).toIntOrNull() ?: 0)) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("X") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            TextField(value = if (step.y == 0) "" else step.y.toString(), onValueChange = { onUpdate(step.copy(y = it.filter { c -> c.isDigit() }.take(6).toIntOrNull() ?: 0)) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("Y") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         }
-                    } else {
-                        Text("Нет сохранённых фото — загрузи новое.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        RepeatIntervalControls(step, onUpdate)
                     }
-                    OutlinedButton(onClick = { onPickPhoto(step.id) }, modifier = Modifier.fillMaxWidth()) { Text("+ Загрузить новое фото") }
-                    RepeatIntervalControls(step, onUpdate)
-                    NotFoundControls(step, onUpdate)
+                    StepType.PHOTO -> {
+                        if (templates.isNotEmpty()) {
+                            templates.forEachIndexed { i, t ->
+                                val active = t.id == step.photoTemplateId
+                                if (active) Button(onClick = { onUpdate(step.copy(photoTemplateId = t.id, photoPath = "")) }, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("\u2713 Фото №${i + 1} \u00b7 ${t.width}\u00d7${t.height}") }
+                                else OutlinedButton(onClick = { onUpdate(step.copy(photoTemplateId = t.id, photoPath = "")) }, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("Фото №${i + 1} \u00b7 ${t.width}\u00d7${t.height}") }
+                            }
+                        } else {
+                            Text("Нет сохранённых фото.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
+                        OutlinedButton(onClick = { onPickPhoto(step.id) }, modifier = Modifier.fillMaxWidth(), contentPadding = Compact) { Text("+ Загрузить фото") }
+                        RepeatIntervalControls(step, onUpdate)
+                        NotFoundControls(step, onUpdate)
+                    }
+                    StepType.TEXT -> {
+                        TextField(value = step.text, onValueChange = { onUpdate(step.copy(text = it.take(200))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Текст для поиска") })
+                        ToggleRow("Часть строки", step.textContains) { onUpdate(step.copy(textContains = it)) }
+                        ToggleRow("Игнорировать регистр", step.textIgnoreCase) { onUpdate(step.copy(textIgnoreCase = it)) }
+                        RepeatIntervalControls(step, onUpdate)
+                        NotFoundControls(step, onUpdate)
+                    }
+                    StepType.WAIT -> {
+                        NumberRow("Пауза", "${step.waitMs} мс",
+                            onMinus = { onUpdate(step.copy(waitMs = (step.waitMs - 250).coerceAtLeast(50L))) },
+                            onPlus = { onUpdate(step.copy(waitMs = (step.waitMs + 250).coerceAtMost(600000L))) })
+                    }
                 }
-                StepType.TEXT -> {
-                    TextField(value = step.text, onValueChange = { onUpdate(step.copy(text = it.take(200))) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Текст для поиска") })
-                    ToggleRow("Часть строки", step.textContains) { onUpdate(step.copy(textContains = it)) }
-                    ToggleRow("Игнорировать регистр", step.textIgnoreCase) { onUpdate(step.copy(textIgnoreCase = it)) }
-                    RepeatIntervalControls(step, onUpdate)
-                    NotFoundControls(step, onUpdate)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onDuplicate, modifier = Modifier.weight(1f), contentPadding = Compact) { Text("Дублировать") }
+                    OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f), contentPadding = Compact, colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
                 }
-                StepType.WAIT -> {
-                    NumberRow("Пауза", "${step.waitMs} мс",
-                        onMinus = { onUpdate(step.copy(waitMs = (step.waitMs - 250).coerceAtLeast(50L))) },
-                        onPlus = { onUpdate(step.copy(waitMs = (step.waitMs + 250).coerceAtMost(600000L))) })
-                }
-            }
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text("Дублировать") }
-                OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("Удалить") }
             }
         }
     }
@@ -374,7 +395,7 @@ private fun StepCard(
 
 @Composable
 private fun RepeatIntervalControls(step: ScenarioStep, onUpdate: (ScenarioStep) -> Unit) {
-    NumberRow("Повторы", "${step.repeat}×",
+    NumberRow("Повторы", "${step.repeat}\u00d7",
         onMinus = { onUpdate(step.copy(repeat = (step.repeat - 1).coerceAtLeast(1))) },
         onPlus = { onUpdate(step.copy(repeat = (step.repeat + 1).coerceAtMost(100000))) })
     NumberRow("Интервал", "${step.intervalMs} мс",
@@ -384,10 +405,10 @@ private fun RepeatIntervalControls(step: ScenarioStep, onUpdate: (ScenarioStep) 
 
 @Composable
 private fun NotFoundControls(step: ScenarioStep, onUpdate: (ScenarioStep) -> Unit) {
-    Text("Если не найдено", fontWeight = FontWeight.Bold)
+    Text("Если не найдено", fontWeight = FontWeight.Bold, fontSize = 13.sp)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        PolicyBtn("Пропустить", step.notFound == NotFoundPolicy.SKIP, Modifier.weight(1f)) { onUpdate(step.copy(notFound = NotFoundPolicy.SKIP)) }
-        PolicyBtn("Подождать", step.notFound == NotFoundPolicy.WAIT_RETRY, Modifier.weight(1f)) { onUpdate(step.copy(notFound = NotFoundPolicy.WAIT_RETRY)) }
+        PolicyBtn("Пропуск", step.notFound == NotFoundPolicy.SKIP, Modifier.weight(1f)) { onUpdate(step.copy(notFound = NotFoundPolicy.SKIP)) }
+        PolicyBtn("Ждать", step.notFound == NotFoundPolicy.WAIT_RETRY, Modifier.weight(1f)) { onUpdate(step.copy(notFound = NotFoundPolicy.WAIT_RETRY)) }
         PolicyBtn("Стоп", step.notFound == NotFoundPolicy.STOP, Modifier.weight(1f)) { onUpdate(step.copy(notFound = NotFoundPolicy.STOP)) }
     }
     if (step.notFound == NotFoundPolicy.WAIT_RETRY) {
@@ -409,11 +430,11 @@ private fun PolicyBtn(label: String, selected: Boolean, modifier: Modifier, onCl
 @Composable
 private fun NumberRow(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f))
+        Text(label, modifier = Modifier.weight(1f), fontSize = 13.sp)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onMinus, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("−") }
-            Text(value, fontWeight = FontWeight.Bold)
-            OutlinedButton(onClick = onPlus, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("+") }
+            OutlinedButton(onClick = onMinus, contentPadding = Tiny) { Text("\u2212") }
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            OutlinedButton(onClick = onPlus, contentPadding = Tiny) { Text("+") }
         }
     }
 }
@@ -421,7 +442,7 @@ private fun NumberRow(label: String, value: String, onMinus: () -> Unit, onPlus:
 @Composable
 private fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(title)
+        Text(title, fontSize = 13.sp)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -429,16 +450,16 @@ private fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean
 @Composable
 private fun PremiumHeader() {
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF7C4DFF), Color(0xFF2D7DF6))))
-            .padding(20.dp)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF8A63FF), Color(0xFF4F8DF7))))
+            .padding(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0x33FFFFFF)).padding(horizontal = 10.dp, vertical = 3.dp)) {
-                Text("✦ PREMIUM", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x40FFFFFF)).padding(horizontal = 9.dp, vertical = 2.dp)) {
+                Text("\u2726 PREMIUM", color = Color.White, fontWeight = FontWeight.Black, fontSize = 10.sp)
             }
-            Text("Сценарии", color = Color.White, fontWeight = FontWeight.Black, fontSize = 26.sp)
-            Text("Собери цепочку шагов — метка, фото, текст и паузы — в один автоматический сценарий.", color = Color(0xCCFFFFFF), fontSize = 13.sp)
+            Text("Сценарии", color = Color.White, fontWeight = FontWeight.Black, fontSize = 22.sp)
+            Text("Цепочка шагов — метка, фото, текст, паузы — в один сценарий.", color = Color(0xCCFFFFFF), fontSize = 12.sp)
         }
     }
 }
