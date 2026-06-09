@@ -11,11 +11,19 @@ import android.provider.Settings
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.RequiresApi
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 class ClickFlowAccessibilityService : AccessibilityService() {
+
+    // Screenshots are copied into a full-screen ARGB_8888 bitmap, which is expensive. Doing that
+    // copy on the accessibility service's main thread every scan cycle caused repeated jank/ANR,
+    // which Android surfaces as "ClickFlow isn't working correctly" and can disable the service.
+    // Running the callback (and the copy) on a dedicated background thread keeps the main thread free.
+    private val screenshotExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
     override fun onInterrupt() = Unit
@@ -27,6 +35,7 @@ class ClickFlowAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         if (liveInstance === this) liveInstance = null
+        runCatching { screenshotExecutor.shutdownNow() }
         super.onDestroy()
     }
 
@@ -80,7 +89,7 @@ class ClickFlowAccessibilityService : AccessibilityService() {
         try {
             takeScreenshot(
                 Display.DEFAULT_DISPLAY,
-                mainExecutor,
+                screenshotExecutor,
                 object : TakeScreenshotCallback {
                     override fun onSuccess(screenshotResult: ScreenshotResult) {
                         val bitmap = try {
