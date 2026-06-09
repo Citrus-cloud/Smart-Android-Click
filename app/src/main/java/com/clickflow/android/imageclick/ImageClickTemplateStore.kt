@@ -9,6 +9,7 @@ import java.util.UUID
 
 private const val PREFS_NAME = "clickflow_image_templates"
 private const val KEY_TEMPLATES = "templates"
+private const val KEY_SEQUENTIAL = "sequential_mode"
 
 private const val DEFAULT_THRESHOLD = 0.82f
 private const val DEFAULT_INTERVAL_MS = 1100L
@@ -40,6 +41,21 @@ data class ImageClickTemplate(
 )
 
 object ImageClickTemplateStore {
+    /**
+     * Run mode for a multi-photo run.
+     *  - true (default): SEQUENTIAL — tap photo 1, then 2, then 3 in order, each once, then stop.
+     *    Matches "open icon → go in → pick map" chains across screens and never taps junk afterwards.
+     *  - false: SIMULTANEOUS multitap — every active photo is searched and tapped on the same screen,
+     *    each repeating on its own counter (good for tapping several buttons on one screen).
+     */
+    fun loadSequential(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_SEQUENTIAL, true)
+
+    fun saveSequential(context: Context, value: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_SEQUENTIAL, value).apply()
+    }
+
     fun copyUriAsTemplate(context: Context, uri: Uri, number: Int): ImageClickTemplate? {
         return runCatching {
             val dir = File(context.filesDir, "image_templates").apply { mkdirs() }
@@ -53,7 +69,7 @@ object ImageClickTemplateStore {
             BitmapFactory.decodeFile(out.absolutePath, opts)
             ImageClickTemplate(
                 id = id,
-                name = "Шаблон $number",
+                name = "\u0428\u0430\u0431\u043b\u043e\u043d $number",
                 filePath = out.absolutePath,
                 width = opts.outWidth.coerceAtLeast(1),
                 height = opts.outHeight.coerceAtLeast(1),
@@ -154,7 +170,7 @@ fun ImageClickTemplate.normalized(): ImageClickTemplate {
     val maxScale = scaleMax.coerceIn(minScale, 2f)
     return copy(
         id = id.trim(),
-        name = name.trim().ifBlank { "Шаблон" }.take(60),
+        name = name.trim().ifBlank { "\u0428\u0430\u0431\u043b\u043e\u043d" }.take(60),
         filePath = filePath.trim(),
         width = width.coerceAtLeast(1),
         height = height.coerceAtLeast(1),
