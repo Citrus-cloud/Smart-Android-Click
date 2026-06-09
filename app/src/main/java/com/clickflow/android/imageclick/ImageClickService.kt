@@ -20,6 +20,7 @@ import com.clickflow.android.permissions.ClickFlowAccessibilityService
 import com.clickflow.android.service.ForegroundNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -37,9 +38,11 @@ import kotlin.math.roundToInt
  * picture(s) are found. Two run modes:
  *
  *  - SEQUENTIAL (default): photos are tapped strictly in order — it waits for photo 1 to
- *    appear and taps it once, then waits for photo 2, then photo 3, then STOPS. This matches
- *    cross-screen chains like "open game icon → open map list → pick a map" and never keeps
- *    tapping random spots after the chain is done.
+ *    appear and taps it once, then waits for photo 2, then photo 3. By default it STOPS after
+ *    the last photo. With looping on it instead restarts from photo 1 (infinitely or a set
+ *    number of passes), and a missing photo never auto-stops it — it just keeps waiting, so the
+ *    run only ends when the user presses Stop. This matches cross-screen chains like
+ *    "open game icon → open map list → pick a map" and farming the same chain on repeat.
  *  - SIMULTANEOUS ("multitap"): every active photo is searched in the SAME screenshot and
  *    tapped within the same scan cycle, each with its own repeat counter — good for hitting
  *    several buttons on one screen.
@@ -47,8 +50,8 @@ import kotlin.math.roundToInt
  * No screen-recording prompt. Android limits screenshots to about one per second, so the scan
  * interval is kept above that to stay reliable.
  *
- * A small debug log sits under the red stop chip and shows, every cycle, the match confidence
- * per picture and where it tapped (or that nothing matched), so it is obvious what is happening.
+ * Every fresh start cancels any previous run and clears the debug log + control chip, so a
+ * restart always begins cleanly at photo 1 and never carries over stale state.
  *
  * The control panel is NOT hidden during each screenshot: toggling its visibility every cycle
  * made it (and the system's floating-window indicator) blink on and off. The panel sits in the
@@ -56,6 +59,7 @@ import kotlin.math.roundToInt
  */
 class ImageClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var job: Job? = null
     private var running = false
     private var panelView: View? = null
     private var debugText: TextView? = null
@@ -76,8 +80,16 @@ class ImageClickService : Service() {
                     stopSelf(); return START_NOT_STICKY
                 }
                 val sequential = intent.getBooleanExtra(EXTRA_SEQUENTIAL, true)
+                val loop = intent.getBooleanExtra(EXTRA_LOOP, false)
+                val loopCount = intent.getIntExtra(EXTRA_LOOP_COUNT, 0).coerceAtLeast(0)
+                // Fresh start: cancel any previous run and wipe leftover state so the log and the
+                // step index never carry over from a finished/old run.
+                job?.cancel()
+                running = false
+                debugLines.clear()
+                removeStopChip()
                 ForegroundNotifications.start(this, ForegroundNotifications.ID_IMAGE, "ClickFlow: \u0430\u0432\u0442\u043e\u0442\u0430\u043f \u043f\u043e \u0444\u043e\u0442\u043e")
-                scope.launch {
+                job = scope.launch {
                     val service = ClickFlowAccessibilityService.awaitInstance()
                     if (service == null) {
                         val msg = if (ClickFlowAccessibilityService.isEnabledInSettings(this@ImageClickService))
@@ -86,7 +98,7 @@ class ImageClickService : Service() {
                         Toast.makeText(this@ImageClickService, msg, Toast.LENGTH_LONG).show()
                         stopSelf(); return@launch
                     }
-                    begin(ids, sequential)
+                    begin(ids, sequential, loop, loopCount)
                 }
             }
             else -> stopSelf()
@@ -178,7 +190,7 @@ class ImageClickService : Service() {
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
-    private fun begin(templateIds: List<String>, sequential: Boolean) {
+    private suspend fun begin(templateIds: List<String>, sequential: Boolean, loop: Boolean, loopCount: Int) {
         val all = ImageClickTemplateStore.loadTemplates(this)
         // Keep the order the user arranged the photos in — that defines the sequence.
         val targets = templateIds
@@ -189,32 +201,77 @@ class ImageClickService : Service() {
             }
             .toMutableList()
         if (targets.isEmpty()) { stopSelf(); return }
-        val service = ClickFlowAccessibilityService.liveInstance ?: run {
-            targets.forEach { it.bitmap.recycle() }
+        if (ClickFlowAccessibilityService.liveInstance == null) {
+            targets.forEach { runCatching { it.bitmap.recycle() } }
             stopSelf(); return
         }
+        val service = ClickFlowAccessibilityService.liveInstance!!
 
         running = true
         showStopChip()
         // Scan as fast as the fastest target wants, but never faster than the screenshot limit.
         val scanInterval = maxOf(targets.minOf { it.meta.intervalMs }, 1100L)
-        scope.launch {
+        try {
             delay(800) // let the setup screen disappear before the first screenshot
-            if (sequential) sequentialLoop(targets, service, scanInterval)
+            if (sequential) sequentialLoop(targets, service, scanInterval, loop, loopCount)
             else simultaneousLoop(targets, service, scanInterval)
+        } finally {
             targets.forEach { runCatching { it.bitmap.recycle() } }
-            stopSelf()
         }
+        stopSelf()
     }
 
     /**
-     * Tap photos strictly in order: wait for the current photo, tap it once, advance to the next,
-     * and stop after the last. A photo that never shows up within [MAX_MISSES] scans stops the run
-     * with a clear message instead of hanging forever.
+     * Tap photos strictly in order. By default runs a single pass and stops. With [loopEnabled]
+     * it repeats the whole chain — [loopCount] passes, or forever when loopCount <= 0 — and a
+     * missing photo no longer ends the run; it simply keeps waiting until the photo shows up or
+     * the user presses Stop.
      */
     @RequiresApi(Build.VERSION_CODES.R)
-    private suspend fun sequentialLoop(targets: List<ImageTarget>, service: ClickFlowAccessibilityService, scanInterval: Long) {
-        pushDebug(listOf("\u25b6 \u043f\u043e \u043e\u0447\u0435\u0440\u0435\u0434\u0438: ${targets.size} \u0448\u0430\u0433(\u043e\u0432)"))
+    private suspend fun sequentialLoop(
+        targets: List<ImageTarget>,
+        service: ClickFlowAccessibilityService,
+        scanInterval: Long,
+        loopEnabled: Boolean,
+        loopCount: Int,
+    ) {
+        val loopLabel = when {
+            !loopEnabled -> "1"
+            loopCount <= 0 -> "\u221e"
+            else -> "$loopCount"
+        }
+        pushDebug(listOf("\u25b6 \u043f\u043e \u043e\u0447\u0435\u0440\u0435\u0434\u0438: ${targets.size} \u0448\u0430\u0433(\u043e\u0432) \u00d7$loopLabel"))
+        var pass = 0
+        while (running) {
+            val completed = runSequentialPass(targets, service, scanInterval, loopEnabled)
+            if (!completed) break
+            pass++
+            if (!loopEnabled) {
+                pushDebug(listOf("\u2713 \u0433\u043e\u0442\u043e\u0432\u043e \u2014 \u0432\u0441\u0435 \u0448\u0430\u0433\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b"))
+                break
+            }
+            if (loopCount > 0 && pass >= loopCount) {
+                pushDebug(listOf("\u2713 \u0433\u043e\u0442\u043e\u0432\u043e \u2014 $pass \u0446\u0438\u043a\u043b(\u043e\u0432)"))
+                break
+            }
+            pushDebug(listOf("\u21bb \u0446\u0438\u043a\u043b ${pass + 1}\u2026"))
+            delay(SETTLE_MS)
+        }
+        running = false
+    }
+
+    /**
+     * One full ordered pass over [targets]. Returns true if every photo was tapped in order,
+     * false if the pass was aborted (capture repeatedly failed, the user stopped, or — only when
+     * not looping — a photo never showed up within [MAX_MISSES] scans).
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private suspend fun runSequentialPass(
+        targets: List<ImageTarget>,
+        service: ClickFlowAccessibilityService,
+        scanInterval: Long,
+        loopEnabled: Boolean,
+    ): Boolean {
         var idx = 0
         var misses = 0
         var captureFails = 0
@@ -226,7 +283,7 @@ class ImageClickService : Service() {
                 if (captureFails >= 5) {
                     Toast.makeText(this@ImageClickService, "\u041d\u0435 \u0443\u0434\u0430\u0451\u0442\u0441\u044f \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u044d\u043a\u0440\u0430\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c Accessibility \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0441\u043d\u043e\u0432\u0430.", Toast.LENGTH_LONG).show()
                     running = false
-                    break
+                    return false
                 }
                 delay(scanInterval)
                 continue
@@ -247,20 +304,21 @@ class ImageClickService : Service() {
             } else {
                 misses++
                 val c = if (match == null) "\u2014" else pct(match.confidence)
-                pushDebug(listOf("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)}) \u0436\u0434\u0443\u2026 $misses/$MAX_MISSES"))
+                if (loopEnabled) {
+                    pushDebug(listOf("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)}) \u0436\u0434\u0443\u2026 $misses"))
+                } else {
+                    pushDebug(listOf("$label \u2717 $c (\u043f\u043e\u0440\u043e\u0433 ${pct(t.meta.threshold)}) \u0436\u0434\u0443\u2026 $misses/$MAX_MISSES"))
+                }
                 bitmap.recycle()
-                if (misses >= MAX_MISSES) {
+                if (!loopEnabled && misses >= MAX_MISSES) {
                     Toast.makeText(this@ImageClickService, "\u041d\u0435 \u043d\u0430\u0448\u0451\u043b \u0444\u043e\u0442\u043e \u2116${idx + 1}. \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e.", Toast.LENGTH_LONG).show()
                     running = false
-                    break
+                    return false
                 }
                 delay(scanInterval)
             }
         }
-        if (running && idx >= targets.size) {
-            pushDebug(listOf("\u2713 \u0433\u043e\u0442\u043e\u0432\u043e \u2014 \u0432\u0441\u0435 \u0448\u0430\u0433\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b")) 
-        }
-        running = false
+        return running && idx >= targets.size
     }
 
     /** The original "multitap": search every active photo in one screenshot and tap each that clears its threshold. */
@@ -322,6 +380,7 @@ class ImageClickService : Service() {
 
     override fun onDestroy() {
         running = false
+        job?.cancel()
         removeStopChip()
         ForegroundNotifications.stop(this)
         scope.cancel()
@@ -334,6 +393,8 @@ class ImageClickService : Service() {
         const val EXTRA_TEMPLATE_ID = "template_id"
         const val EXTRA_TEMPLATE_IDS = "template_ids"
         const val EXTRA_SEQUENTIAL = "sequential"
+        const val EXTRA_LOOP = "loop"
+        const val EXTRA_LOOP_COUNT = "loop_count"
         private const val SETTLE_MS = 700L
         private const val MAX_MISSES = 60
     }
