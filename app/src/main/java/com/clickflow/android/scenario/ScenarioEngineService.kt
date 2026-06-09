@@ -119,6 +119,10 @@ class ScenarioEngineService : Service() {
                     updateProgress("\u25b6 ${scenario.name}\nЦикл ${loop + 1}/$loopLabel \u00b7 шаг ${index + 1}/${scenario.steps.size}\n${step.summary()}")
                     val keepGoing = executeStep(step, service, recognizer)
                     if (!keepGoing) { running = false; break@outer }
+                    // Guarantee a settle pause between steps so taps run strictly one after
+                    // another and the screen has time to change (e.g. open app -> next tab).
+                    // WAIT steps are already a delay, so they don't need extra settle time.
+                    if (running && step.type != StepType.WAIT) delay(SETTLE_BETWEEN_STEPS_MS)
                 }
                 loop++
             }
@@ -412,5 +416,6 @@ class ScenarioEngineService : Service() {
         const val ACTION_START = "com.clickflow.android.scenario.engine.START"
         const val ACTION_STOP = "com.clickflow.android.scenario.engine.STOP"
         const val EXTRA_SCENARIO_ID = "scenario_id"
+        private const val SETTLE_BETWEEN_STEPS_MS = 500L
     }
 }
