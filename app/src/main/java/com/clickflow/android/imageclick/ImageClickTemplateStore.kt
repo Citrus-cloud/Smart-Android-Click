@@ -10,6 +10,8 @@ import java.util.UUID
 private const val PREFS_NAME = "clickflow_image_templates"
 private const val KEY_TEMPLATES = "templates"
 private const val KEY_SEQUENTIAL = "sequential_mode"
+private const val KEY_LOOP = "sequential_loop"
+private const val KEY_LOOP_COUNT = "sequential_loop_count"
 
 private const val DEFAULT_THRESHOLD = 0.82f
 private const val DEFAULT_INTERVAL_MS = 1100L
@@ -54,6 +56,32 @@ object ImageClickTemplateStore {
     fun saveSequential(context: Context, value: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_SEQUENTIAL, value).apply()
+    }
+
+    /**
+     * Whether a completed SEQUENTIAL pass restarts from photo 1 instead of stopping.
+     *  - false (default): stop after the last photo (one pass).
+     *  - true: repeat the whole chain. See [loadLoopCount] for how many times.
+     */
+    fun loadLoop(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_LOOP, false)
+
+    fun saveLoop(context: Context, value: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_LOOP, value).apply()
+    }
+
+    /**
+     * How many full sequential passes to run when looping is on.
+     *  - 0 (default): infinite — keep repeating until the user presses Stop.
+     *  - n > 0: run the whole chain n times, then stop.
+     */
+    fun loadLoopCount(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_LOOP_COUNT, 0).coerceIn(0, 100000)
+
+    fun saveLoopCount(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_LOOP_COUNT, value.coerceIn(0, 100000)).apply()
     }
 
     fun copyUriAsTemplate(context: Context, uri: Uri, number: Int): ImageClickTemplate? {
