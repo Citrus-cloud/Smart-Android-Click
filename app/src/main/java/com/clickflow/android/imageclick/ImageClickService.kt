@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -25,7 +26,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.coroutines.resume
+import kotlin.math.roundToInt
 
 /**
  * Looks at the screen via the Accessibility screenshot API and taps where the saved
@@ -33,12 +38,19 @@ import kotlin.coroutines.resume
  * template is searched for in the SAME screenshot and tapped within the same scan cycle,
  * each with its own repeat counter. No screen-recording prompt. Android limits screenshots
  * to about one per second, so the scan interval is kept above that to stay reliable.
+ *
+ * A small debug log sits under the red stop chip and shows, every cycle, the match
+ * confidence per picture and where it tapped (or that nothing matched), so it is obvious
+ * what the clicker is doing.
  */
 class ImageClickService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var running = false
-    private var stopChip: View? = null
+    private var panelView: View? = null
+    private var debugText: TextView? = null
     private var wm: WindowManager? = null
+    private val debugLines = mutableListOf<String>()
+    private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -83,6 +95,10 @@ class ImageClickService : Service() {
     private fun showStopChip() {
         try {
             val manager = getSystemService(WINDOW_SERVICE) as WindowManager
+            val root = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.END
+            }
             val chip = TextView(this).apply {
                 text = "\u25a0 Стоп фото"
                 setTextColor(Color.WHITE)
@@ -91,20 +107,46 @@ class ImageClickService : Service() {
                 background = GradientDrawable().apply { cornerRadius = 32f; setColor(0xF2D32F2F.toInt()) }
                 setOnClickListener { stopSelf() }
             }
+            val debug = TextView(this).apply {
+                text = "журнал кликов\u2026"
+                setTextColor(0xFFEAEAEA.toInt())
+                textSize = 10f
+                maxWidth = 560
+                setPadding(26, 16, 26, 16)
+                background = GradientDrawable().apply { cornerRadius = 22f; setColor(0xE61C1C1C.toInt()) }
+            }
+            val debugLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 14; gravity = Gravity.END }
+            root.addView(chip)
+            root.addView(debug, debugLp)
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT,
             ).apply { gravity = Gravity.TOP or Gravity.END; x = 24; y = 120 }
-            manager.addView(chip, lp)
-            stopChip = chip
+            manager.addView(root, lp)
+            panelView = root
+            debugText = debug
             wm = manager
         } catch (_: Throwable) {}
     }
 
     private fun removeStopChip() {
-        stopChip?.let { chip -> runCatching { wm?.removeView(chip) } }
-        stopChip = null
+        panelView?.let { v -> runCatching { wm?.removeView(v) } }
+        panelView = null
+        debugText = null
     }
+
+    private fun pushDebug(lines: List<String>) {
+        if (lines.isEmpty()) return
+        debugLines.add(timeFmt.format(Date()))
+        lines.forEach { debugLines.add("  $it") }
+        while (debugLines.size > 10) debugLines.removeAt(0)
+        val text = debugLines.joinToString("\n")
+        debugText?.let { tv -> tv.post { tv.text = text } }
+    }
+
+    private fun pct(confidence: Float): String = "${(confidence * 100).roundToInt()}%"
 
     @RequiresApi(Build.VERSION_CODES.R)
     private fun begin(templateIds: List<String>) {
@@ -135,6 +177,7 @@ class ImageClickService : Service() {
                     // takeScreenshot can transiently fail (rate limit) but should recover; if it keeps
                     // failing the feature would otherwise loop forever doing nothing, so tell the user.
                     captureFails++
+                    pushDebug(listOf("\u2717 скриншот не получен ($captureFails/5)"))
                     if (captureFails >= 5) {
                         Toast.makeText(this@ImageClickService, "Не удаётся сделать скриншот экрана. Проверь спец. возможности (Accessibility) и попробуй снова.", Toast.LENGTH_LONG).show()
                         running = false
@@ -145,17 +188,17 @@ class ImageClickService : Service() {
                 }
                 captureFails = 0
                 // Heavy pixel matching runs off the main thread so the UI never blocks. Every active
-                // target is searched for in this one screenshot; we collect the tap points first.
-                val hits = withContext(Dispatchers.Default) {
-                    targets.mapNotNull { t ->
+                // target is searched for in this one screenshot; we get the best match for each and
+                // only tap the ones whose confidence clears their threshold.
+                val scan = withContext(Dispatchers.Default) {
+                    targets.map { t ->
                         val regionLeftPx = (bitmap.width * t.meta.regionLeft).toInt()
                         val regionTopPx = (bitmap.height * t.meta.regionTop).toInt()
                         val regionRightPx = (bitmap.width * t.meta.regionRight).toInt()
                         val regionBottomPx = (bitmap.height * t.meta.regionBottom).toInt()
-                        val match = BitmapTemplateMatcher.findBest(
+                        val match = BitmapTemplateMatcher.findBestMatch(
                             screen = bitmap,
                             template = t.bitmap,
-                            threshold = t.meta.threshold,
                             regionLeftPx = regionLeftPx,
                             regionTopPx = regionTopPx,
                             regionRightPx = regionRightPx,
@@ -163,19 +206,27 @@ class ImageClickService : Service() {
                             scaleMin = t.meta.scaleMin,
                             scaleMax = t.meta.scaleMax,
                         )
-                        if (match == null) {
-                            null
-                        } else {
-                            val tapX = match.x + (match.width * t.meta.tapX).toInt()
-                            val tapY = match.y + (match.height * t.meta.tapY).toInt()
-                            Triple(t, tapX, tapY)
-                        }
+                        t to match
                     }
                 }
+                val hits = mutableListOf<Triple<ImageTarget, Int, Int>>()
+                val lines = mutableListOf<String>()
+                scan.forEachIndexed { i, (t, match) ->
+                    val label = "#${i + 1}"
+                    if (match != null && match.confidence >= t.meta.threshold) {
+                        val tapX = match.x + (match.width * t.meta.tapX).toInt()
+                        val tapY = match.y + (match.height * t.meta.tapY).toInt()
+                        hits.add(Triple(t, tapX, tapY))
+                        lines.add("$label \u2713 ${pct(match.confidence)} \u2192 $tapX,$tapY")
+                    } else {
+                        val c = if (match == null) "\u2014" else pct(match.confidence)
+                        lines.add("$label \u2717 $c (порог ${pct(t.meta.threshold)})")
+                    }
+                }
+                pushDebug(lines)
                 // Tap each found target one at a time, WAITING for each gesture to finish before the
                 // next. Only one gesture can be in flight at a time, so firing several taps back-to-back
-                // made the framework drop all but one (and on some OEMs even that one) — which is why
-                // multi-target (and rapid repeat) taps in a single cycle could do nothing at all.
+                // made the framework drop all but one (and on some OEMs even that one).
                 for ((t, tapX, tapY) in hits) {
                     service.performSingleTapAwait(tapX, tapY, 70L)
                     t.taps++
@@ -196,9 +247,9 @@ class ImageClickService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     private suspend fun capture(service: ClickFlowAccessibilityService): Bitmap? = suspendCancellableCoroutine { cont ->
-        stopChip?.visibility = View.INVISIBLE
+        panelView?.let { v -> v.post { v.visibility = View.INVISIBLE } }
         service.captureScreenBitmap { bitmap ->
-            stopChip?.let { it.post { it.visibility = View.VISIBLE } }
+            panelView?.let { v -> v.post { v.visibility = View.VISIBLE } }
             if (cont.isActive) cont.resume(bitmap)
         }
     }
