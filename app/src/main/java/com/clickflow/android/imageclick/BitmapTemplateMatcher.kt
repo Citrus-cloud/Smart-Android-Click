@@ -31,7 +31,7 @@ object BitmapTemplateMatcher {
     )
 
     fun findBest(screen: Bitmap, template: Bitmap, threshold: Float): Match? =
-        findBest(screen, template, threshold, 0, 0, screen.width, screen.height, 1f, 1f)
+        findBest(screen, template, threshold, 0, 0, screen.width, screen.height, 0.8f, 1.2f)
 
     fun findBest(
         screen: Bitmap,

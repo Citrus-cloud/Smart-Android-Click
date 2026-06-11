@@ -296,8 +296,10 @@ class FloatingTapperOverlayService : Service() {
             } else {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
-            runCatching { windowManager.removeViewImmediate(m.view) }
-            runCatching { windowManager.addView(m.view, m.params) }
+            try {
+                windowManager.removeViewImmediate(m.view)
+                windowManager.addView(m.view, m.params)
+            } catch (_: Throwable) {}
         }
     }
 

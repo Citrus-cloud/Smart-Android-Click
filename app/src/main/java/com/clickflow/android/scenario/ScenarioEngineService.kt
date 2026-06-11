@@ -10,6 +10,7 @@ import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -126,7 +127,7 @@ class ScenarioEngineService : Service() {
     ): Boolean {
         when (step.type) {
             StepType.WAIT -> {
-                delay(step.waitMs.coerceIn(0L, 600000L))
+                delay(step.waitMs.coerceIn(50L, 600000L))
                 return true
             }
             StepType.MARKER -> {
@@ -183,7 +184,7 @@ class ScenarioEngineService : Service() {
             if (!found && step.notFound == NotFoundPolicy.WAIT_RETRY) {
                 var retries = 0
                 val maxRetries = step.notFoundRetries.coerceAtLeast(0)
-                val waitMs = step.notFoundWaitMs.coerceIn(100L, 600000L)
+                val waitMs = step.notFoundWaitMs.coerceIn(50L, 600000L)
                 while (running && !found && retries < maxRetries) {
                     delay(waitMs)
                     found = findOnce()
@@ -343,7 +344,9 @@ class ScenarioEngineService : Service() {
             panelView = root
             progressText = progress
             wm = manager
-        } catch (_: Throwable) {}
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to show control panel", t)
+        }
     }
 
     private fun removeControlPanel() {
@@ -361,6 +364,7 @@ class ScenarioEngineService : Service() {
     }
 
     companion object {
+        private const val TAG = "ScenarioEngine"
         const val ACTION_START = "com.clickflow.android.scenario.engine.START"
         const val ACTION_STOP = "com.clickflow.android.scenario.engine.STOP"
         const val EXTRA_SCENARIO_ID = "scenario_id"
