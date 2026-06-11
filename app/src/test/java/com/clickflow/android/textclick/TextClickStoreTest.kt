@@ -7,53 +7,33 @@ import org.junit.Test
 
 class TextClickStoreTest {
 
-    // ---- normalized() tests ----
-
     @Test
-    fun normalized_trimsQueries() {
-        val config = TextClickConfig(queries = listOf("  OK  ", "  Hello  "))
+    fun normalized_trimsQuery() {
+        val config = TextClickConfig(query = "  OK  ")
         val normalized = config.normalized()
-        assertEquals(listOf("OK", "Hello"), normalized.queries)
+        assertEquals("OK", normalized.query)
     }
 
     @Test
-    fun normalized_filtersBlankQueries() {
-        val config = TextClickConfig(queries = listOf("OK", "", "  ", "Go"))
+    fun normalized_blankQuery_fallsBackToDefault() {
+        val config = TextClickConfig(query = "")
         val normalized = config.normalized()
-        assertEquals(listOf("OK", "Go"), normalized.queries)
+        assertEquals("OK", normalized.query)
     }
 
     @Test
-    fun normalized_deduplicatesQueries() {
-        val config = TextClickConfig(queries = listOf("OK", "ok", "OK"))
+    fun normalized_whitespaceQuery_fallsBackToDefault() {
+        val config = TextClickConfig(query = "   ")
         val normalized = config.normalized()
-        // With ignoreCase=true (default), "OK" and "ok" are different strings
-        // but distinct() keeps both since it's string equality
-        assertEquals(2, normalized.queries.size)
-    }
-
-    @Test
-    fun normalized_maxTenQueries() {
-        val queries = (1..20).map { "Query $it" }
-        val config = TextClickConfig(queries = queries)
-        val normalized = config.normalized()
-        assertEquals(10, normalized.queries.size)
+        assertEquals("OK", normalized.query)
     }
 
     @Test
     fun normalized_queryMaxLength200() {
         val longQuery = "A".repeat(300)
-        val config = TextClickConfig(queries = listOf(longQuery))
+        val config = TextClickConfig(query = longQuery)
         val normalized = config.normalized()
-        assertEquals(200, normalized.queries[0].length)
-    }
-
-    @Test
-    fun normalized_emptyQueries_fallbackToDefault() {
-        val config = TextClickConfig(queries = listOf("", "  "))
-        val normalized = config.normalized()
-        assertEquals(1, normalized.queries.size)
-        assertEquals("OK", normalized.queries[0])
+        assertEquals(200, normalized.query.length)
     }
 
     @Test
@@ -79,13 +59,14 @@ class TextClickStoreTest {
     @Test
     fun normalized_preservesOtherFields() {
         val config = TextClickConfig(
-            queries = listOf("OK"),
+            query = "Test",
             contains = false,
             ignoreCase = false,
             continuous = true,
             infinite = true,
         )
         val normalized = config.normalized()
+        assertEquals("Test", normalized.query)
         assertFalse(normalized.contains)
         assertFalse(normalized.ignoreCase)
         assertTrue(normalized.continuous)
@@ -94,9 +75,8 @@ class TextClickStoreTest {
 
     @Test
     fun normalized_singleQuery() {
-        val config = TextClickConfig(queries = listOf("Test"))
+        val config = TextClickConfig(query = "Submit")
         val normalized = config.normalized()
-        assertEquals(1, normalized.queries.size)
-        assertEquals("Test", normalized.queries[0])
+        assertEquals("Submit", normalized.query)
     }
 }

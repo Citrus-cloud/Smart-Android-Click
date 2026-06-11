@@ -7,8 +7,6 @@ import org.junit.Test
 
 class ImageClickTemplateStoreTest {
 
-    // ---- ImageClickTemplate data class ----
-
     @Test
     fun template_defaultValues() {
         val t = ImageClickTemplate(
@@ -28,7 +26,6 @@ class ImageClickTemplateStoreTest {
         assertEquals(1100L, t.intervalMs)
         assertEquals(50, t.repeatCount)
         assertFalse(t.infinite)
-        assertTrue(t.enabled)
     }
 
     @Test
@@ -44,8 +41,6 @@ class ImageClickTemplateStoreTest {
         assertEquals(50, modified.height)
         assertEquals(0.9f, modified.threshold, 0.001f)
     }
-
-    // ---- normalized() ----
 
     @Test
     fun normalized_id_trimmed() {
@@ -192,17 +187,5 @@ class ImageClickTemplateStoreTest {
         assertTrue(t.regionTop >= 0f)
         assertTrue(t.regionRight > t.regionLeft)
         assertTrue(t.regionBottom > t.regionTop)
-    }
-
-    // ---- normalizedRegion() alias ----
-
-    @Test
-    fun normalizedRegion_sameAsNormalized() {
-        val t = ImageClickTemplate(
-            id = "t1", name = "Test", filePath = "/data/test.png",
-            width = 100, height = 100,
-            regionLeft = -0.5f, regionRight = 2.0f,
-        )
-        assertEquals(t.normalized(), t.normalizedRegion())
     }
 }
